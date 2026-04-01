@@ -8,7 +8,16 @@
 
 ---
 
-## 🚀 Live Preview & Automation
+## 🚀 Advanced Features Added
+
+1.  **📦 Automatic Releases**: Every `git push` to `main` now automatically creates/updates a [GitHub Release](https://github.com/bbinxx/resume/releases/tag/latest) with your latest PDF.
+2.  **🌗 Preview Automation**: Real-time preview updates for both local dev and GitHub.
+3.  **📂 Data Extraction**: A new `scripts/to_json.py` tool to convert your LaTeX content into structured JSON for ATS or web integrations.
+4.  **🔄 Watch Mode**: Live-sync your `preview.png` while editing.
+
+---
+
+## 🛠️ Usage & Automation
 
 Thinking about a **truly live** flow?
 
