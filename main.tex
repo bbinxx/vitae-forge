@@ -47,12 +47,12 @@
 \noindent
 \begin{minipage}[c]{0.48\textwidth}
   \raggedright
-  {\fontsize{24}{28}\selectfont YOUR NAME}\par
+  {\fontsize{24}{28}\selectfont \textbf{YOUR NAME}}\par
   \vspace{5pt}
   {\large\itshape\color{gray} Computer Science Engineer}\par
 \end{minipage}%
 \hfill
-\begin{minipage}[c]{0.46\textwidth}
+\begin{minipage}[c]{0.36\textwidth}
   \raggedleft
   \begin{minipage}[c]{0.68\linewidth}
     \raggedleft
@@ -63,19 +63,19 @@
       \href{https://github.com/your-github}{github.com/your-github}\\
     }
   \end{minipage}%
-  \hspace{8pt}
-  \begin{minipage}[c]{0.26\linewidth}
+  \hspace{0.1pt}
+\begin{minipage}[c]{0.26\linewidth}
     \raggedleft
     \fboxsep=2pt\fboxrule=0.5pt
     \fbox{%
       \IfFileExists{profile-photo.jpg}{%
-        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{profile-photo.jpg}}{%
+        \includegraphics[height=0.75in,keepaspectratio]{profile-photo.jpg}}{%
       \IfFileExists{profile-photo.png}{%
-        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{profile-photo.png}}{%
+        \includegraphics[height=0.75in,keepaspectratio]{profile-photo.png}}{%
       \IfFileExists{photo.jpg}{%
-        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{photo.jpg}}{%
+        \includegraphics[height=0.75in,keepaspectratio]{photo.jpg}}{%
       \IfFileExists{photo.png}{%
-        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{photo.png}}{}}}}%
+        \includegraphics[height=0.75in,keepaspectratio]{photo.png}}{}}}}%
     }%
   \end{minipage}
 \end{minipage}
