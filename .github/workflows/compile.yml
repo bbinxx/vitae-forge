@@ -1,0 +1,37 @@
+name: Compile LaTeX Resume and Update Preview
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install LaTeX and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-extra texlive-fonts-recommended poppler-utils
+
+      - name: Compile LaTeX to PDF
+        run: pdflatex -interaction=batchmode main.tex
+
+      - name: Generate Preview Image
+        run: pdftoppm -r 150 -png main.pdf preview
+
+      - name: Rename Preview
+        run: mv preview-1.png preview.png
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add main.pdf preview.png
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update resume pdf and preview image [skip ci]" && git push)
