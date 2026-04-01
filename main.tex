@@ -1,12 +1,28 @@
-\documentclass[a4paper,10pt]{article}
+% !TEX root = main.tex
+\documentclass[10pt, a4paper]{article}
 
-\usepackage[left=0.45in,right=0.45in,top=0.3in,bottom=0.3in]{geometry}
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[
+  top=0.35in, bottom=0.35in,
+  left=0.45in, right=0.45in
+]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
 \usepackage{titlesec}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{parskip}
+
+% ── Hyperlink styling ─────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  urlcolor=black,
+  linkcolor=black
+}
+
+\pagestyle{empty}
 
 % Section formatting
 \titleformat{\section}
@@ -14,36 +30,61 @@
   {}{0em}{\MakeUppercase}
   [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
 
-\titlespacing{\section}{0pt}{9pt}{4pt}
+\titlespacing{\section}{0pt}{6pt}{2pt}
 
-\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=1pt}
+\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=0pt}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
 
+% Set base font size slightly larger than 10pt default
+\fontsize{10.5}{13.5}\selectfont
+
+% ══════════════════════════════════════════════════════════════════════════════
 \begin{document}
 
-\pagestyle{empty}
+% ── HEADER ────────────────────────────────────────────────────────────────────
+\noindent
+\begin{minipage}[c]{0.48\textwidth}
+  \raggedright
+  {\fontsize{24}{28}\selectfont Bibin Raju}\par
+  \vspace{5pt}
+  {\large\itshape\color{gray} Computer Science Engineer}\par
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.46\textwidth}
+  \raggedleft
+  \begin{minipage}[c]{0.68\linewidth}
+    \raggedleft
+    {\small\itshape\color{gray}
+      \href{mailto:bibinraju541@gmail.com}{bibinraju541@gmail.com}\\[3pt]
+      +91\,90740\,85302\\[3pt]
+      \href{https://linkedin.com/in/bibinraju}{linkedin.com/in/bibinraju}\\[3pt]
+      \href{https://github.com/bbinxx}{github.com/bbinxx}\\
+    }
+  \end{minipage}%
+  \hspace{8pt}
+  \begin{minipage}[c]{0.26\linewidth}
+    \raggedleft
+    \fboxsep=2pt\fboxrule=0.5pt
+    \fbox{%
+      \IfFileExists{profile-photo.jpg}{%
+        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{profile-photo.jpg}}{%
+      \IfFileExists{profile-photo.png}{%
+        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{profile-photo.png}}{%
+      \IfFileExists{photo.jpg}{%
+        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{photo.jpg}}{%
+      \IfFileExists{photo.png}{%
+        \includegraphics[width=0.75in,height=0.90in,keepaspectratio=false]{photo.png}}{}}}}%
+    }%
+  \end{minipage}
+\end{minipage}
 
-%------------------------------------------------------------
-% HEADER
-%------------------------------------------------------------
-\begin{center}
-{\LARGE \textbf{Bibin Raju}}\\[3pt]
-\href{mailto:bibinraju541@gmail.com}{bibinraju541@gmail.com}
-~$|$~
-\href{tel:+919074085302}{+91 90740 85302}
-~$|$~
-\href{https://www.linkedin.com/in/bibinraju/}{linkedin.com/in/bibinraju}
-~$|$~
-\href{https://github.com/bbinxx}{github.com/bbinxx}
-\end{center}
 
-\vspace{-5pt}
 
-%------------------------------------------------------------
-% PROFESSIONAL SUMMARY
-%------------------------------------------------------------
+
+
+% ── YOUR RESUME CONTENT GOES BELOW ───────────────────────────────────────────
 \section*{Objective}
 
 Developer with hands-on experience in backend systems, REST APIs, and cloud deployment. Skilled in Python, JavaScript, Go, and Rust across web, desktop, and computer vision projects.
@@ -76,7 +117,7 @@ Operating Systems   & Linux, Windows \\
 \item Leveraged Rust backend via Tauri for native performance with a responsive Tailwind CSS frontend.
 \end{itemize}
 
-\vspace{4pt}
+\vspace{3pt}
 
 \textbf{GlyphDeck -- Desktop Font Manager} \hfill \textit{Go, TypeScript, Wails \quad Nov 2025} \quad \href{https://github.com/bbinxx/GlyphDeck}{[GitHub]}
 \begin{itemize}
@@ -85,7 +126,7 @@ Operating Systems   & Linux, Windows \\
 \item Built native desktop application combining Go backend performance with a TypeScript frontend.
 \end{itemize}
 
-\vspace{4pt}
+\vspace{3pt}
 
 \textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase, EJS, Tailwind \quad Dec 2024} \quad \href{https://github.com/bbinxx/advanced-certificate-generator}{[GitHub]}
 \begin{itemize}
@@ -94,7 +135,7 @@ Operating Systems   & Linux, Windows \\
 \item Built an interactive certificate editor using draggable canvas components for customizable layouts.
 \end{itemize}
 
-\vspace{4pt}
+\vspace{3pt}
 
 \textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Next.js, Flask, Python, REST APIs \quad Oct 2024}
 \begin{itemize}
@@ -103,7 +144,7 @@ Operating Systems   & Linux, Windows \\
 \item Implemented a full-stack architecture with analytics dashboard for monitoring farm conditions.
 \end{itemize}
 
-\vspace{4pt}
+\vspace{3pt}
 
 \textbf{AI-Based Smart Traffic System Using Computer Vision} \hfill \textit{Python, YOLO, Flask \quad Jan 2025}
 \begin{itemize}
@@ -125,7 +166,7 @@ Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \hfill
 %------------------------------------------------------------
 \section*{Certifications}
 
-\renewcommand{\arraystretch}{1.05}
+\renewcommand{\arraystretch}{1.1}
 \begin{tabular}{@{} p{7.8cm} p{6.5cm} p{2.5cm} @{}}
 \textbf{Certificate}                  & \textbf{Issuer}              & \textbf{Year} \\[1pt]
 Programming with Python               & Python Institute (OpenEDG)   & 2024 \\
@@ -155,7 +196,5 @@ Global Nominee                       & NASA Space Apps Challenge 2025 \\
 Areas of Interest & Backend Systems, API Development, Full Stack Development, Desktop Applications, Mobile Applications \\
 Languages         & English, Malayalam \\
 \end{tabular}
-
-\vspace{3pt}
 
 \end{document}
