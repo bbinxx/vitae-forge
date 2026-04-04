@@ -8,17 +8,22 @@ command -v inotifywait >/dev/null 2>&1 || { echo "inotifywait not found. Install
 command -v pdflatex >/dev/null 2>&1 || { echo "pdflatex not found. Install it with: sudo apt install texlive-latex-extra"; exit 1; }
 command -v pdftoppm >/dev/null 2>&1 || { echo "pdftoppm not found. Install it with: sudo apt install poppler-utils"; exit 1; }
 
-echo "Watching main.tex for changes... (Press Ctrl+C to stop)"
+# Default target file
+TARGET_FILE="${1:-standard/Bibin_Raju_Resume.tex}"
+BASE_NAME=$(basename "$TARGET_FILE" .tex)
+DIR_NAME=$(dirname "$TARGET_FILE")
 
-while inotifywait -e modify main.tex; do
-  echo "--- Compiling main.tex ---"
-  pdflatex -interaction=batchmode main.tex > /dev/null
+echo "Watching $TARGET_FILE for changes... (Press Ctrl+C to stop)"
+
+while inotifywait -e modify "$TARGET_FILE"; do
+  echo "--- Compiling $TARGET_FILE ---"
+  pdflatex -interaction=batchmode -output-directory="$DIR_NAME" "$TARGET_FILE" > /dev/null
   
   if [ $? -eq 0 ]; then
-    echo "--- Updating preview.png ---"
-    pdftoppm -r 150 -png main.pdf preview_temp
-    mv preview_temp-1.png preview.png
-    echo "--- Done! Preview updated. ---"
+    echo "--- Updating assets/preview.png ---"
+    pdftoppm -r 150 -png "$DIR_NAME/$BASE_NAME.pdf" preview_temp
+    mv preview_temp-1.png assets/preview.png
+    echo "--- Done! Preview updated in assets/ ---"
   else
     echo "--- Error: Compilation failed. ---"
   fi

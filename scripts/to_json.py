@@ -3,7 +3,7 @@ import json
 import os
 
 def extract_content():
-    tex_path = "main.tex"
+    tex_path = os.environ.get("RESUME_TEX", "standard/Bibin_Raju_Resume.tex")
     if not os.path.exists(tex_path):
         print(f"Error: {tex_path} not found.")
         return
