@@ -1,99 +1,88 @@
-# 📄 YOUR NAME — Resume
+# 📄 YOUR NAME — Multi-Role Resume
 
-> A clean, professional single-page LaTeX resume with **automated** PDF/Preview generation.
+> A modular, variant-based LaTeX resume system with **automated** PDF/Preview generation. This repository serves as a central hub for role-specific resumes, currently optimized for **General Development**, **Backend Engineering**, and **Systems Engineering**.
 
 ## ⚡ Preview (Auto-Updated)
 
-![Resume Preview](./preview.png?raw=true)
-
----
-
-## 🚀 Advanced Features Added
-
-1.  **📦 Automatic Releases**: Every `git push` to `main` now automatically creates/updates a [GitHub Release](https://github.com/your-github/resume/releases/tag/latest) with your latest PDF.
-2.  **🌗 Preview Automation**: Real-time preview updates for both local dev and GitHub.
-3.  **📂 Data Extraction**: A new `scripts/to_json.py` tool to convert your LaTeX content into structured JSON for ATS or web integrations.
-4.  **🔄 Watch Mode**: Live-sync your `preview.png` while editing.
-
----
-
-## 🛠️ Usage & Automation
-
-Thinking about a **truly live** flow?
-
-1.  **Automatic Updates**: Every time you `git push` to `main`, a [GitHub Action](.github/workflows/compile.yml) automatically compiles your `.tex` and updates `main.pdf` and `preview.png` in the repo.
-2.  **Local Watch Mode**: If you want to see changes update `preview.png` as you save `main.tex`:
-    ```bash
-    chmod +x scripts/watch_preview.sh
-    ./scripts/watch_preview.sh
-    ```
-    *This will watch your files and update the preview image in your local README environment whenever you save.*
+![Resume Preview](./assets/preview.png?raw=true)
 
 ---
 
 ## 📁 Repository Structure
 
+The project is organized into self-contained folders for different professional roles. Each folder contains its own LaTeX source files and assets.
+
 ```
 .
-├── main.tex           # LaTeX source file
-├── main.pdf           # Compiled resume (PDF)
-├── profile-photo.jpg  # Profile photo used in the header
-├── preview.png        # PDF preview image (auto-generated)
-└── README.md          # This file
+├── standard/           # Default Resume (Standard Baseline)
+│   ├── YOUR_NAME_Raju_Resume.tex       # Classic text-only layout
+│   └── YOUR_NAME_Raju_Resume_X.tex     # Visual layout with profile photo
+├── backend/            # Backend Engineer Variant
+│   ├── YOUR_NAME_Raju_BE_Resume.tex    # Classic text-only layout
+│   └── YOUR_NAME_Raju_BE_Resume_X.tex  # Visual layout with profile photo
+├── systems/            # Systems / Go / Rust Variant
+│   ├── YOUR_NAME_Raju_SE_Resume.tex    # Classic text-only layout
+│   └── YOUR_NAME_Raju_SE_Resume_X.tex  # Visual layout with profile photo
+├── assets/             # Common Assets
+│   ├── preview.png        # Auto-generated preview for README
+│   └── profile-photo.jpg  # Master profile image
+├── scripts/            # Automation & Utility Scripts
+└── README.md           # Documentation
 ```
 
 ---
 
-## 🛠️ Build Instructions
+## 🛠️ Usage & Automation
 
-### Prerequisites
-
-Make sure you have a LaTeX distribution installed:
-
-- **Linux**: `sudo apt install texlive-full` (or `texlive-latex-extra`)
-- **macOS**: Install [MacTeX](https://www.tug.org/mactex/)
-- **Windows**: Install [MiKTeX](https://miktex.org/)
-
-### Compile
-
+### 1. Watch Mode (Real-time Preview)
+If you want to see your changes update the `preview.png` in real-time as you save:
 ```bash
-# Using pdflatex
-pdflatex main.tex
-
-# Or using latexmk (recommended — handles multi-pass automatically)
-latexmk -pdf main.tex
+# General syntax: ./scripts/watch_preview.sh [path_to_tex]
+./scripts/watch_preview.sh standard/YOUR_NAME_Raju_Resume.tex
 ```
 
-The compiled `main.pdf` will appear in the same directory.
+### 2. PDF & Release Automation
+*   **Automatic Compilation**: Every commit to the `main` branch triggers a GitHub Action that compiles your default resume (`standard/YOUR_NAME_Raju_Resume.tex`) and updates the preview image.
+*   **GitHub Releases**: Each push to `main` automatically updates a [latest release](https://github.com/your-github/resume/releases/tag/latest) containing the compiled PDF.
 
-### Clean build artifacts
-
+### 3. Data Extraction (JSON)
+Convert your LaTeX content into structured JSON for ATS or web integrations:
 ```bash
-latexmk -C
+RESUME_TEX=standard/YOUR_NAME_Raju_Resume.tex python3 scripts/to_json.py
+```
+
+---
+
+## 🏗️ Build Instructions
+
+### Prerequisites
+Ensure you have a LaTeX distribution installed:
+- **Linux**: `sudo apt install texlive-full`
+- **macOS**: [MacTeX](https://www.tug.org/mactex/)
+- **Windows**: [MiKTeX](https://miktex.org/)
+
+### Manual Compilation
+To compile a specific variant, navigate to its directory and run `pdflatex`:
+```bash
+cd backend
+pdflatex YOUR_NAME_Raju_BE_Resume.tex
 ```
 
 ---
 
 ## ✏️ Customization
 
-Edit `main.tex` to update:
+To update your details, simply edit the `.tex` files in the desired subfolder. All variants are self-contained and ready to compile independently.
 
-| Section | Description |
-|---|---|
-| Header | Name, email, phone, LinkedIn, GitHub, photo |
-| Objective | Short professional summary |
-| Skills | Languages, frameworks, tools, deployment |
-| Projects | Project title, tech stack, date, GitHub link, bullet points |
-| Education | Degree, institution, university, years |
-| Certifications | Certificate name, issuer, year |
-| Achievements | Awards and recognitions |
-| Additional Info | Areas of interest, spoken languages |
+| Format | Identifier | Use Case |
+|---|---|---|
+| **Classic** | (Main name) | Best for ATS compatibility and traditional applications. |
+| **Visual** | `*_X.tex` | Professional layout with photo, best for modern tech portals. |
 
 ---
 
-## 📦 Download PDF
-
-[![Download PDF](https://img.shields.io/badge/Download-Resume.pdf-blue?logo=adobeacrobatreader)](https://github.com/your-github/resume/raw/main/main.pdf)
+## 📦 Download Latest
+[![Download latest PDF](https://img.shields.io/badge/Download-Latest_Resume-blue?logo=adobeacrobatreader)](https://github.com/your-github/resume/releases/tag/latest)
 
 ---
 
@@ -107,4 +96,4 @@ Edit `main.tex` to update:
 
 ---
 
-*Built with LaTeX · Last updated April 2026*
+*Built with LaTeX · System last updated April 2026*
