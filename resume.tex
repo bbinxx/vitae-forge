@@ -1,0 +1,162 @@
+% !TEX root = main.tex
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[left=0.45in,right=0.45in,top=0.3in,bottom=0.3in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{parskip}
+
+% Section formatting
+\titleformat{\section}
+  {\normalsize\bfseries}
+  {}{0em}{\MakeUppercase}
+  [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
+
+\titlespacing{\section}{0pt}{9pt}{4pt}
+
+\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=1pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+\begin{document}
+
+\pagestyle{empty}
+
+%------------------------------------------------------------
+% HEADER
+%------------------------------------------------------------
+\begin{center}
+{\LARGE \textbf{YOUR NAME}}\\[3pt]
+\href{mailto:your.email@example.com}{your.email@example.com}
+~$|$~
+\href{tel:+910000085302}{+1 (555) 000-0000}
+~$|$~
+\href{https://www.linkedin.com/in/your-linkedin/}{linkedin.com/in/your-linkedin}
+~$|$~
+\href{https://github.com/your-github}{github.com/your-github}
+\end{center}
+
+\vspace{-5pt}
+
+%------------------------------------------------------------
+% PROFESSIONAL SUMMARY
+%------------------------------------------------------------
+\section*{Objective}
+
+Developer with hands-on experience in backend systems, REST APIs, and cloud deployment. Skilled in Python, JavaScript, Go, and Rust across web, desktop, and computer vision projects.
+
+%------------------------------------------------------------
+% TECHNICAL SKILLS
+%------------------------------------------------------------
+\section*{Skills}
+
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
+Languages           & Python, Java, C, JavaScript, Go, Rust \\
+Web Development     & HTML, CSS, React.js, Node.js, Next.js, PHP \\
+Frameworks          & Flask, Django, Express.js, Tauri, Wails, Flutter, Firebase \\
+Databases           & MongoDB, MySQL, Supabase \\
+Developer Tools     & Git, GitHub, Docker, Postman, REST APIs \\
+Deployment          & Netlify, Vercel, Render, DigitalOcean, Cloudflare, Heroku \\
+Operating Systems   & Linux, Windows \\
+\end{tabular}
+
+%------------------------------------------------------------
+% PROJECTS
+%------------------------------------------------------------
+\section*{Projects}
+
+\textbf{DroidOps -- Android Device Management GUI} \hfill \textit{Tauri, React, Rust, TypeScript \quad Dec 2025} \quad \href{https://github.com/your-github/droidops}{[GitHub]}
+\begin{itemize}
+\item Built a cross-platform desktop GUI for Android Debug Bridge (ADB) using Tauri and React.
+\item Simplified Android device management with a user-friendly interface for file transfer, app management, and shell access.
+\item Leveraged Rust backend via Tauri for native performance with a responsive Tailwind CSS frontend.
+\end{itemize}
+
+\vspace{4pt}
+
+\textbf{GlyphDeck -- Desktop Font Manager} \hfill \textit{Go, TypeScript, Wails \quad Nov 2025} \quad \href{https://github.com/your-github/GlyphDeck}{[GitHub]}
+\begin{itemize}
+\item Developed a premium desktop font manager for Windows using Go and Wails framework.
+\item Implemented font browsing, preview, search, and organization features with a glassmorphism UI.
+\item Built native desktop application combining Go backend performance with a TypeScript frontend.
+\end{itemize}
+
+\vspace{4pt}
+
+\textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase, EJS, Tailwind \quad Dec 2024} \quad \href{https://github.com/your-github/advanced-certificate-generator}{[GitHub]}
+\begin{itemize}
+\item Developed automated bulk certificate generation from CSV uploads with dynamic field mapping.
+\item Implemented QR-code and link-based verification enabling instant certificate validation through web access.
+\item Built an interactive certificate editor using draggable canvas components for customizable layouts.
+\end{itemize}
+
+\vspace{4pt}
+
+\textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Next.js, Flask, Python, REST APIs \quad Oct 2024}
+\begin{itemize}
+\item Developed during NASA Space Apps Challenge to provide AI-driven irrigation recommendations for farmers.
+\item Integrated real-time weather and environmental data to support decision-based irrigation scheduling.
+\item Implemented a full-stack architecture with analytics dashboard for monitoring farm conditions.
+\end{itemize}
+
+\vspace{4pt}
+
+\textbf{AI-Based Smart Traffic System Using Computer Vision} \hfill \textit{Python, YOLO, Flask \quad Jan 2025}
+\begin{itemize}
+\item Designed a traffic monitoring system using live camera input and computer vision models.
+\item Implemented YOLO-based detection for vehicles and pedestrians for real-time scene analysis.
+\item Developed adaptive traffic signal logic based on traffic density for optimized flow control.
+\end{itemize}
+
+%------------------------------------------------------------
+% EDUCATION
+%------------------------------------------------------------
+\section*{Education}
+
+\textbf{B.Tech in Computer Science and Engineering} \hfill \textbf{2022 -- 2026}\\
+Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \hfill APJ Abdul Kalam Technological University
+
+%------------------------------------------------------------
+% CERTIFICATIONS
+%------------------------------------------------------------
+\section*{Certifications}
+
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{} p{7.8cm} p{6.5cm} p{2.5cm} @{}}
+\textbf{Certificate}                  & \textbf{Issuer}              & \textbf{Year} \\[1pt]
+Programming with Python               & Python Institute (OpenEDG)   & 2024 \\
+Python for Data Science               & NPTEL -- IIT Madras          & 2024 \\
+JavaScript Foundations Professional   & Mozilla                      & Jul 2025 \\
+Amazon API Gateway for Serverless     & AWS Training                 & Jun 2025 \\
+Ubuntu Linux Professional Certificate & Canonical                    & Nov 2025 \\
+\end{tabular}
+
+%------------------------------------------------------------
+% ACHIEVEMENTS
+%------------------------------------------------------------
+\section*{Achievements}
+
+\begin{tabular}{@{} p{9.5cm} p{8cm} @{}}
+Galactic Problem Solver              & NASA Space Apps Challenge 2024 \\
+Global Connection Recognition        & NASA Space Apps Challenge 2025 \\
+Global Nominee                       & NASA Space Apps Challenge 2025 \\
+\end{tabular}
+
+%------------------------------------------------------------
+% INTERESTS & LANGUAGES
+%------------------------------------------------------------
+\section*{Additional Information}
+
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
+Areas of Interest & Backend Systems, API Development, Full Stack Development, Desktop Applications, Mobile Applications \\
+Languages         & English, Malayalam \\
+\end{tabular}
+
+\vspace{3pt}
+
+\end{document}
