@@ -51,6 +51,13 @@ Convert your LaTeX content into structured JSON for ATS or web integrations:
 RESUME_TEX=standard/Bibin_Raju_Resume.tex python3 scripts/to_json.py
 ```
 
+### 4. Bulk Export Resumes
+Quickly compile and export all or specific resumes to a custom folder:
+```bash
+./scripts/export_resumes.sh
+```
+This script will interactively ask which roles you want to compile and where to save the PDFs.
+
 ---
 
 ## 🏗️ Build Instructions
