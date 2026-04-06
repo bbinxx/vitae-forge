@@ -38,10 +38,10 @@ def upload_to_r2():
     for filename in os.listdir(dist_dir):
         if filename.endswith(".pdf"):
             file_path = os.path.join(dist_dir, filename)
-            # Use role name for public URL: resume.bibin.dev/backend
-            object_name = filename.replace(".pdf", "")
+            # Keeping the extension: standard.pdf stays standard.pdf in R2
+            object_name = filename
             
-            print(f"🚀 Uploading {filename} to R2 as {object_name}...")
+            print(f"🚀 Uploading {filename} to R2 (overwriting if exists)...")
             try:
                 s3.upload_file(
                     file_path, 
@@ -49,7 +49,7 @@ def upload_to_r2():
                     object_name,
                     ExtraArgs={'ContentType': 'application/pdf'}
                 )
-                print(f"✅ Uploaded: {filename}")
+                print(f"✅ Success: {filename} is now live.")
             except Exception as e:
                 print(f"❌ Failed to upload {filename}: {e}")
 
