@@ -1,0 +1,103 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[left=0.45in,right=0.45in,top=0.3in,bottom=0.3in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{parskip}
+
+% Section formatting
+\titleformat{\section}
+  {\normalsize\bfseries}
+  {}{0em}{\MakeUppercase}
+  [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
+
+\titlespacing{\section}{0pt}{6pt}{2pt}
+
+\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=0pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+\begin{document}
+
+\pagestyle{empty}
+
+%------------------------------------------------------------
+% HEADER
+%------------------------------------------------------------
+\begin{center}
+{\LARGE \textbf{Bibin Raju}}\\[3pt]
+\textbf{ <<ROLE_TITLE>> }\\[3pt]
+\href{mailto:<<EMAIL>>}{<<EMAIL>>}
+~$|$~
+<<PHONE>>
+~$|$~
+\href{https://linkedin.com/in/<<LINKEDIN>>}{linkedin.com/in/<<LINKEDIN>>}
+~$|$~
+\href{https://github.com/<<GITHUB>>}{github.com/<<GITHUB>>}
+\end{center}
+
+\vspace{-5pt}
+
+%------------------------------------------------------------
+% PROFESSIONAL SUMMARY
+%------------------------------------------------------------
+\section*{Professional Summary}
+<<SUMMARY>>
+
+%------------------------------------------------------------
+% TECHNICAL SKILLS
+%------------------------------------------------------------
+\section*{Skills}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
+<<SKILLS>>
+\end{tabular}
+
+%------------------------------------------------------------
+% PROJECTS
+%------------------------------------------------------------
+\section*{Projects}
+
+<<PROJECTS>>
+
+%------------------------------------------------------------
+% EDUCATION
+%------------------------------------------------------------
+\section*{Education}
+<<EDUCATION>>
+
+%------------------------------------------------------------
+% CERTIFICATIONS
+%------------------------------------------------------------
+\section*{Certifications}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{} p{7.8cm} p{6.5cm} p{2.5cm} @{} }
+\textbf{Certificate} & \textbf{Issuer} & \textbf{Year} \\[1pt]
+<<CERTIFICATIONS>>
+\end{tabular}
+
+%------------------------------------------------------------
+% ACHIEVEMENTS
+%------------------------------------------------------------
+\section*{Achievements}
+
+\begin{tabular}{@{} p{9.5cm} p{8cm} @{} }
+<<ACHIEVEMENTS>>
+\end{tabular}
+
+%------------------------------------------------------------
+% ADDITIONAL INFO
+%------------------------------------------------------------
+\section*{Additional Information}
+
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
+<<ADDITIONAL>>
+\end{tabular}
+
+\end{document}
