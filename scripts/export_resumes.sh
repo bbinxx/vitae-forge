@@ -18,7 +18,7 @@ if [[ ! -d "scripts" ]]; then
 fi
 
 # 1. Scan for role folders containing .tex files
-mapfile -t folders < <(find . -maxdepth 1 -type d -not -path '*/.*' -not -path './assets' -not -path './scripts' -not -path '.' -exec sh -c 'ls -1 "{}"/*.tex >/dev/null 2>&1 && echo "{}"' \;)
+mapfile -t folders < <(find roles -maxdepth 1 -type d -not -path 'roles' -exec sh -c 'ls -1 "{}"/*.tex >/dev/null 2>&1 && echo "{}"' \;)
 
 if [[ ${#folders[@]} -eq 0 ]]; then
     echo -e "${RED}No role folders with .tex files found.${NC}"

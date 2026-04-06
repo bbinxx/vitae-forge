@@ -9,7 +9,7 @@ command -v pdflatex >/dev/null 2>&1 || { echo "pdflatex not found. Install it wi
 command -v pdftoppm >/dev/null 2>&1 || { echo "pdftoppm not found. Install it with: sudo apt install poppler-utils"; exit 1; }
 
 # Default target file
-TARGET_FILE="${1:-standard/Bibin_Raju_Resume.tex}"
+TARGET_FILE="${1:-roles/standard/Bibin_Raju_Resume.tex}"
 BASE_NAME=$(basename "$TARGET_FILE" .tex)
 DIR_NAME=$(dirname "$TARGET_FILE")
 
