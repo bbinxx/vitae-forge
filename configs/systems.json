@@ -1,0 +1,85 @@
+{
+  "role_title": "Systems Engineer | Rust & Go | High-Performance Applications",
+  "email": "your.email@example.com",
+  "phone": "+1 (555) 000-0000",
+  "linkedin": "your-linkedin",
+  "github": "your-github",
+  "professional_summary": "Systems Engineer specializing in High-Performance Native Applications, Concurrent Systems, and Resource Optimization. Expert in Rust and Go with a proven track record of 40% performance gains and reduced memory footprint. Expertise in Low-level Programming, Memory Management, and Architecting Robust Production Systems with a focus on reliability and native performance.",
+  "skills": [
+    { "name": "Languages", "keywords": "Rust, Go, C, Python, JavaScript, Java" },
+    { "name": "Systems/Performance", "keywords": "Concurrency, Memory Optimization, Native Binary Optimization" },
+    { "name": "Frameworks", "keywords": "Tauri, Wails, Flask, Node.js" },
+    { "name": "Tools", "keywords": "Git, GitHub Actions, Docker, Postman, ADB" },
+    { "name": "Infrastructure", "keywords": "DigitalOcean, Vercel, Cloudflare" },
+    { "name": "Operating Systems", "keywords": "Linux, Windows, Win32 API Interop" }
+  ],
+  "projects": [
+    {
+      "name": "DroidOps -- Android Device Management GUI",
+      "tech": "Tauri, React, Rust, TypeScript",
+      "date": "Dec 2025",
+      "link": "https://github.com/your-github/droidops",
+      "points": [
+        "Architected a high-performance Rust-based ADB management system using Tauri, increasing execution efficiency by 40%.",
+        "Implemented a low-latency command orchestration pipeline, minimizing operation overhead and improving device discovery.",
+        "Leveraged Rust's concurrency model and memory safety to handle multi-device synchronization with near-zero overhead."
+      ]
+    },
+    {
+      "name": "GlyphDeck -- Desktop Font Manager",
+      "tech": "Go, TypeScript, Wails",
+      "date": "Nov 2025",
+      "link": "https://github.com/your-github/GlyphDeck",
+      "points": [
+        "Engineered a concurrent Go application indexing 1,200+ fonts with sub-500ms retrieval latency.",
+        "Achieved a minimized 25MB runtime footprint for the native executable using the Wails framework.",
+        "Optimized search performance by 40% through custom metadata parsing and efficient retrieval algorithms."
+      ]
+    },
+    {
+      "name": "AI-Based Smart Traffic System Using Computer Vision",
+      "tech": "Python, YOLO, Flask",
+      "date": "Jan 2025",
+      "points": [
+        "Architected an edge-optimized YOLO-v8 pipeline achieving 94% accuracy in diverse traffic conditions.",
+        "Optimized real-time model inference for resource-constrained environments, ensuring sub-200ms scene analysis.",
+        "Developed adaptive signal control logic, reducing simulated intersection throughput latency by 25%."
+      ]
+    },
+    {
+      "name": "IRRIGO -- Smart Irrigation Platform",
+      "tech": "Next.js, Flask, Python, REST APIs",
+      "date": "Oct 2024",
+      "points": [
+        "Developed an AI-driven backend integrating satellite data for high-accuracy water scheduling.",
+        "Analyzed 50+ farm scenarios to optimize resource allocation, projecting 20% wastage reduction.",
+        "Engineered a real-time analytics dashboard via optimized RESTful APIs for moisture monitoring."
+      ]
+    },
+    {
+      "name": "Certificate Generator and Verification System",
+      "tech": "Node.js, Firebase, EJS, Tailwind",
+      "date": "Dec 2024",
+      "link": "https://github.com/your-github/advanced-certificate-generator",
+      "points": [
+        "Architected a high-throughput automation engine for 5,000+ records, reducing issuance effort by 90%.",
+        "Implemented secure QR-based verification enabling 100% instant credential validation via automated web links.",
+        "Engineered an interactive canvas editor optimized for dynamic and customizable certificate layouts."
+      ]
+    }
+  ],
+  "education": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University",
+  "certifications": [
+    { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
+    { "name": "JavaScript Foundations Professional", "issuer": "Mozilla", "year": "Jul 2025" },
+    { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
+  ],
+  "achievements": [
+    { "name": "Galactic Problem Solver", "issuer": "NASA Space Apps Challenge 2024" },
+    { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge 2025" }
+  ],
+  "additional_info": [
+    { "name": "Areas of Interest", "content": "Systems Programming, Operating Systems, Concurrency, Multithreading, Low-Level Programming, Performance Optimization, Memory Management, Networking" },
+    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+  ]
+}

@@ -1,0 +1,44 @@
+name: 🚀 Build and Deploy Resumes
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ '*-v*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install boto3 botocore
+
+    - name: 🏗️ Install LaTeX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra
+
+    - name: 🔨 Build Resumes
+      run: ./scripts/build.sh
+
+    - name: ☁️ Upload to R2
+      env:
+        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+        R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      run: python3 scripts/upload_r2.py
+
+    - name: 🔗 Create Version Tag
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        echo "🎉 Built and uploaded version: ${GITHUB_REF##*/}"

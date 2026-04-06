@@ -1,89 +1,72 @@
-# 📄 YOUR NAME — Multi-Role Resume
+# 📄 YOUR NAME — Automated Multi-Role Resume System
 
-> A modular, variant-based LaTeX resume system with **automated** PDF/Preview generation. This repository serves as a central hub for role-specific resumes, currently optimized for **General Development**, **Backend Engineering**, **Systems Engineering**, and **Mobile Application Development**.
+> A high-automation, role-based LaTeX resume system that generates multiple variants from structured JSON configurations. Centralized data, two modern templates (Photo & Standard), and automated deployment to **Cloudflare R2**.
 
-## ⚡ Preview (Auto-Updated)
+---
 
-![Resume Preview](./assets/preview.png?raw=true)
+## 🚀 System Architecture
+
+This repository has been upgraded to a **Data-Driven Resume System**. You no longer need to edit LaTeX files manually. All your data is stored in `configs/`, and the system handles the rest.
+
+### 🖼️ Preview (Dual Template Strategy)
+Every role now generates **two** variants automatically:
+1.  **Standard (`.pdf`)**: Clean, minimalist, 100% ATS-friendly.
+2.  **Modern (`_X.pdf`)**: Professional layout with a profile photo, best for modern tech portals.
+
+---
+
+## 🛠️ Core Components
+
+*   **📂 `configs/`**: The "Source of Truth". Contains JSON files for each role (`backend.json`, `mobile.json`, `systems.json`, `standard.json`).
+*   **🎨 `shared/`**: Contains the core LaTeX templates (`template.tex` and `template_photo.tex`).
+*   **⚙️ `scripts/`**:
+    *   `generate.py`: The brain that injects JSON data into LaTeX templates.
+    *   `build.sh`: Orchestrates the full build process (Generates TeX $\rightarrow$ Compiles PDF $\rightarrow$ Organizes in `dist/`).
+    *   `upload_r2.py`: Automatically uploads compiled PDFs to Cloudflare R2.
+    *   `tag_version.sh`: Snapshot system for versioning.
+*   **🤖 CI/CD**: Every push to `main` triggers a GitHub Action to rebuild and redeploy all resumes.
+
+---
+
+## 🏗️ Usage & Commands
+
+### 1. Update Your Data
+Edit the relevant file in `configs/`. All fields (skills, projects, keywords) are fully customizable per role.
+
+### 2. Build Locally
+Ensure you have `pdflatex` installed.
+```bash
+./scripts/build.sh          # Builds ALL roles (Standard & Photo variants)
+./scripts/build.sh backend  # Builds only the Backend role
+```
+Find your compiled PDFs in the `dist/` folder.
+
+### 3. Smart Resume Links (Live)
+Resumes are automatically hosted on your custom domain via Cloudflare R2:
+*   [resume.bibin.dev/backend](https://resume.bibin.dev/backend)
+*   [resume.bibin.dev/backend_X](https://resume.bibin.dev/backend_X) (Photo version)
+*   [resume.bibin.dev/systems](https://resume.bibin.dev/systems)
+*   [resume.bibin.dev/mobile](https://resume.bibin.dev/mobile)
+
+### 4. Versioning Snapshots
+To freeze a version for a specific application or time:
+```bash
+./scripts/tag_version.sh backend v2026-v1
+```
 
 ---
 
 ## 📁 Repository Structure
-
-The project is organized into self-contained folders for different professional roles. Each folder contains its own LaTeX source files and assets.
-
 ```
 .
-├── roles/              # Role-specific variations
-│   ├── standard/       # Default Resume (Standard Baseline)
-│   ├── backend/        # Backend Engineer Variant
-│   ├── systems/        # Systems / Go / Rust Variant
-│   └── mobile/         # Mobile Application Developer Variant
-├── assets/             # Common Assets (Photos, Previews)
-├── scripts/            # Automation & Utility Scripts
-└── README.md           # Documentation
+├── configs/            # JSON data per role (Source of Truth)
+├── shared/             # LaTeX templates (Photo & No-Photo)
+├── scripts/            # Automation (Python & Bash)
+├── assets/             # Images & profile photo
+├── dist/               # Compiled PDF artifacts (Generated)
+├── logs/               # Build failure logs (Generated)
+└── .github/workflows/  # CI/CD Pipeline
 ```
-
----
-
-## 🛠️ Usage & Automation
-
-### 1. Watch Mode (Real-time Preview)
-If you want to see your changes update the `preview.png` in real-time as you save:
-```bash
-# General syntax: ./scripts/watch_preview.sh [path_to_tex]
-./scripts/watch_preview.sh roles/standard/YOUR_NAME_Raju_Resume.tex
-```
-
-### 2. PDF & Release Automation
-*   **Automatic Compilation**: Every commit to the `main` branch triggers a GitHub Action that compiles your default resume (`roles/standard/YOUR_NAME_Raju_Resume.tex`) and updates the preview image.
-*   **GitHub Releases**: Each push to `main` automatically updates a [latest release](https://github.com/your-github/resume/releases/tag/latest) containing the compiled PDF.
-
-### 3. Data Extraction (JSON)
-Convert your LaTeX content into structured JSON for ATS or web integrations:
-```bash
-RESUME_TEX=roles/standard/YOUR_NAME_Raju_Resume.tex python3 scripts/to_json.py
-```
-
-### 4. Bulk Export Resumes
-Quickly compile and export all or specific resumes to a custom folder:
-```bash
-./scripts/export_resumes.sh
-```
-This script will interactively ask which roles you want to compile and where to save the PDFs.
-
----
-
-## 🏗️ Build Instructions
-
-### Prerequisites
-Ensure you have a LaTeX distribution installed:
-- **Linux**: `sudo apt install texlive-full`
-- **macOS**: [MacTeX](https://www.tug.org/mactex/)
-- **Windows**: [MiKTeX](https://miktex.org/)
-
-### Manual Compilation
-To compile a specific variant, navigate to its directory and run `pdflatex`:
-```bash
-cd roles/backend
-pdflatex YOUR_NAME_Raju_BE_Resume.tex
-```
-
----
-
-## ✏️ Customization
-
-To update your details, simply edit the `.tex` files in the desired subfolder. All variants are self-contained and ready to compile independently.
-
-| Format | Identifier | Use Case |
-|---|---|---|
-| **Classic** | (Main name) | Best for ATS compatibility and traditional applications. |
-| **Visual** | `*_X.tex` | Professional layout with photo, best for modern tech portals. |
-
----
-
-## 📦 Download Latest
-[![Download latest PDF](https://img.shields.io/badge/Download-Latest_Resume-blue?logo=adobeacrobatreader)](https://github.com/your-github/resume/releases/tag/latest)
 
 ---
 
@@ -96,5 +79,4 @@ To update your details, simply edit the `.tex` files in the desired subfolder. A
 | 🐙 GitHub | [github.com/your-github](https://github.com/your-github) |
 
 ---
-
-*Built with LaTeX · System last updated April 2026*
+*Built with Python, Bash, and LaTeX · System last updated April 2026*

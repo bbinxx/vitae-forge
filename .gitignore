@@ -1,28 +1,26 @@
-# LaTeX build artifacts (recursive)
+# LaTeX artifacts (build files)
 **/*.aux
 **/*.log
 **/*.out
-**/*.toc
-**/*.lof
-**/*.lot
 **/*.fls
 **/*.fdb_latexmk
 **/*.synctex.gz
 **/*.synctex(busy)
-**/*.bbl
-**/*.bcf
-**/*.blg
-**/*.run.xml
-**/*.nav
-**/*.snm
-**/*.vrb
-**/*.dvi
-**/*.xdv
-**/*.pdf
 
+# Project-specific generated artifacts
+dist/
+logs/
+*.temp.tex
 
-
-# Editor temp files
+# Editor/System temp files
 *.swp
 *~
 .DS_Store
+.idea/
+.vscode/
+
+# Keep configs and templates!
+!configs/*.json
+!shared/*.tex
+!scripts/*.py
+!scripts/*.sh
