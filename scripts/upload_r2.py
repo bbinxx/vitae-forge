@@ -3,19 +3,22 @@ import boto3
 from botocore.config import Config
 
 def upload_to_r2():
-    # Load from environment variables
-    account_id = os.environ.get("R2_ACCOUNT_ID")
-    access_key = os.environ.get("R2_ACCESS_KEY_ID")
-    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
-    bucket_name = os.environ.get("R2_BUCKET_NAME", "resume-bucket")
-    
-    # Custom domain logic if needed
-    # endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
-    # Actually, R2 usually needs the full endpoint
-    endpoint_url = os.environ.get("R2_ENDPOINT_URL")
+    # Load from environment variables and trim whitespace
+    account_id = os.environ.get("R2_ACCOUNT_ID", "").strip()
+    access_key = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
+    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
+    bucket_name = os.environ.get("R2_BUCKET_NAME", "resume-bucket").strip()
+    endpoint_url = os.environ.get("R2_ENDPOINT_URL", "").strip()
 
     if not all([access_key, secret_key, endpoint_url]):
-        print("❌ Error: Missing R2 credentials. Please set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_ENDPOINT_URL.")
+        print(f"❌ Error: Missing R2 credentials.")
+        print(f"   Access Key: {'Set' if access_key else 'Missing'}")
+        print(f"   Secret Key: {'Set' if secret_key else 'Missing'}")
+        print(f"   Endpoint URL: {'Set' if endpoint_url else 'Missing'}")
+        return
+
+    if not endpoint_url.startswith("http"):
+        print(f"❌ Error: R2_ENDPOINT_URL must start with http:// or https://. Current value starts with: {endpoint_url[:10]}...")
         return
 
     s3 = boto3.client(
