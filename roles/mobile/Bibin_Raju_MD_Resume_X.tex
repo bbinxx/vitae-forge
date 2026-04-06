@@ -49,7 +49,7 @@
   \raggedright
   {\fontsize{24}{28}\selectfont \textbf{YOUR NAME}}\par
   \vspace{5pt}
-  {\large\itshape\color{gray} Software Engineer}\par
+  {\large\itshape\color{gray} Mobile Application Developer}\par
 \end{minipage}%
 \hfill
 \begin{minipage}[c]{0.36\textwidth}
@@ -68,14 +68,14 @@
     \raggedleft
     \fboxsep=2pt\fboxrule=0.5pt
     \fbox{%
-      \IfFileExists{../assets/profile-photo.jpg}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/profile-photo.jpg}}{%
-      \IfFileExists{../assets/profile-photo.png}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/profile-photo.png}}{%
-      \IfFileExists{../assets/photo.jpg}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/photo.jpg}}{%
-      \IfFileExists{../assets/photo.png}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/photo.png}}{}}}}%
+      \IfFileExists{../../assets/profile-photo.jpg}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/profile-photo.jpg}}{%
+      \IfFileExists{../../assets/profile-photo.png}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/profile-photo.png}}{%
+      \IfFileExists{../../assets/photo.jpg}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/photo.jpg}}{%
+      \IfFileExists{../../assets/photo.png}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/photo.png}}{}}}}%
     }%
   \end{minipage}
 \end{minipage}
@@ -84,7 +84,7 @@
 % ── YOUR RESUME CONTENT GOES BELOW ───────────────────────────────────────────
 \section*{Professional Summary}
 
-Software Engineer with experience in backend systems, scalable applications, and real-time systems. Proficient in Python, JavaScript, and modern development frameworks, with additional experience in performance-oriented system design.
+Mobile Application Developer specializing in cross-platform app development and real-time systems. Proficient in Flutter and Firebase, with experience building responsive mobile interfaces, integrating device-level features, and delivering scalable user-focused applications.
 
 %------------------------------------------------------------
 % TECHNICAL SKILLS
@@ -93,13 +93,13 @@ Software Engineer with experience in backend systems, scalable applications, and
 
 \renewcommand{\arraystretch}{1.05}
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
-Languages           & Python, Java, C, JavaScript, Go, Rust \\
-Web Development     & HTML, CSS, React.js, Node.js, Next.js, PHP \\
-Frameworks          & Flask, Django, Express.js, Tauri, Wails, Flutter, Firebase \\
-Databases           & MongoDB, MySQL, Supabase \\
-Developer Tools     & Git, GitHub, Docker, Postman, REST APIs \\
-Deployment          & Netlify, Vercel, Render, DigitalOcean, Cloudflare, Heroku \\
-Operating Systems   & Linux, Windows \\
+Languages           & Dart, JavaScript, TypeScript, Python, Java, C \\
+Mobile Development  & Flutter, Firebase, Android SDK ADB, React Native \\
+Frameworks          & Node.js, Next.js, React.js, Express.js, Tauri, Wails \\
+Backend \& APIs     & Flask, Django, REST APIs, Supabase, PHP \\
+Databases           & MongoDB, MySQL \\
+Developer Tools     & Git, GitHub, Docker, Postman, Android Studio \\
+Operating Systems   & Linux , Windows \\
 \end{tabular}
 
 %------------------------------------------------------------
@@ -107,47 +107,38 @@ Operating Systems   & Linux, Windows \\
 %------------------------------------------------------------
 \section*{Projects}
 
+\textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Flutter, Firebase, Next.js, Flask \quad Oct 2024}
+\begin{itemize}
+\item Developed a cross-platform mobile application for real-time farm monitoring and irrigation control.
+\item Improved water usage efficiency by \textasciitilde{}20\% through data-driven insights accessible via mobile dashboard.
+\item Integrated real-time weather and satellite data for responsive mobile-based decision support.
+\end{itemize}
+
+\vspace{3pt}
+
+\textbf{DroidOps -- Android Device Management GUI} \hfill \textit{Tauri, React, TypeScript \quad Dec 2025} \quad \href{https://github.com/your-github/droidops}{GitHub}
+\begin{itemize}
+\item Engineered a device management interface leveraging Android Debug Bridge ADB for multi-device interaction.
+\item Optimized execution workflows, improving command responsiveness and device interaction efficiency by \textasciitilde{}40\%.
+\item Enabled real-time monitoring and debugging of Android devices through streamlined UI workflows.
+\end{itemize}
+
+\vspace{3pt}
+
 \textbf{AI-Based Smart Traffic System Using Computer Vision} \hfill \textit{Python, YOLO, Flask \quad Jan 2025}
 \begin{itemize}
-\item Architected a YOLO-v8 detection pipeline achieving 94\% accuracy across varied traffic conditions.
-\item Optimized simulated intersection throughput by 25\% via adaptive signal control algorithms.
-\item Engineered low-latency model inference ($<$200ms) for real-time edge deployment and scene analysis.
+\item Developed a real-time traffic monitoring system with mobile-responsive dashboard for live insights.
+\item Achieved 92--94\% detection accuracy with optimized inference latency less than 200ms per frame.
+\item Designed system architecture adaptable for edge/mobile deployment in smart city environments.
 \end{itemize}
 
 \vspace{3pt}
 
-\textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase, EJS, Tailwind \quad Dec 2024} \quad \href{https://github.com/your-github/advanced-certificate-generator}{[GitHub]}
+\textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase \quad Dec 2024} \quad \href{https://github.com/your-github/advanced-certificate-generator}{GitHub}
 \begin{itemize}
-\item Automated high-throughput certificate generation (1,000+ records/batch), reducing manual effort by 90\%.
-\item Engineered a secure QR-based verification system enabling instant credential validation.
-\item Developed an interactive canvas editor supporting dynamic layouts and reusable template components.
-\end{itemize}
-
-\vspace{3pt}
-
-\textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Next.js, Flask, Python, REST APIs \quad Oct 2024}
-\begin{itemize}
-\item Developed an AI-assisted irrigation platform integrating satellite and weather data for precision scheduling.
-\item Optimized agricultural water usage by \textasciitilde20\% through data-driven analysis of 50+ farm scenarios.
-\item Architected a full-stack analytics dashboard for real-time monitoring and environmental telemetry.
-\end{itemize}
-
-\vspace{3pt}
-
-\textbf{DroidOps -- Android Device Management GUI} \hfill \textit{Tauri, React, Rust, TypeScript \quad Dec 2025} \quad \href{https://github.com/your-github/droidops}{[GitHub]}
-\begin{itemize}
-\item Engineered a native Rust/Tauri desktop GUI for ADB, improving process execution efficiency by 40\%.
-\item Leveraged Rust's memory safety and concurrency model to handle multi-device synchronization.
-\item Streamlined device lifecycle management through batch processing features and optimized shell access.
-\end{itemize}
-
-\vspace{3pt}
-
-\textbf{GlyphDeck -- Desktop Font Manager} \hfill \textit{Go, TypeScript, Wails \quad Nov 2025} \quad \href{https://github.com/your-github/GlyphDeck}{[GitHub]}
-\begin{itemize}
-\item Architected a high-performance Go application indexing 1,200+ fonts with sub-500ms retrieval latency.
-\item Optimized system overhead to achieve a lightweight \textasciitilde25MB native executable using the Wails framework.
-\item Enhanced user productivity by 40\% through optimized search algorithms and efficient metadata parsing.
+\item Built a QR-based verification system enabling instant certificate validation on mobile devices.
+\item Automated bulk certificate generation for 1,000+ records per batch, reducing manual effort by \textasciitilde{}85\%.
+\item Developed responsive interfaces ensuring seamless mobile and web accessibility.
 \end{itemize}
 
 %------------------------------------------------------------
@@ -166,7 +157,7 @@ Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \hfill
 \renewcommand{\arraystretch}{1.1}
 \begin{tabular}{@{} p{7.8cm} p{6.5cm} p{2.5cm} @{}}
 \textbf{Certificate}                  & \textbf{Issuer}              & \textbf{Year} \\[1pt]
-Programming with Python               & Python Institute (OpenEDG)   & 2024 \\
+Programming with Python               & Python Institute OpenEDG   & 2024 \\
 Python for Data Science               & NPTEL -- IIT Madras          & 2024 \\
 JavaScript Foundations Professional   & Mozilla                      & Jul 2025 \\
 Amazon API Gateway for Serverless     & AWS Training                 & Jun 2025 \\
@@ -190,8 +181,8 @@ Global Nominee                       & NASA Space Apps Challenge 2025 \\
 \section*{Additional Information}
 
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
-Areas of Interest & Systems Programming, Performance Optimization, Cloud Architecture, Scalability \\
-Languages         & English (Professional), Malayalam (Native) \\
+Areas of Interest & Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase, UI Development, REST API Integration, Mobile UI/UX \\
+Languages         & English Professional, Malayalam Native \\
 \end{tabular}
 
 \end{document}

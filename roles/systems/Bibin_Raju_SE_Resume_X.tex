@@ -32,7 +32,7 @@
 
 \titlespacing{\section}{0pt}{6pt}{2pt}
 
-\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.1em, itemsep=0pt}
+\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=0pt}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
@@ -49,7 +49,7 @@
   \raggedright
   {\fontsize{24}{28}\selectfont \textbf{YOUR NAME}}\par
   \vspace{3pt}
-  {\large\itshape\color{gray} Backend Engineer $|$ API \& Scalable Systems}\par
+  {\large\itshape\color{gray} Systems Engineer $|$ Rust \& Go $|$ High-Performance Applications}\par
 \end{minipage}%
 \hfill
 \begin{minipage}[c]{0.36\textwidth}
@@ -68,14 +68,14 @@
     \raggedleft
     \fboxsep=2pt\fboxrule=0.5pt
     \fbox{%
-      \IfFileExists{../assets/profile-photo.jpg}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/profile-photo.jpg}}{%
-      \IfFileExists{../assets/profile-photo.png}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/profile-photo.png}}{%
-      \IfFileExists{../assets/photo.jpg}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/photo.jpg}}{%
-      \IfFileExists{../assets/photo.png}{%
-        \includegraphics[height=0.75in,keepaspectratio]{../assets/photo.png}}{}}}}%
+      \IfFileExists{../../assets/profile-photo.jpg}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/profile-photo.jpg}}{%
+      \IfFileExists{../../assets/profile-photo.png}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/profile-photo.png}}{%
+      \IfFileExists{../../assets/photo.jpg}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/photo.jpg}}{%
+      \IfFileExists{../../assets/photo.png}{%
+        \includegraphics[height=0.75in,keepaspectratio]{../../assets/photo.png}}{}}}}%
     }%
   \end{minipage}
 \end{minipage}
@@ -83,21 +83,21 @@
 % ── CONTENT ──────────────────────────────────────────────────────────────────
 \section*{Professional Summary}
 
-Backend Engineer specializing in Scalable Distributed Systems, RESTful API Orchestration, and Real-time Data Pipelines. Proven track record of developing production-ready architectures with 40\% efficiency gains. Proficient in Node.js, Flask, and Go, focusing on high-concurrency processing, database optimization, and automated deployment workflows.
+Systems Engineer specializing in High-Performance Native Applications, Concurrent Systems, and Resource Optimization. Expert in Rust and Go with a proven track record of 40\% performance gains and reduced memory footprint. Expertise in Low-level Programming, Memory Management, and Architecting Robust Production Systems with a focus on reliability and native performance.
 
 %------------------------------------------------------------
 % TECHNICAL SKILLS
 %------------------------------------------------------------
 \section*{Skills}
 
-\renewcommand{\arraystretch}{1.0}
+\renewcommand{\arraystretch}{1.05}
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
-Languages           & Python, Go, JavaScript \\
-Backend             & Node.js, Flask, Django, Express.js, REST API Design, Microservices \\
-Databases           & MongoDB, MySQL, Supabase, DB Optimization \\
-Cloud/Deployment    & AWS (API Gateway), Docker, DigitalOcean, Vercel, Render \\
-Architecture        & Scalable Architecture, Authentication, Batch Processing \\
-Operating Systems   & Linux, Windows \\
+Languages           & Rust, Go, C, Python, JavaScript, Java \\
+Systems/Performance & Concurrency, Memory Optimization, Native Binary Optimization \\
+Frameworks          & Tauri, Wails, Flask, Node.js \\
+Tools               & Git, GitHub Actions, Docker, ADB \\
+Infrastructure      & DigitalOcean, Cloudflare \\
+Operating Systems   & Linux, Windows, Win32 API Interop \\
 \end{tabular}
 
 %------------------------------------------------------------
@@ -105,47 +105,47 @@ Operating Systems   & Linux, Windows \\
 %------------------------------------------------------------
 \section*{Projects}
 
-\textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase, EJS, Tailwind \quad Dec 2024} \quad \href{https://github.com/your-github/advanced-certificate-generator}{[GitHub]}
+\textbf{DroidOps -- Android Device Management GUI} \hfill \textit{Tauri, React, Rust, TypeScript \quad Dec 2025} \quad \href{https://github.com/your-github/droidops}{GitHub}
 \begin{itemize}
-\item Architected high-throughput REST APIs for bulk certificate processing (1,000+ records) with 90\% efficiency.
-\item Engineered optimized database indexing and query logic ensuring low-latency data retrieval and validation.
-\item Implemented secure QR-based verification enabling instant, cryptographically-linked credential validation.
+\item Architected a high-performance Rust-based ADB management system using Tauri, increasing execution efficiency by 40\%.
+\item Implemented a low-latency command orchestration pipeline, minimizing operation overhead and improving device discovery.
+\item Leveraged Rust's concurrency model and memory safety to handle multi-device synchronization with near-zero overhead.
 \end{itemize}
 
-\vspace{2pt}
+\vspace{3pt}
 
-\textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Next.js, Flask, Python, REST APIs \quad Oct 2024}
+\textbf{GlyphDeck -- Desktop Font Manager} \hfill \textit{Go, TypeScript, Wails \quad Nov 2025} \quad \href{https://github.com/your-github/GlyphDeck}{GitHub}
 \begin{itemize}
-\item Developed an event-driven backend integrating satellite and weather data for real-time telemetry processing.
-\item Architected data-intensive RESTful services supporting 50+ concurrent agricultural monitoring scenarios.
-\item Optimized agricultural water utilization by 20\% through automated decision-making and precise scheduling logic.
+\item Engineered a concurrent Go application indexing 1,200+ fonts with sub-500ms retrieval latency.
+\item Achieved a minimized 25MB runtime footprint for the native executable using the Wails framework.
+\item Optimized search performance by 40\% through custom metadata parsing and efficient retrieval algorithms.
 \end{itemize}
 
-\vspace{2pt}
+\vspace{3pt}
 
 \textbf{AI-Based Smart Traffic System Using Computer Vision} \hfill \textit{Python, YOLO, Flask \quad Jan 2025}
 \begin{itemize}
-\item Engineered a real-time telemetry processing engine integrated with YOLO-v8 for automated signal control.
-\item Optimized intersection throughput by 25\% via adaptive frequency-control and congestion analysis algorithms.
-\item Architected a high-concurrency Flask backend delivering sub-200ms processing latency for edge deployment.
+\item Architected an edge-optimized YOLO-v8 pipeline achieving 94\% accuracy in diverse traffic conditions.
+\item Optimized real-time model inference for resource-constrained environments, ensuring sub-200ms scene analysis.
+\item Developed adaptive signal control logic, reducing simulated intersection throughput latency by 25\%.
 \end{itemize}
 
-\vspace{2pt}
+\vspace{3pt}
 
-\textbf{DroidOps -- Android Device Management GUI} \hfill \textit{Tauri, React, Rust, TypeScript \quad Dec 2025} \quad \href{https://github.com/your-github/droidops}{[GitHub]}
+\textbf{IRRIGO -- Smart Irrigation Platform} \hfill \textit{Next.js, Flask, Python, REST APIs \quad Oct 2024}
 \begin{itemize}
-\item Architected a native-performance cross-platform GUI for ADB, reducing manual device operations by 40\%.
-\item Streamlined device management via intuitive UI with optimized Rust backend command execution.
-\item Integrated batch processing features for automated unit testing and environment setup.
+\item Developed an AI-driven backend integrating satellite data for high-accuracy water scheduling.
+\item Analyzed 50+ farm scenarios to optimize resource allocation, projecting 20\% wastage reduction.
+\item Engineered a real-time analytics dashboard via optimized RESTful APIs.
 \end{itemize}
 
-\vspace{2pt}
+\vspace{3pt}
 
-\textbf{GlyphDeck -- Desktop Font Manager} \hfill \textit{Go, TypeScript, Wails \quad Nov 2025} \quad \href{https://github.com/your-github/GlyphDeck}{[GitHub]}
+\textbf{Certificate Generator and Verification System} \hfill \textit{Node.js, Firebase, EJS, Tailwind \quad Dec 2024}
 \begin{itemize}
-\item Architected a high-concurrency Go application indexing 1,200+ fonts with sub-500ms retrieval latency.
-\item Enhanced search and retrieval performance by 40\% through optimized custom indexing and metadata parsing.
-\item Developed memory-efficient native executable (\textasciitilde25MB) with native performance using Go.
+\item Architected a high-throughput automation engine for 5,000+ records, reducing issuance effort by 90\%.
+\item Implemented secure QR-based verification enabling 100\% instant credential validation via automated web links.
+\item Engineered an interactive canvas editor optimized for dynamic and customizable certificate layouts.
 \end{itemize}
 
 %------------------------------------------------------------
@@ -161,11 +161,10 @@ Mar Baselios Christian College of Engg. \& Tech., Kuttikkanam \hfill APJ Abdul K
 %------------------------------------------------------------
 \section*{Certifications}
 
-\renewcommand{\arraystretch}{1.0}
+\renewcommand{\arraystretch}{1.1}
 \begin{tabular}{@{} p{7.8cm} p{6.5cm} p{2.5cm} @{}}
 \textbf{Certificate}                  & \textbf{Issuer}              & \textbf{Year} \\[1pt]
-Programming with Python               & Python Institute (OpenEDG)   & 2024 \\
-Amazon API Gateway for Serverless     & AWS Training                 & Jun 2025 \\
+Programming with Python               & Python Institute OpenEDG   & 2024 \\
 Ubuntu Linux Professional Certificate & Canonical                    & Nov 2025 \\
 \end{tabular}
 
@@ -183,10 +182,10 @@ Global Nominee                       & NASA Space Apps Challenge 2025 \\
 % ADDITIONAL INFO
 %------------------------------------------------------------
 \section*{Additional Information}
-
+ 
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{}}
-Areas of Interest & Backend Systems, API Design, Scalable Architecture, Performance Optimization \\
-Languages         & English (Professional), Malayalam (Native) \\
+Areas of Interest & Systems Programming, Operating Systems, Concurrency, Multithreading, Low-Level Programming, Performance Optimization, Memory Management, Networking \\
+Languages         & English Professional, Malayalam Native \\
 \end{tabular}
-
+ 
 \end{document}

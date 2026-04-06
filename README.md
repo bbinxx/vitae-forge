@@ -1,6 +1,6 @@
 # 📄 YOUR NAME — Multi-Role Resume
 
-> A modular, variant-based LaTeX resume system with **automated** PDF/Preview generation. This repository serves as a central hub for role-specific resumes, currently optimized for **General Development**, **Backend Engineering**, and **Systems Engineering**.
+> A modular, variant-based LaTeX resume system with **automated** PDF/Preview generation. This repository serves as a central hub for role-specific resumes, currently optimized for **General Development**, **Backend Engineering**, **Systems Engineering**, and **Mobile Application Development**.
 
 ## ⚡ Preview (Auto-Updated)
 
@@ -14,18 +14,12 @@ The project is organized into self-contained folders for different professional 
 
 ```
 .
-├── standard/           # Default Resume (Standard Baseline)
-│   ├── YOUR_NAME_Raju_Resume.tex       # Classic text-only layout
-│   └── YOUR_NAME_Raju_Resume_X.tex     # Visual layout with profile photo
-├── backend/            # Backend Engineer Variant
-│   ├── YOUR_NAME_Raju_BE_Resume.tex    # Classic text-only layout
-│   └── YOUR_NAME_Raju_BE_Resume_X.tex  # Visual layout with profile photo
-├── systems/            # Systems / Go / Rust Variant
-│   ├── YOUR_NAME_Raju_SE_Resume.tex    # Classic text-only layout
-│   └── YOUR_NAME_Raju_SE_Resume_X.tex  # Visual layout with profile photo
-├── assets/             # Common Assets
-│   ├── preview.png        # Auto-generated preview for README
-│   └── profile-photo.jpg  # Master profile image
+├── roles/              # Role-specific variations
+│   ├── standard/       # Default Resume (Standard Baseline)
+│   ├── backend/        # Backend Engineer Variant
+│   ├── systems/        # Systems / Go / Rust Variant
+│   └── mobile/         # Mobile Application Developer Variant
+├── assets/             # Common Assets (Photos, Previews)
 ├── scripts/            # Automation & Utility Scripts
 └── README.md           # Documentation
 ```
@@ -38,17 +32,17 @@ The project is organized into self-contained folders for different professional 
 If you want to see your changes update the `preview.png` in real-time as you save:
 ```bash
 # General syntax: ./scripts/watch_preview.sh [path_to_tex]
-./scripts/watch_preview.sh standard/YOUR_NAME_Raju_Resume.tex
+./scripts/watch_preview.sh roles/standard/YOUR_NAME_Raju_Resume.tex
 ```
 
 ### 2. PDF & Release Automation
-*   **Automatic Compilation**: Every commit to the `main` branch triggers a GitHub Action that compiles your default resume (`standard/YOUR_NAME_Raju_Resume.tex`) and updates the preview image.
+*   **Automatic Compilation**: Every commit to the `main` branch triggers a GitHub Action that compiles your default resume (`roles/standard/YOUR_NAME_Raju_Resume.tex`) and updates the preview image.
 *   **GitHub Releases**: Each push to `main` automatically updates a [latest release](https://github.com/your-github/resume/releases/tag/latest) containing the compiled PDF.
 
 ### 3. Data Extraction (JSON)
 Convert your LaTeX content into structured JSON for ATS or web integrations:
 ```bash
-RESUME_TEX=standard/YOUR_NAME_Raju_Resume.tex python3 scripts/to_json.py
+RESUME_TEX=roles/standard/YOUR_NAME_Raju_Resume.tex python3 scripts/to_json.py
 ```
 
 ### 4. Bulk Export Resumes
@@ -71,7 +65,7 @@ Ensure you have a LaTeX distribution installed:
 ### Manual Compilation
 To compile a specific variant, navigate to its directory and run `pdflatex`:
 ```bash
-cd backend
+cd roles/backend
 pdflatex YOUR_NAME_Raju_BE_Resume.tex
 ```
 
