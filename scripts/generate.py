@@ -27,6 +27,7 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
         template = f.read()
 
     # Simple scalar replacements
+    template = template.replace("<<NAME>>", escape_latex(config.get("name", "YOUR NAME")))
     template = template.replace("<<ROLE_TITLE>>", escape_latex(config.get("role_title", "")))
     template = template.replace("<<EMAIL>>", escape_latex(config.get("email", "")))
     template = template.replace("<<PHONE>>", escape_latex(config.get("phone", "")))
