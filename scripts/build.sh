@@ -54,19 +54,28 @@ build_variant() {
 
 build_role() {
     local config=$1
-    local role_name=$(basename "$config" .json)
-
-    echo "----------------------------------------"
-    echo "🏗️  Building Resume for Role: $role_name"
-    echo "----------------------------------------"
-
-    # Variant 1: No Photo
-    build_variant "$config" "$role_name" "$TEMPLATE_NO_PHOTO" "" ""
     
-    # Variant 2: With Photo
-    # Need to adjust photo path for pdflatex running from project root but output to dist/
-    # Actually, pdflatex will look relative to the tex file location (root)
-    build_variant "$config" "$role_name" "$TEMPLATE_PHOTO" "_X" "assets/profile-photo.jpg"
+    # Extract name and short_code dynamically from JSON
+    local name_raw=$(python3 -c "import json; print(json.load(open('$config')).get('name', 'Bibin Raju'))")
+    local name_slug=$(echo "$name_raw" | tr '[:lower:]' '[:upper:]' | tr ' ' '_')
+    local short_code=$(python3 -c "import json; print(json.load(open('$config')).get('short_name', ''))")
+    
+    # Fallback to config filename if short_name is missing
+    if [ -z "$short_code" ]; then
+        short_code=$(basename "$config" .json)
+    fi
+
+    local role_display_name="${name_slug}_${short_code}"
+
+    echo "----------------------------------------"
+    echo "🏗️  Building Resume: $role_display_name"
+    echo "----------------------------------------"
+
+    # Variant 1: Standard (No Photo)
+    build_variant "$config" "$role_display_name" "$TEMPLATE_NO_PHOTO" "" ""
+    
+    # Variant 2: With Photo (_X suffix)
+    build_variant "$config" "$role_display_name" "$TEMPLATE_PHOTO" "_X" "assets/profile-photo.jpg"
 }
 
 if [ -n "$SINGLE_ROLE" ]; then

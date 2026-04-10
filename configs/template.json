@@ -1,0 +1,57 @@
+{
+  "name": "Full Name ",
+  "short_name": "Short Code for Filename (e.g., BC, SD, MOB) - Max 3-4 chars",
+  "role_title": "Target Role | Specialized Skills (Max 60-80 chars)",
+  "email": "your.email@gmail.com",
+  "phone": "+91 XXXXX XXXXX",
+  "linkedin": "your-profile",
+  "github": "your-username",
+  "professional_summary": "GUIDELINE: Aim for 3-4 lines (~350-500 characters). Focus on core expertise, years of experience, and key technical impact. This section sets the tone and should be concise but impactful.",
+  "skills": [
+    {
+      "name": "Category Name",
+      "keywords": "GUIDELINE: List 4-7 keywords. Total 6-8 skill categories fit well on one page."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "tech": "Tech Stack Used (Max 4-5 items)",
+      "date": "Month Year",
+      "link": "https://github.com/your-username/project (Optional)",
+      "points": [
+        "GUIDELINE: 2-3 bullet points per project. Use Action Verbs + Context + Result (numbers/impact).",
+        "Total 3-4 projects are recommended to keep the resume to a single page."
+      ]
+    }
+  ],
+  "education": "GUIDELINE: Format using LaTeX commands if needed (e.g., \\textbf{Degree} \\hfill \\textbf{Year}). Keep to 1-2 entries. Max 3-4 lines total.",
+  "certifications": [
+    {
+      "name": "Certificate Name",
+      "issuer": "Issuing Org",
+      "year": "Year"
+    },
+    {
+      "name": "GUIDELINE",
+      "issuer": "Aim for 4-6 certifications total to maintain layout balance.",
+      "year": ""
+    }
+  ],
+  "achievements": [
+    {
+      "name": "Achievement/Award Name",
+      "issuer": "Context/Organization"
+    },
+    {
+      "name": "GUIDELINE",
+      "issuer": "3-4 key achievements are ideal."
+    }
+  ],
+  "additional_info": [
+    {
+      "name": "Category (e.g., Languages)",
+      "content": "GUIDELINE: Keep this section minimal (1-2 entries) to ensure final page fit."
+    }
+  ]
+}

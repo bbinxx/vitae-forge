@@ -1,4 +1,6 @@
 {
+  "name": "Bibin Raju",
+  "short_name": "SD",
   "role_title": "Software Engineer | Full Stack & Scalable Systems",
   "email": "bibinraju541@gmail.com",
   "phone": "+91 90740 85302",
@@ -6,13 +8,34 @@
   "github": "bbinxx",
   "professional_summary": "Software Engineer with experience in backend systems, scalable applications, and real-time systems. Proficient in Python, JavaScript, and modern development frameworks, with additional experience in performance-oriented system design.",
   "skills": [
-    { "name": "Languages", "keywords": "Python, Java, C, JavaScript, Rust, Go" },
-    { "name": "Web Development", "keywords": "HTML, CSS, React.js, Node.js, Next.js, PHP" },
-    { "name": "Frameworks", "keywords": "Flask, Django, Express.js, Tauri, Wails, Flutter, Firebase" },
-    { "name": "Databases", "keywords": "MongoDB, MySQL, Supabase" },
-    { "name": "Developer Tools", "keywords": "Git, GitHub, Docker, Postman, REST APIs" },
-    { "name": "Deployment", "keywords": "Netlify, Vercel, Render, DigitalOcean, Cloudflare, Heroku" },
-    { "name": "Operating Systems", "keywords": "Linux, Windows" }
+    {
+      "name": "Languages",
+      "keywords": "Python, Java, C, JavaScript, Rust, Go"
+    },
+    {
+      "name": "Web Development",
+      "keywords": "HTML, CSS, React.js, Node.js, Next.js, PHP"
+    },
+    {
+      "name": "Frameworks",
+      "keywords": "Flask, Django, Express.js, Tauri, Wails, Flutter, Firebase"
+    },
+    {
+      "name": "Databases",
+      "keywords": "MongoDB, MySQL, Supabase"
+    },
+    {
+      "name": "Developer Tools",
+      "keywords": "Git, GitHub, Docker, Postman, REST APIs"
+    },
+    {
+      "name": "Deployment",
+      "keywords": "Netlify, Vercel, Render, DigitalOcean, Cloudflare, Heroku"
+    },
+    {
+      "name": "Operating Systems",
+      "keywords": "Linux, Windows"
+    }
   ],
   "projects": [
     {
@@ -71,19 +94,54 @@
   ],
   "education": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University",
   "certifications": [
-    { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
-    { "name": "Python for Data Science", "issuer": "NPTEL -- IIT Madras", "year": "2024" },
-    { "name": "JavaScript Foundations Professional", "issuer": "Mozilla", "year": "Jul 2025" },
-    { "name": "Amazon API Gateway for Serverless", "issuer": "AWS Training", "year": "Jun 2025" },
-    { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
+    {
+      "name": "Programming with Python",
+      "issuer": "Python Institute OpenEDG",
+      "year": "2024"
+    },
+    {
+      "name": "Python for Data Science",
+      "issuer": "NPTEL -- IIT Madras",
+      "year": "2024"
+    },
+    {
+      "name": "JavaScript Foundations Professional",
+      "issuer": "Mozilla",
+      "year": "Jul 2025"
+    },
+    {
+      "name": "Amazon API Gateway for Serverless",
+      "issuer": "AWS Training",
+      "year": "Jun 2025"
+    },
+    {
+      "name": "Ubuntu Linux Professional Certificate",
+      "issuer": "Canonical",
+      "year": "Nov 2025"
+    }
   ],
   "achievements": [
-    { "name": "Galactic Problem Solver", "issuer": "NASA Space Apps Challenge 2024" },
-    { "name": "Global Connection Recognition", "issuer": "NASA Space Apps Challenge 2025" },
-    { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge 2025" }
+    {
+      "name": "Galactic Problem Solver",
+      "issuer": "NASA Space Apps Challenge 2024"
+    },
+    {
+      "name": "Global Connection Recognition",
+      "issuer": "NASA Space Apps Challenge 2025"
+    },
+    {
+      "name": "Global Nominee",
+      "issuer": "NASA Space Apps Challenge 2025"
+    }
   ],
   "additional_info": [
-    { "name": "Areas of Interest", "content": "Software Development, Full Stack Development, Data Structures, Algorithms, Object-Oriented Programming, API Development, Database Systems, Software Engineering" },
-    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+    {
+      "name": "Areas of Interest",
+      "content": "Software Development, Full Stack Development, Data Structures, Algorithms, Object-Oriented Programming, API Development, Database Systems, Software Engineering"
+    },
+    {
+      "name": "Languages",
+      "content": "English Professional, Malayalam Native"
+    }
   ]
 }
