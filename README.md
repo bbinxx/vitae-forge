@@ -43,6 +43,13 @@ Requires `python3` and `pdflatex`.
 ./scripts/build.sh backend  # Build only the Backend variant
 ./scripts/build.sh clean    # Wipe temporary files and logs
 ```
+3. Run `./scripts/build.sh newrole` to test locally.
+4. Push and tag to deploy:
+   ```bash
+   git add . && git commit -m "Add new role"
+   git tag v1.x.y             # Or resume-v1.x.y
+   git push origin dev --tags
+   ```
 Outputs are always found in the `dist/` folder.
 
 ---
