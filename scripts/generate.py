@@ -31,7 +31,25 @@ def resolve_modular(config_path, section_key, folder_name=None):
     if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
         return val
     
-    # Define folder and library filename
+    # NEW: Try to load from unified data.json first
+    data_file = os.path.join(os.path.dirname(config_path), "data.json")
+    if os.path.exists(data_file):
+        with open(data_file, 'r') as f:
+            data_lib = json.load(f)
+            section_lib = data_lib.get(section_key, {})
+            
+            if isinstance(val, list):
+                resolved = []
+                for item_id in val:
+                    if item_id in section_lib:
+                        resolved.append(section_lib[item_id])
+                    else:
+                        resolved.append(item_id)
+                return resolved
+            elif isinstance(val, str) and val in section_lib:
+                return section_lib[val]
+
+    # Legacy directory-based loading (fallback)
     folder = folder_name or section_key
     if section_key == "projects": folder = "projects"
     elif section_key == "professional_summary": folder = "summaries"

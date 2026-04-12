@@ -15,8 +15,30 @@ LOG_DIR="logs"
 mkdir -p "$DIST_DIR"
 mkdir -p "$LOG_DIR"
 
-# Per-role build option
-SINGLE_ROLE=$1
+# Command handling
+COMMAND=$1
+
+case $COMMAND in
+    "clean")
+        echo "🧹 Cleaning up temporary files and logs..."
+        rm -rf "$LOG_DIR"
+        rm -f dist/*.aux dist/*.log dist/*.out dist/*.pdf
+        rm -f *_temp.tex
+        mkdir -p "$LOG_DIR"
+        echo "✅ Done."
+        exit 0
+        ;;
+    "help")
+        echo "Usage: ./scripts/build.sh [role_name|clean|help]"
+        echo "  role_name : Build a specific resume role (e.g., standard)"
+        echo "  clean     : Remove temporary build files, logs, and dist contents"
+        echo "  help      : Show this help message"
+        echo "  (none)    : Build all available resumes"
+        exit 0
+        ;;
+esac
+
+SINGLE_ROLE=$COMMAND
 
 build_variant() {
     local config=$1
@@ -43,13 +65,12 @@ build_variant() {
     fi
     
     # 2. Compile to PDF
-    # pdflatex needs the image path relative to its execution location
     pdflatex -interaction=nonstopmode -output-directory="$DIST_DIR" "$tex_file" > "$LOG_DIR/${role_name}${suffix}_build.log" 2>&1
     
     if [ $? -eq 0 ]; then
         echo "    ✅ Success: ${pdf_file} generated"
         mv "$DIST_DIR/${role_name}${suffix}_temp.pdf" "$DIST_DIR/${pdf_file}"
-        rm "$tex_file" "$DIST_DIR/${role_name}${suffix}_temp".*
+        rm "$tex_file" "$DIST_DIR/${role_name}${suffix}_temp".* 2>/dev/null
     else
         echo "    ❌ Error: pdflatex failed. Check $LOG_DIR/${role_name}${suffix}_build.log"
         return 1
@@ -58,13 +79,10 @@ build_variant() {
 
 build_role() {
     local config=$1
-    
-    # Extract name and short_code dynamically from JSON
     local name_raw=$(python3 -c "import json; print(json.load(open('$config')).get('name', 'Bibin Raju'))")
     local name_slug=$(echo "$name_raw" | tr '[:lower:]' '[:upper:]' | tr ' ' '_')
     local short_code=$(python3 -c "import json; print(json.load(open('$config')).get('short_name', ''))")
     
-    # Fallback to config filename if short_name is missing
     if [ -z "$short_code" ]; then
         short_code=$(basename "$config" .json)
     fi
@@ -75,10 +93,7 @@ build_role() {
     echo "🏗️  Building Resume: $role_display_name"
     echo "----------------------------------------"
 
-    # Variant 1: Standard (No Photo)
     build_variant "$config" "$role_display_name" "$TEMPLATE_NO_PHOTO" "" ""
-    
-    # Variant 2: With Photo (_X suffix)
     build_variant "$config" "$role_display_name" "$TEMPLATE_PHOTO" "_X" "assets/profile-photo.jpg"
 }
 
@@ -90,10 +105,10 @@ if [ -n "$SINGLE_ROLE" ]; then
         exit 1
     fi
 else
+    # Build all roles
     for config in "$CONFIG_DIR"/*.json; do
-        # Do not build the template or personal json files
         config_name=$(basename "$config")
-        if [[ "$config_name" == "template.json" || "$config_name" == "personal.json" ]]; then
+        if [[ "$config_name" == "template.json" || "$config_name" == "personal.json" || "$config_name" == "data.json" ]]; then
             continue
         fi
         build_role "$config"
