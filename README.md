@@ -1,94 +1,73 @@
 # 📄 YOUR NAME — Automated Multi-Role Resume System
 
-> A high-automation, modular LaTeX resume system that generates multiple variants from structured JSON configurations. Centralized data, two modern templates (Photo & Standard), and zero-touch deployment to **Cloudflare R2**.
+> A high-automation, modular LaTeX resume system that generates multiple variants from consolidated JSON libraries. Centralized data, two modern templates (Photo & Standard), and zero-touch deployment.
 
 ---
 
 ## 🚀 System Architecture
 
-This system is built for **content-driven resume management**. You no longer need to touch LaTeX code to update your career history. All data is managed in `configs/`, and the pipeline handles the rest.
+This system is built for **extreme modularity**. You manage your content in a "Core" library and your resume roles in "Recipe" files.
 
 ### 🖼️ Dual-Template Strategy
 Every role generates **two** variants automatically:
 1.  **Standard (`.pdf`)**: Clean, minimalist, and 100% ATS-friendly.
-2.  **Modern (`_X.pdf`)**: A professional layout including your profile photo, optimized for networking and modern portals.
+2.  **Modern (`_X.pdf`)**: A professional layout including your profile photo, optimized for networking.
 
 ---
 
 ## 🏗️ How it Works
 
-### 1. Data-to-PDF Generation
-The `scripts/generate.py` script parses your role-specific JSON (e.g., `backend.json`) and injects the data into one of the core templates in `shared/`. It handles everything from skill categorization to project formatting.
+### 1. Core Library (`configs/core/`)
+All your career data exists in two central files:
+*   `configs/core/personal.json`: Your name, contact info, and social links.
+*   `configs/core/data.json`: A unified master database for all your projects, skills, summaries, certifications, and titles.
 
-### 2. Multi-Variant Build
-The `scripts/build.sh` script orchestrates the entire process:
-- Iterates through all roles in `configs/`.
-- Generates both **Standard** and **Photo** TeX files.
-- Compiles them using `pdflatex`.
-- Moves the final artifacts to the `dist/` directory.
+### 2. Role Recipes (`configs/roles/`)
+Each resume (e.g., `backend.json`, `mobile.json`) is a "recipe" file. It lists the **IDs** of the projects, skills, and titles you want to pull from the master library. The generator automatically resolves these IDs into full content.
 
-### 3. Automated Deployment (CI/CD)
-The system uses **GitHub Actions** for safe, versioned releases:
-- **Trigger**: The pipeline only runs when you push a new version tag (e.g., `git tag resume-v1.2.0`).
-- **Validation**: It verifies the LaTeX build before proceeding.
-- **Upload**: Successfully built PDFs are pushed to **Cloudflare R2** with the correct MIME types.
+### 3. Generator & Builder
+*   `scripts/generate.py`: Resolves modular IDs and injects them into LaTeX templates.
+*   `scripts/build.sh`: Orchestrates the entire PDF generation and cleanup pipeline.
 
 ---
 
 ## 🛠️ Usage & Operations
 
-### Updating Your Resumes
-Simply edit the relevant JSON file in `configs/`. You can change titles, skills, or even the order of projects without touching any styling code.
+### Updating Your Content
+1.  **Global Content**: To update a project description globally, edit `configs/core/data.json`.
+2.  **Contact Info**: To change your phone or email, edit `configs/core/personal.json`.
+3.  **Role Selection**: To change which projects show up on a specific resume, edit the recipe in `configs/roles/`.
 
 ### Building Locally
 Requires `python3` and `pdflatex` (TeX Live or MiKTeX).
 ```bash
-./scripts/build.sh          # Build ALL roles and variants
+./scripts/build.sh          # Build ALL resumes
 ./scripts/build.sh backend  # Build only the Backend role
+./scripts/build.sh clean    # Clean up temporary logs and files
+./scripts/build.sh help     # Show help message
 ```
 Find your outputs in the `dist/` folder.
 
 ### Adding a New Role
-1. Create `configs/newrole.json` (copy an existing one).
-2. Fill in your data.
+1. Create `configs/roles/newrole.json` (copy `template.json`).
+2. Reference the IDs from `data.json` for the content you want.
 3. Run `./scripts/build.sh newrole` to test locally.
-4. Push and tag to deploy:
-   ```bash
-   git add . && git commit -m "Add new role"
-   git tag resume-v1.x.y
-   git push origin main --tags
-   ```
-
----
-
-## ☁️ Live Resume Links
-Your resumes are automatically hosted on your custom domain. The system **keeps the .pdf extension** for better browser compatibility:
-
-- **Backend**: [bibin.dev/resume/backend.pdf](https://resume.bibin.dev/backend.pdf) | [With Photo](https://resume.bibin.dev/backend_X.pdf)
-- **Mobile**: [bibin.dev/resume/mobile.pdf](https://resume.bibin.dev/mobile.pdf) | [With Photo](https://resume.bibin.dev/mobile_X.pdf)
-- **Systems**: [bibin.dev/resume/systems.pdf](https://resume.bibin.dev/systems.pdf) | [With Photo](https://resume.bibin.dev/systems_X.pdf)
 
 ---
 
 ## 📂 Repository Structure
 ```
 .
-├── configs/            # JSON data per role (Source of Truth)
+├── configs/            # JSON Libraries & Recipes
+│   ├── core/           # Master Data (data.json, personal.json)
+│   ├── roles/          # Recipe Files (standard.json, backend.json, etc.)
+│   └── guidelines.md   # Content density & system guidelines
 ├── shared/             # Modern LaTeX templates (Photo & No-Photo)
 ├── scripts/            # Python generators & Bash automation
 ├── assets/             # Profile photos & static assets
 ├── dist/               # Compiled PDF artifacts (Generated)
-└── .github/workflows/  # CI/CD (Tag-based deployment)
+└── logs/               # Detailed build logs (per variant)
 ```
-
----
-
-## ⚙️ Configuration (GitHub Secrets)
-To enable automated deployment, add these secrets to your repository:
-- `R2_ACCESS_KEY_ID`: Your Cloudflare API key.
-- `R2_SECRET_ACCESS_KEY`: Your Cloudflare secret key.
-- `R2_ENDPOINT_URL`: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
-- `R2_BUCKET_NAME`: Your target bucket name.
 
 ---
 
@@ -101,4 +80,4 @@ To enable automated deployment, add these secrets to your repository:
 | 🐙 GitHub | [github.com/your-github](https://github.com/your-github) |
 
 ---
-*Built with Python, Bash, and LaTeX · Status: Live & Automated*
+*Built with Python, Bash, and LaTeX · Status: Fully Modular & Automated*
