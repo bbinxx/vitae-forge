@@ -1,0 +1,14 @@
+{
+  "SD": [
+    { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
+    { "name": "Python for Data Science", "issuer": "NPTEL -- IIT Madras", "year": "2024" },
+    { "name": "JavaScript Foundations Professional", "issuer": "Mozilla", "year": "Jul 2025" },
+    { "name": "Amazon API Gateway for Serverless", "issuer": "AWS Training", "year": "Jun 2025" },
+    { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
+  ],
+  "SYS": [
+    { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
+    { "name": "JavaScript Foundations Professional", "issuer": "Mozilla", "year": "Jul 2025" },
+    { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
+  ]
+}

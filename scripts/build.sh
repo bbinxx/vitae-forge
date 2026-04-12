@@ -1,10 +1,14 @@
 #!/bin/bash
 
+# Ensure we are in the repository root
+cd "$(dirname "$0")/.."
+ROOT_DIR=$(pwd)
+
 # Configuration
 CONFIG_DIR="configs"
 TEMPLATE_NO_PHOTO="shared/template.tex"
 TEMPLATE_PHOTO="shared/template_photo.tex"
-PHOTO_PATH="../assets/profile-photo.jpg" # Relative to output directory or absolute
+PHOTO_PATH="assets/profile-photo.jpg"
 DIST_DIR="dist"
 LOG_DIR="logs"
 
@@ -88,6 +92,10 @@ if [ -n "$SINGLE_ROLE" ]; then
 else
     # Build all roles
     for config in "$CONFIG_DIR"/*.json; do
+        # Do not build the template json file
+        if [[ "$(basename "$config")" == "template.json" ]]; then
+            continue
+        fi
         build_role "$config"
     done
 fi

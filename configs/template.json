@@ -14,16 +14,9 @@
     }
   ],
   "projects": [
-    {
-      "name": "Project Name",
-      "tech": "Tech Stack Used (Max 4-5 items)",
-      "date": "Month Year",
-      "link": "https://github.com/your-username/project (Optional)",
-      "points": [
-        "GUIDELINE: 2-3 bullet points per project. Use Action Verbs + Context + Result (numbers/impact).",
-        "Total 3-4 projects are recommended to keep the resume to a single page."
-      ]
-    }
+    "will_it_rain", 
+    "smart_traffic",
+    "cert_generator"
   ],
   "education": "GUIDELINE: Format using LaTeX commands if needed (e.g., \\textbf{Degree} \\hfill \\textbf{Year}). Keep to 1-2 entries. Max 3-4 lines total.",
   "certifications": [

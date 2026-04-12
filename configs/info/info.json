@@ -1,0 +1,18 @@
+{
+  "SD": [
+    { "name": "Areas of Interest", "content": "Software Development, Full Stack Development, Data Structures, Algorithms, Object-Oriented Programming, API Development, Database Systems, Software Engineering" },
+    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+  ],
+  "BC": [
+    { "name": "Areas of Interest", "content": "Backend Development, REST APIs, Microservices, Distributed Systems, Cloud Computing, Database Management, API Design, Server-Side Development" },
+    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+  ],
+  "MOB": [
+    { "name": "Areas of Interest", "content": "Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase, UI Development, REST API Integration, Mobile UI/UX" },
+    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+  ],
+  "SYS": [
+    { "name": "Areas of Interest", "content": "Systems Programming, Operating Systems, Concurrency, Multithreading, Low-Level Programming, Performance Optimization, Memory Management, Networking" },
+    { "name": "Languages", "content": "English Professional, Malayalam Native" }
+  ]
+}
