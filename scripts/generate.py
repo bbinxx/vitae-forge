@@ -35,6 +35,8 @@ def resolve_modular(config_path, section_key, folder_name=None):
     folder = folder_name or section_key
     if section_key == "projects": folder = "projects"
     elif section_key == "professional_summary": folder = "summaries"
+    elif section_key == "role_title": folder = "titles"
+    elif section_key == "education": folder = "education"
     elif section_key == "certifications": folder = "certs"
     elif section_key == "additional_info": folder = "info"
     
@@ -62,10 +64,20 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     with open(config_path, 'r') as f:
         config = json.load(f)
     
+    # Load and merge personal info
+    personal_file = os.path.join(os.path.dirname(config_path), "personal.json")
+    if os.path.exists(personal_file):
+        with open(personal_file, 'r') as f:
+            personal_info = json.load(f)
+            # Merge personal info: config values override personal_info if they exist
+            config = {**personal_info, **config}
+    
     # Resolve all modular sections
     config["professional_summary"] = resolve_modular(config_path, "professional_summary")
+    config["role_title"] = resolve_modular(config_path, "role_title")
     config["skills"] = resolve_modular(config_path, "skills")
     config["projects"] = resolve_modular(config_path, "projects")
+    config["education"] = resolve_modular(config_path, "education")
     config["certifications"] = resolve_modular(config_path, "certifications")
     config["achievements"] = resolve_modular(config_path, "achievements")
     config["additional_info"] = resolve_modular(config_path, "additional_info")
