@@ -1,12 +1,12 @@
 # 📄 Bibin Raju — Automated Multi-Role Resume System
 
-> A high-automation, modular LaTeX resume system that generates multiple variants from consolidated JSON libraries. Centralized data, two modern templates (Photo & Standard), and zero-touch deployment.
+> A high-automation, modular LaTeX resume system that generates multiple variants from a **single master configuration file**. Centralized data, two modern templates (Photo & Standard), and zero-touch deployment.
 
 ---
 
 ## 🚀 System Architecture
 
-This system is built for **extreme modularity**. You manage your content in a "Core" library and your resume roles in "Recipe" files.
+This is the ultimate evolution of the modular resume system. Everything—your contact info, your entire career history, and all your resume role recipes—lives in **one single file**.
 
 ### 🖼️ Dual-Template Strategy
 Every role generates **two** variants automatically:
@@ -17,67 +17,47 @@ Every role generates **two** variants automatically:
 
 ## 🏗️ How it Works
 
-### 1. Core Library (`configs/core/`)
-All your career data exists in two central files:
-*   `configs/core/personal.json`: Your name, contact info, and social links.
-*   `configs/core/data.json`: A unified master database for all your projects, skills, summaries, certifications, and titles.
+### 1. The "One True File" (`configs/resume_config.json`)
+The entire system is powered by this one file, divided into three sections:
+*   `personal`: Your name and contact details.
+*   `library`: Your master database of projects, skills, and summaries.
+*   `recipes`: Definitions for each of your resume roles (Standard, Backend, etc.), which pull from the library via IDs.
 
-### 2. Role Recipes (`configs/roles/`)
-Each resume (e.g., `backend.json`, `mobile.json`) is a "recipe" file. It lists the **IDs** of the projects, skills, and titles you want to pull from the master library. The generator automatically resolves these IDs into full content.
-
-### 3. Generator & Builder
-*   `scripts/generate.py`: Resolves modular IDs and injects them into LaTeX templates.
-*   `scripts/build.sh`: Orchestrates the entire PDF generation and cleanup pipeline.
+### 2. Generator & Builder
+*   `scripts/generate.py`: The engine that takes a role ID and the master config to build a custom LaTeX file.
+*   `scripts/build.sh`: The one-click automation tool to generate all variants or clean your workspace.
 
 ---
 
 ## 🛠️ Usage & Operations
 
-### Updating Your Content
-1.  **Global Content**: To update a project description globally, edit `configs/core/data.json`.
-2.  **Contact Info**: To change your phone or email, edit `configs/core/personal.json`.
-3.  **Role Selection**: To change which projects show up on a specific resume, edit the recipe in `configs/roles/`.
+### Updating Everything
+1.  Open **[`configs/resume_config.json`](file:///media/bbin/MY%20UNIVERSE/DEV/BIBIN_RESUME/configs/resume_config.json)**.
+2.  Edit your career history in the `library` section.
+3.  Add or tweak a resume role in the `recipes` section.
 
 ### Building Locally
-Requires `python3` and `pdflatex` (TeX Live or MiKTeX).
+Requires `python3` and `pdflatex`.
 ```bash
 ./scripts/build.sh          # Build ALL resumes
-./scripts/build.sh backend  # Build only the Backend role
-./scripts/build.sh clean    # Clean up temporary logs and files
-./scripts/build.sh help     # Show help message
+./scripts/build.sh backend  # Build only the Backend variant
+./scripts/build.sh clean    # Wipe temporary files and logs
 ```
-Find your outputs in the `dist/` folder.
-
-### Adding a New Role
-1. Create `configs/roles/newrole.json` (copy `template.json`).
-2. Reference the IDs from `data.json` for the content you want.
-3. Run `./scripts/build.sh newrole` to test locally.
+Outputs are always found in the `dist/` folder.
 
 ---
 
 ## 📂 Repository Structure
 ```
 .
-├── configs/            # JSON Libraries & Recipes
-│   ├── core/           # Master Data (data.json, personal.json)
-│   ├── roles/          # Recipe Files (standard.json, backend.json, etc.)
-│   └── guidelines.md   # Content density & system guidelines
-├── shared/             # Modern LaTeX templates (Photo & No-Photo)
-├── scripts/            # Python generators & Bash automation
-├── assets/             # Profile photos & static assets
-├── dist/               # Compiled PDF artifacts (Generated)
-└── logs/               # Detailed build logs (per variant)
+├── configs/
+│   ├── resume_config.json   # THE ONLY FILE YOU NEED TO EDIT
+│   └── guidelines.md        # Layout and content tips
+├── shared/                  # LaTeX templates
+├── scripts/                 # Automation scripts
+├── assets/                  # Profile photo
+└── dist/                    # Final PDF artifacts (Generated)
 ```
 
 ---
-
-## 🔗 Connect
-
-| Platform | Link |
-|---|---|
-| 📧 Email | [bibinraju541@gmail.com](mailto:bibinraju541@gmail.com) |
-| 💼 LinkedIn | [linkedin.com/in/bibinraju](https://linkedin.com/in/bibinraju) |
-| 🐙 GitHub | [github.com/bbinxx](https://github.com/bbinxx) |
-
----
-*Built with Python, Bash, and LaTeX · Status: Fully Modular & Automated*
+*Built with Python, Bash, and LaTeX · Status: Single-File Configuration*

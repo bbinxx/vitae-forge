@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 ROOT_DIR=$(pwd)
 
 # Configuration
-CONFIG_DIR="configs/roles"
+CONFIG_FILE="configs/resume_config.json"
 TEMPLATE_NO_PHOTO="shared/template.tex"
 TEMPLATE_PHOTO="shared/template_photo.tex"
 PHOTO_PATH="assets/profile-photo.jpg"
@@ -15,12 +15,11 @@ LOG_DIR="logs"
 mkdir -p "$DIST_DIR"
 mkdir -p "$LOG_DIR"
 
-# Command handling
 COMMAND=$1
 
 case $COMMAND in
     "clean")
-        echo "🧹 Cleaning up temporary files and logs..."
+        echo "🧹 Cleaning up..."
         rm -rf "$LOG_DIR"
         rm -f dist/*.aux dist/*.log dist/*.out dist/*.pdf
         rm -f *_temp.tex
@@ -29,11 +28,7 @@ case $COMMAND in
         exit 0
         ;;
     "help")
-        echo "Usage: ./scripts/build.sh [role_name|clean|help]"
-        echo "  role_name : Build a specific resume role (e.g., standard)"
-        echo "  clean     : Remove temporary build files, logs, and dist contents"
-        echo "  help      : Show this help message"
-        echo "  (none)    : Build all available resumes"
+        echo "Usage: ./scripts/build.sh [role_id|clean|help]"
         exit 0
         ;;
 esac
@@ -41,7 +36,7 @@ esac
 SINGLE_ROLE=$COMMAND
 
 build_variant() {
-    local config=$1
+    local source=$1
     local role_name=$2
     local template=$3
     local suffix=$4
@@ -52,70 +47,52 @@ build_variant() {
     
     echo "  → Variant: ${suffix:-Standard}"
     
-    # 1. Generate LaTeX
     if [ -n "$photo" ]; then
-        python3 scripts/generate.py "$config" "$template" "$tex_file" --photo "$photo"
+        python3 scripts/generate.py "$source" "$template" "$tex_file" --photo "$photo"
     else
-        python3 scripts/generate.py "$config" "$template" "$tex_file"
+        python3 scripts/generate.py "$source" "$template" "$tex_file"
     fi
     
-    if [ $? -ne 0 ]; then
-        echo "    ❌ Error: Generator failed for $role_name $suffix"
-        return 1
-    fi
-    
-    # 2. Compile to PDF
     pdflatex -interaction=nonstopmode -output-directory="$DIST_DIR" "$tex_file" > "$LOG_DIR/${role_name}${suffix}_build.log" 2>&1
     
     if [ $? -eq 0 ]; then
-        echo "    ✅ Success: ${pdf_file} generated"
+        local pages=$(grep -a "Output written on" "$LOG_DIR/${role_name}${suffix}_build.log" | grep -oE "[0-9]+ page[s]?")
+        echo "    ✅ Success: ${pdf_file} ($pages)"
         mv "$DIST_DIR/${role_name}${suffix}_temp.pdf" "$DIST_DIR/${pdf_file}"
         rm "$tex_file" "$DIST_DIR/${role_name}${suffix}_temp".* 2>/dev/null
     else
-        echo "    ❌ Error: pdflatex failed. Check $LOG_DIR/${role_name}${suffix}_build.log"
-        return 1
+        echo "    ❌ Error: Check $LOG_DIR/${role_name}${suffix}_build.log"
     fi
 }
 
 build_role() {
-    local config=$1
-    local name_raw=$(python3 -c "import json; print(json.load(open('$config')).get('name', 'Bibin Raju'))")
-    local name_slug=$(echo "$name_raw" | tr '[:lower:]' '[:upper:]' | tr ' ' '_')
-    local short_code=$(python3 -c "import json; print(json.load(open('$config')).get('short_name', ''))")
+    local role_id=$1
     
-    if [ -z "$short_code" ]; then
-        short_code=$(basename "$config" .json)
-    fi
-
+    # Extract metadata using Python from the single master config
+    local name_raw=$(python3 -c "import json; d=json.load(open('$CONFIG_FILE')); print(d['personal'].get('name', 'Bibin Raju'))")
+    local short_code=$(python3 -c "import json; d=json.load(open('$CONFIG_FILE')); print(d['recipes'].get('$role_id', {}).get('short_name', '$role_id'))")
+    
+    local name_slug=$(echo "$name_raw" | tr '[:lower:]' '[:upper:]' | tr ' ' '_')
     local role_display_name="${name_slug}_${short_code}"
 
     echo "----------------------------------------"
     echo "🏗️  Building Resume: $role_display_name"
     echo "----------------------------------------"
 
-    build_variant "$config" "$role_display_name" "$TEMPLATE_NO_PHOTO" "" ""
-    build_variant "$config" "$role_display_name" "$TEMPLATE_PHOTO" "_X" "assets/profile-photo.jpg"
+    build_variant "$role_id" "$role_display_name" "$TEMPLATE_NO_PHOTO" "" ""
+    build_variant "$role_id" "$role_display_name" "$TEMPLATE_PHOTO" "_X" "$PHOTO_PATH"
 }
 
 if [ -n "$SINGLE_ROLE" ]; then
-    if [ -f "$CONFIG_DIR/$SINGLE_ROLE.json" ]; then
-        build_role "$CONFIG_DIR/$SINGLE_ROLE.json"
-    else
-        echo "❌ Error: Config for role '$SINGLE_ROLE' not found in $CONFIG_DIR"
-        exit 1
-    fi
+    build_role "$SINGLE_ROLE"
 else
-    # Build all recipes in roles folder
-    for config in "$CONFIG_DIR"/*.json; do
-        config_name=$(basename "$config")
-        # Template is in roles folder, so skip it
-        if [[ "$config_name" == "template.json" ]]; then
-            continue
-        fi
-        build_role "$config"
+    # Build all roles defined in the master config
+    ROLES=$(python3 -c "import json; d=json.load(open('$CONFIG_FILE')); print(*(d['recipes'].keys()))")
+    for role in $ROLES; do
+        build_role "$role"
     done
 fi
 
 echo "----------------------------------------"
-echo "🎉 Full Build Process Complete"
+echo "🎉 Complete"
 echo "----------------------------------------"
