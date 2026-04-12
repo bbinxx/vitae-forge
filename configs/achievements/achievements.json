@@ -1,0 +1,11 @@
+{
+  "SD": [
+    { "name": "Galactic Problem Solver", "issuer": "NASA Space Apps Challenge 2024" },
+    { "name": "Global Connection Recognition", "issuer": "NASA Space Apps Challenge 2025" },
+    { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge 2025" }
+  ],
+  "SYS": [
+    { "name": "Galactic Problem Solver", "issuer": "NASA Space Apps Challenge 2024" },
+    { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge 2025" }
+  ]
+}

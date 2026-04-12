@@ -19,9 +19,56 @@ def escape_latex(text):
     }
     return "".join(replacements.get(c, c) for c in text)
 
+def resolve_modular(config_path, section_key, folder_name=None):
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    val = config.get(section_key)
+    if not val:
+        return "" if section_key == "professional_summary" else []
+
+    # If it's already structured data (list of dicts), return as is
+    if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
+        return val
+    
+    # Define folder and library filename
+    folder = folder_name or section_key
+    if section_key == "projects": folder = "projects"
+    elif section_key == "professional_summary": folder = "summaries"
+    elif section_key == "certifications": folder = "certs"
+    elif section_key == "additional_info": folder = "info"
+    
+    lib_name = "projects.json" if section_key == "projects" else f"{folder}.json"
+    module_file = os.path.join(os.path.dirname(config_path), folder, lib_name)
+    
+    if os.path.exists(module_file):
+        with open(module_file, 'r') as f:
+            library = json.load(f)
+        
+        if isinstance(val, list):
+            resolved = []
+            for item_id in val:
+                if item_id in library:
+                    resolved.append(library[item_id])
+                else:
+                    resolved.append(item_id) # Fallback to original
+            return resolved
+        elif isinstance(val, str) and val in library:
+            return library[val]
+    
+    return val
+
 def generate_resume(config_path, template_path, output_path, photo_path=None):
     with open(config_path, 'r') as f:
         config = json.load(f)
+    
+    # Resolve all modular sections
+    config["professional_summary"] = resolve_modular(config_path, "professional_summary")
+    config["skills"] = resolve_modular(config_path, "skills")
+    config["projects"] = resolve_modular(config_path, "projects")
+    config["certifications"] = resolve_modular(config_path, "certifications")
+    config["achievements"] = resolve_modular(config_path, "achievements")
+    config["additional_info"] = resolve_modular(config_path, "additional_info")
     
     with open(template_path, 'r') as f:
         template = f.read()
@@ -45,6 +92,8 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     # Skills section
     skills_tex = ""
     for category in config.get("skills", []):
+        if category.get("active") is False:
+            continue
         name = escape_latex(category.get("name", ""))
         keywords = escape_latex(category.get("keywords", ""))
         skills_tex += f"{name} & {keywords} \\\\\n"
@@ -53,6 +102,8 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     # Projects section
     projects_tex = ""
     for project in config.get("projects", []):
+        if project.get("active") is False:
+            continue
         name = escape_latex(project.get("name", ""))
         tech = escape_latex(project.get("tech", ""))
         date = escape_latex(project.get("date", ""))
@@ -71,6 +122,8 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     # Certifications section
     certs_tex = ""
     for cert in config.get("certifications", []):
+        if cert.get("active") is False:
+            continue
         name = escape_latex(cert.get("name", ""))
         issuer = escape_latex(cert.get("issuer", ""))
         year = escape_latex(cert.get("year", ""))
@@ -80,6 +133,8 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     # Achievements section
     ach_tex = ""
     for ach in config.get("achievements", []):
+        if ach.get("active") is False:
+            continue
         name = escape_latex(ach.get("name", ""))
         issuer = escape_latex(ach.get("issuer", ""))
         ach_tex += f"{name} & {issuer} \\\\\n"
@@ -88,6 +143,8 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
     # Additional info
     info_tex = ""
     for info in config.get("additional_info", []):
+        if info.get("active") is False:
+            continue
         name = escape_latex(info.get("name", ""))
         content = escape_latex(info.get("content", ""))
         info_tex += f"{name} & {content} \\\\\n"
