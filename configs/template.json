@@ -1,11 +1,6 @@
 {
-  "name": "Full Name ",
   "short_name": "Short Code for Filename (e.g., BC, SD, MOB) - Max 3-4 chars",
   "role_title": "Target Role | Specialized Skills (Max 60-80 chars)",
-  "email": "your.email@gmail.com",
-  "phone": "+91 XXXXX XXXXX",
-  "linkedin": "your-profile",
-  "github": "your-username",
   "professional_summary": "GUIDELINE: Aim for 3-4 lines (~350-500 characters). Focus on core expertise, years of experience, and key technical impact. This section sets the tone and should be concise but impactful.",
   "skills": [
     {

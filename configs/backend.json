@@ -1,11 +1,6 @@
 {
-  "name": "Bibin Raju",
   "short_name": "BC",
-  "role_title": "Backend Engineer | API & Scalable Systems",
-  "email": "bibinraju541@gmail.com",
-  "phone": "+91 90740 85302",
-  "linkedin": "bibinraju",
-  "github": "bbinxx",
+  "role_title": "BC",
   "professional_summary": "BC",
   "skills": "BC",
   "projects": [
@@ -14,7 +9,7 @@
     "irrigo",
     "smart_traffic"
   ],
-  "education": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University",
+  "education": "standard",
   "certifications": "SD",
   "achievements": "SD",
   "additional_info": "BC"

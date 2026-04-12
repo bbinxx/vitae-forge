@@ -90,10 +90,10 @@ if [ -n "$SINGLE_ROLE" ]; then
         exit 1
     fi
 else
-    # Build all roles
     for config in "$CONFIG_DIR"/*.json; do
-        # Do not build the template json file
-        if [[ "$(basename "$config")" == "template.json" ]]; then
+        # Do not build the template or personal json files
+        config_name=$(basename "$config")
+        if [[ "$config_name" == "template.json" || "$config_name" == "personal.json" ]]; then
             continue
         fi
         build_role "$config"
