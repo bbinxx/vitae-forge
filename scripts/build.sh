@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 ROOT_DIR=$(pwd)
 
 # Configuration
-CONFIG_DIR="configs"
+CONFIG_DIR="configs/roles"
 TEMPLATE_NO_PHOTO="shared/template.tex"
 TEMPLATE_PHOTO="shared/template_photo.tex"
 PHOTO_PATH="assets/profile-photo.jpg"
@@ -105,10 +105,11 @@ if [ -n "$SINGLE_ROLE" ]; then
         exit 1
     fi
 else
-    # Build all roles
+    # Build all recipes in roles folder
     for config in "$CONFIG_DIR"/*.json; do
         config_name=$(basename "$config")
-        if [[ "$config_name" == "template.json" || "$config_name" == "personal.json" || "$config_name" == "data.json" ]]; then
+        # Template is in roles folder, so skip it
+        if [[ "$config_name" == "template.json" ]]; then
             continue
         fi
         build_role "$config"

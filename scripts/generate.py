@@ -2,6 +2,10 @@ import json
 import os
 import sys
 
+# Paths
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CORE_DIR = os.path.join(REPO_ROOT, "configs", "core")
+
 def escape_latex(text):
     if not isinstance(text, str):
         return text
@@ -31,8 +35,8 @@ def resolve_modular(config_path, section_key, folder_name=None):
     if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
         return val
     
-    # NEW: Try to load from unified data.json first
-    data_file = os.path.join(os.path.dirname(config_path), "data.json")
+    # Try to load from unified data.json in core dir
+    data_file = os.path.join(CORE_DIR, "data.json")
     if os.path.exists(data_file):
         with open(data_file, 'r') as f:
             data_lib = json.load(f)
@@ -49,41 +53,14 @@ def resolve_modular(config_path, section_key, folder_name=None):
             elif isinstance(val, str) and val in section_lib:
                 return section_lib[val]
 
-    # Legacy directory-based loading (fallback)
-    folder = folder_name or section_key
-    if section_key == "projects": folder = "projects"
-    elif section_key == "professional_summary": folder = "summaries"
-    elif section_key == "role_title": folder = "titles"
-    elif section_key == "education": folder = "education"
-    elif section_key == "certifications": folder = "certs"
-    elif section_key == "additional_info": folder = "info"
-    
-    lib_name = "projects.json" if section_key == "projects" else f"{folder}.json"
-    module_file = os.path.join(os.path.dirname(config_path), folder, lib_name)
-    
-    if os.path.exists(module_file):
-        with open(module_file, 'r') as f:
-            library = json.load(f)
-        
-        if isinstance(val, list):
-            resolved = []
-            for item_id in val:
-                if item_id in library:
-                    resolved.append(library[item_id])
-                else:
-                    resolved.append(item_id) # Fallback to original
-            return resolved
-        elif isinstance(val, str) and val in library:
-            return library[val]
-    
     return val
 
 def generate_resume(config_path, template_path, output_path, photo_path=None):
     with open(config_path, 'r') as f:
         config = json.load(f)
     
-    # Load and merge personal info
-    personal_file = os.path.join(os.path.dirname(config_path), "personal.json")
+    # Load and merge personal info from core dir
+    personal_file = os.path.join(CORE_DIR, "personal.json")
     if os.path.exists(personal_file):
         with open(personal_file, 'r') as f:
             personal_info = json.load(f)
@@ -115,8 +92,6 @@ def generate_resume(config_path, template_path, output_path, photo_path=None):
 
     # Photo path replacement (if using photo template)
     if photo_path:
-        # LaTeX needs absolute path or relative to output dir
-        # We'll use the provided path but ensure it exists
         template = template.replace("<<PHOTO_PATH>>", photo_path)
 
     # Skills section
