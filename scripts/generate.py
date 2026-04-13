@@ -83,6 +83,7 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
     # Skills
     skills_tex = ""
     for cat in config.get("skills", []):
+        if not isinstance(cat, dict): continue
         if cat.get("active") is False: continue
         skills_tex += f"{escape_latex(cat.get('name', ''))} & {escape_latex(cat.get('keywords', ''))} \\\\\n"
     template = template.replace("<<SKILLS>>", skills_tex)
@@ -90,6 +91,7 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
     # Projects
     projects_tex = ""
     for proj in config.get("projects", []):
+        if not isinstance(proj, dict): continue
         if proj.get("active") is False: continue
         link_tex = f" \\quad \\href{{{proj.get('link')}}}{{GitHub}}" if proj.get("link") else ""
         projects_tex += f"\\textbf{{ {escape_latex(proj.get('name', ''))} }} \\hfill \\textit{{ {escape_latex(proj.get('tech', ''))} \\quad {escape_latex(proj.get('date', ''))} }} {link_tex}\n"
@@ -103,9 +105,10 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
     for key, tag in [("certifications", "<<CERTIFICATIONS>>"), ("achievements", "<<ACHIEVEMENTS>>"), ("additional_info", "<<ADDITIONAL>>")]:
         tex = ""
         for item in config.get(key, []):
+            if not isinstance(item, dict): continue
             if item.get("active") is False: continue
             if key == "certifications":
-                tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('issuer'))} & {escape_latex(item.get('year'))} \\\\\n"
+                tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('issuer'))} & {escape_latex(item.get('year', ''))} \\\\\n"
             elif key == "achievements":
                 tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('issuer'))} & {escape_latex(item.get('year', ''))} \\\\\n"
             else:
