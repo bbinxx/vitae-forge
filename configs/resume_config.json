@@ -8,134 +8,41 @@
   },
   "library": {
     "professional_summary": {
-      "SD": "Software Engineer with hands-on experience in full-stack development, backend systems, and scalable application design. Proficient in Python, JavaScript, and REST API development, with a strong foundation in data structures, algorithms, and object-oriented programming.",
-      "BC": "Backend Engineer with production experience in scalable distributed systems, RESTful API design, and real-time data pipelines. Proficient in Node.js, Flask, and Go, with expertise in high-concurrency processing, database optimization, and automated deployment workflows.",
-      "MOB": "Mobile Application Developer with cross-platform development experience in Flutter and Firebase. Skilled in building responsive mobile interfaces, integrating device-level APIs, and delivering production-ready Android and iOS applications with scalable backend integrations.",
-      "SYS": "Systems Engineer with expertise in high-performance native application development, concurrent systems design, and resource optimization. Proficient in Rust and Go, with experience in low-level programming, memory management, and production-grade system architecture."
+      "sd": "Software Engineer with practical experience in full-stack development, server-side systems, and scalable solution design. Proficient in Python and JavaScript, with strong fundamentals in data structures, algorithms, and object-oriented principles.",
+      "bc": "Backend Engineer experienced in building scalable services, API architectures, and real-time processing workflows. Skilled in Node.js and Flask, with focus on efficient data handling, system reliability, and optimized server-side execution.",
+      "mob": "Mobile Application Developer with experience in cross-platform and native development using Flutter, Android SDK, and Kotlin Multiplatform. Focused on building responsive mobile interfaces, integrating device features, and delivering scalable applications.",
+      "sys": "Systems Engineer focused on high-performance application development, concurrent execution models, and efficient resource utilization. Experienced in low-level programming, process optimization, and building reliable system-level solutions."
     },
     "role_title": {
-      "SD": "Software Engineer",
-      "BC": "Backend Engineer",
-      "MOB": "Mobile Application Developer",
-      "SYS": "Systems Engineer"
+      "sd": "Software Engineer",
+      "bc": "Backend Engineer",
+      "mob": "Mobile Application Developer",
+      "sys": "Systems Engineer"
     },
     "skills": {
-      "SD": [
-        {
-          "name": "Languages",
-          "keywords": "Python, JavaScript, Java, C, Rust, Go"
-        },
-        {
-          "name": "Web Development",
-          "keywords": "React.js, Node.js, Next.js, HTML, CSS, PHP"
-        },
-        {
-          "name": "Frameworks",
-          "keywords": "Flask, Django, Express.js, Flutter, Firebase, Tauri, Wails"
-        },
-        {
-          "name": "Databases",
-          "keywords": "MongoDB, MySQL, Supabase"
-        },
-        {
-          "name": "Developer Tools",
-          "keywords": "Git, GitHub, Docker, Postman, REST APIs"
-        },
-        {
-          "name": "Deployment",
-          "keywords": "Vercel, Netlify, Render, DigitalOcean, Cloudflare, Heroku"
-        },
-        {
-          "name": "Operating Systems",
-          "keywords": "Linux, Windows"
-        }
-      ],
-      "BC": [
-        {
-          "name": "Languages",
-          "keywords": "Python, Go, JavaScript"
-        },
-        {
-          "name": "Backend Development",
-          "keywords": "Node.js, Flask, Django, Express.js, Microservices, REST API Design"
-        },
-        {
-          "name": "Databases",
-          "keywords": "MongoDB, MySQL, Supabase, Database Optimization"
-        },
-        {
-          "name": "Tools",
-          "keywords": "Docker, Postman, Git, GitHub"
-        },
-        {
-          "name": "Cloud & Deployment",
-          "keywords": "AWS API Gateway, DigitalOcean, Vercel, Render, Docker"
-        },
-        {
-          "name": "Architecture",
-          "keywords": "Scalable Architecture, Authentication, Batch Processing, High-Concurrency Systems"
-        },
-        {
-          "name": "Operating Systems",
-          "keywords": "Linux, Windows"
-        }
-      ],
-      "MOB": [
-        {
-          "name": "Languages",
-          "keywords": "Dart, JavaScript, TypeScript, Python, Java, C"
-        },
-        {
-          "name": "Mobile Development",
-          "keywords": "Flutter, Firebase, Android SDK, ADB, React Native"
-        },
-        {
-          "name": "Frameworks",
-          "keywords": "React.js, Node.js, Next.js, Express.js, Tauri, Wails"
-        },
-        {
-          "name": "Backend & APIs",
-          "keywords": "Flask, Django, REST APIs, Supabase, PHP"
-        },
-        {
-          "name": "Databases",
-          "keywords": "MongoDB, MySQL"
-        },
-        {
-          "name": "Developer Tools",
-          "keywords": "Git, GitHub, Docker, Postman, Android Studio"
-        },
-        {
-          "name": "Operating Systems",
-          "keywords": "Linux, Windows"
-        }
-      ],
-      "SYS": [
-        {
-          "name": "Languages",
-          "keywords": "Rust, Go, C, Python, JavaScript, Java"
-        },
-        {
-          "name": "Systems & Performance",
-          "keywords": "Concurrency, Multithreading, Memory Optimization, Native Binary Optimization, Low-Level Programming"
-        },
-        {
-          "name": "Frameworks",
-          "keywords": "Tauri, Wails, Flask, Node.js"
-        },
-        {
-          "name": "Tools",
-          "keywords": "Git, GitHub Actions, Docker, Postman, ADB"
-        },
-        {
-          "name": "Infrastructure",
-          "keywords": "DigitalOcean, Vercel, Cloudflare"
-        },
-        {
-          "name": "Operating Systems",
-          "keywords": "Linux, Windows, Win32 API"
-        }
-      ]
+      "lang_all": { "name": "Languages", "keywords": "Python, JavaScript, Java, C, Rust, Go" },
+      "lang_bc": { "name": "Languages", "keywords": "Python, Go, JavaScript" },
+      "lang_mob": { "name": "Languages", "keywords": "Dart, JavaScript, TypeScript, Python, Java, C" },
+      "lang_sys": { "name": "Languages", "keywords": "Rust, Go, C, Python, JavaScript, Java" },
+      "web_sd": { "name": "Web Development", "keywords": "React.js, Node.js, Next.js, HTML, CSS, PHP" },
+      "backend_bc": { "name": "Backend Development", "keywords": "Node.js, Flask, Django, Express.js, Microservices, REST API Design" },
+      "mobile_dev": { "name": "Mobile Development", "keywords": "Flutter, Android SDK, Kotlin Multiplatform, Firebase, ADB, React Native" },
+      "sys_perf": { "name": "Systems & Performance", "keywords": "Concurrency, Multithreading, Memory Optimization, Native Binary Optimization, Low-Level Programming" },
+      "frameworks_sd": { "name": "Frameworks", "keywords": "Flask, Django, Express.js, Flutter, Firebase, Tauri, Wails" },
+      "frameworks_sys": { "name": "Frameworks", "keywords": "Tauri, Wails, Flask, Node.js" },
+      "db_sd": { "name": "Databases", "keywords": "MongoDB, MySQL, Supabase" },
+      "db_bc": { "name": "Databases", "keywords": "MongoDB, MySQL, Supabase, Database Optimization" },
+      "db_mob": { "name": "Databases", "keywords": "MongoDB, MySQL" },
+      "tools_sd": { "name": "Developer Tools", "keywords": "Git, GitHub, Docker, Postman, REST APIs" },
+      "tools_bc": { "name": "Tools", "keywords": "Docker, Postman, Git, GitHub" },
+      "tools_mob": { "name": "Developer Tools", "keywords": "Git, GitHub, Docker, Postman, Android Studio" },
+      "tools_sys": { "name": "Tools", "keywords": "Git, GitHub Actions, Docker, Postman, ADB" },
+      "deploy_sd": { "name": "Deployment", "keywords": "Vercel, Netlify, Render, DigitalOcean, Cloudflare, Heroku" },
+      "cloud_bc": { "name": "Cloud & Deployment", "keywords": "AWS API Gateway, DigitalOcean, Vercel, Render, Docker" },
+      "infra_sys": { "name": "Infrastructure", "keywords": "DigitalOcean, Vercel, Cloudflare" },
+      "os_linux_win": { "name": "Operating Systems", "keywords": "Linux, Windows" },
+      "os_sys": { "name": "Operating Systems", "keywords": "Linux, Windows, Win32 API" },
+      "arch_bc": { "name": "Architecture", "keywords": "Scalable Architecture, Authentication, Batch Processing, High-Concurrency Systems" }
     },
     "projects": {
       "will_it_rain": {
@@ -143,10 +50,10 @@
         "tech": "React, Leaflet, Chart.js, NASA POWER API",
         "date": "2025",
         "points": [
-          "Developed a weather analytics platform leveraging NASA climate data for event-level risk prediction.",
-          "Integrated geospatial input with multi-parameter analysis across temperature, precipitation, wind, and humidity datasets.",
-          "Implemented interactive data visualizations to surface trend analysis and probability-based insights.",
-          "Enabled structured data export in CSV and JSON formats to support planning and operational decision-making."
+          "Built a climate analytics platform utilizing NASA datasets for event-based risk forecasting.",
+          "Combined geospatial inputs with multi-variable evaluation across temperature, rainfall, wind, and humidity data.",
+          "Created interactive visual dashboards to present trend patterns and probabilistic insights.",
+          "Supported structured export in CSV and JSON formats for planning and decision workflows."
         ]
       },
       "smart_traffic": {
@@ -154,9 +61,9 @@
         "tech": "Python, YOLO, Flask",
         "date": "Jan 2025",
         "points": [
-          "Designed and deployed a YOLOv8 object detection pipeline achieving 94% accuracy across varied traffic conditions.",
-          "Improved simulated intersection throughput by 25% through adaptive signal control algorithm development.",
-          "Implemented low-latency model inference for real-time edge deployment with sub-200ms scene analysis latency."
+          "Engineered a YOLOv8 detection pipeline achieving 94% accuracy across diverse traffic environments.",
+          "Enhanced intersection flow efficiency by 25% through adaptive signal control logic.",
+          "Designed low-latency inference pipeline for real-time edge deployment with sub-200ms response time."
         ]
       },
       "cert_generator": {
@@ -165,9 +72,9 @@
         "date": "Dec 2024",
         "link": "https://github.com/your-github/advanced-certificate-generator",
         "points": [
-          "Automated high-throughput certificate generation processing 1,000+ records per batch, reducing manual effort by 90%.",
-          "Implemented a QR-based credential verification system enabling instant, tamper-resistant certificate validation.",
-          "Built an interactive canvas editor with support for dynamic layouts and reusable template components."
+          "Streamlined bulk certificate generation handling 1,000+ records per cycle, reducing manual workload by ~85–90%.",
+          "Introduced QR-based verification enabling secure and immediate credential validation.",
+          "Created a dynamic canvas editor supporting flexible layouts and reusable design components."
         ]
       },
       "irrigo": {
@@ -175,9 +82,9 @@
         "tech": "Next.js, Flask, Python, REST APIs",
         "date": "Oct 2024",
         "points": [
-          "Developed an AI-assisted smart irrigation platform integrating satellite imagery and weather API data for precision scheduling.",
-          "Reduced agricultural water consumption by approximately 20% through data-driven analysis across 50+ farm scenarios.",
-          "Built a full-stack analytics dashboard for real-time environmental monitoring and agricultural telemetry visualization."
+          "Built an intelligent irrigation system combining satellite inputs and weather APIs for optimized scheduling.",
+          "Lowered water consumption by ~20% through data-driven evaluation across 50+ agricultural scenarios.",
+          "Designed a real-time monitoring dashboard for environmental tracking and analytics visualization."
         ]
       },
       "droidops": {
@@ -186,9 +93,9 @@
         "date": "Dec 2025",
         "link": "https://github.com/your-github/droidops",
         "points": [
-          "Built a native Rust and Tauri desktop application for ADB management, improving process execution efficiency by 40%.",
-          "Applied Rust memory safety and concurrency primitives to implement reliable multi-device synchronization.",
-          "Delivered batch processing and optimized shell access features to streamline Android device lifecycle management."
+          "Developed a native desktop interface for ADB operations, improving execution efficiency by ~40%.",
+          "Utilized safe concurrency handling for stable multi-device communication and synchronization.",
+          "Enabled batch command execution and streamlined shell interaction for Android lifecycle control."
         ]
       },
       "glyphdeck": {
@@ -197,9 +104,9 @@
         "date": "Nov 2025",
         "link": "https://github.com/your-github/GlyphDeck",
         "points": [
-          "Developed a high-performance Go application indexing 1,200+ fonts with sub-500ms search and retrieval latency.",
-          "Optimized binary size to a 25MB native executable using the Wails framework, minimizing system overhead.",
-          "Increased user productivity by 40% through efficient metadata parsing and optimized font search algorithms."
+          "Built a high-speed font management tool indexing 1,200+ assets with sub-500ms lookup performance.",
+          "Reduced application footprint to ~25MB using optimized native packaging techniques.",
+          "Improved workflow efficiency by ~40% through faster metadata parsing and search functionality."
         ]
       }
     },
@@ -207,192 +114,73 @@
       "standard": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University"
     },
     "certifications": {
-      "SD": [
-        {
-          "name": "Programming with Python",
-          "issuer": "Python Institute OpenEDG",
-          "year": "2024"
-        },
-        {
-          "name": "Python for Data Science",
-          "issuer": "NPTEL -- IIT Madras",
-          "year": "2024"
-        },
-        {
-          "name": "JavaScript Foundations Professional Certificate",
-          "issuer": "Mozilla",
-          "year": "Jul 2025"
-        },
-        {
-          "name": "Amazon API Gateway for Serverless Applications",
-          "issuer": "AWS Training",
-          "year": "Jun 2025"
-        },
-        {
-          "name": "Ubuntu Linux Professional Certificate",
-          "issuer": "Canonical",
-          "year": "Nov 2025"
-        }
-      ],
-      "SYS": [
-        {
-          "name": "Programming with Python",
-          "issuer": "Python Institute OpenEDG",
-          "year": "2024"
-        },
-        {
-          "name": "JavaScript Foundations Professional Certificate",
-          "issuer": "Mozilla",
-          "year": "Jul 2025"
-        },
-        {
-          "name": "Ubuntu Linux Professional Certificate",
-          "issuer": "Canonical",
-          "year": "Nov 2025"
-        }
-      ]
+      "python": { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
+      "nptel": { "name": "Python for Data Science", "issuer": "NPTEL -- IIT Madras", "year": "2024" },
+      "mozilla": { "name": "JavaScript Foundations Professional Certificate", "issuer": "Mozilla", "year": "Jul 2025" },
+      "aws": { "name": "Amazon API Gateway for Serverless Applications", "issuer": "AWS Training", "year": "Jun 2025" },
+      "canonical": { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
     },
     "achievements": {
-      "SD": [
-        {
-          "name": "Galactic Problem Solver Award",
-          "issuer": "NASA Space Apps Challenge",
-          "year": "2024"
-        },
-        {
-          "name": "Global Connection Recognition Award",
-          "issuer": "NASA Space Apps Challenge",
-          "year": "2025"
-        },
-        {
-          "name": "Global Nominee",
-          "issuer": "NASA Space Apps Challenge",
-          "year": "2025"
-        }
-      ],
-      "SYS": [
-        {
-          "name": "Galactic Problem Solver Award",
-          "issuer": "NASA Space Apps Challenge",
-          "year": "2024"
-        },
-        {
-          "name": "Global Nominee",
-          "issuer": "NASA Space Apps Challenge",
-          "year": "2025"
-        }
-      ]
+      "nasa_2024": { "name": "Galactic Problem Solver Award", "issuer": "NASA Space Apps Challenge", "year": "2024" },
+      "nasa_2025_conn": { "name": "Global Connection Recognition Award", "issuer": "NASA Space Apps Challenge", "year": "2025" },
+      "nasa_2025_nom": { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge", "year": "2025" }
     },
     "additional_info": {
-      "SD": [
-        {
-          "name": "Areas of Interest",
-          "content": "Full Stack Development, Software Engineering, Data Structures and Algorithms, Object-Oriented Programming, REST API Development, Database Systems, Backend Development"
-        },
-        {
-          "name": "Languages",
-          "content": "English , Malayalam "
-        }
-      ],
-      "BC": [
-        {
-          "name": "Areas of Interest",
-          "content": "Backend Development, REST API Design, Microservices Architecture, Distributed Systems, Cloud Computing, Database Management, Server-Side Development"
-        },
-        {
-          "name": "Languages",
-          "content": "English , Malayalam "
-        }
-      ],
-      "MOB": [
-        {
-          "name": "Areas of Interest",
-          "content": "Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase Integration, REST API Integration, Mobile UI/UX Design"
-        },
-        {
-          "name": "Languages",
-          "content": "English , Malayalam "
-        }
-      ],
-      "SYS": [
-        {
-          "name": "Areas of Interest",
-          "content": "Systems Programming, Low-Level Programming, Concurrency and Multithreading, Performance Optimization, Memory Management, Operating Systems, Networking"
-        },
-        {
-          "name": "Languages",
-          "content": "English , Malayalam "
-        }
-      ]
+      "sd_interest": { "name": "Areas of Interest", "content": "Full Stack Development, Software Engineering, Data Structures and Algorithms, Object-Oriented Programming, REST API Development, Database Systems, Backend Development" },
+      "bc_interest": { "name": "Areas of Interest", "content": "Backend Development, REST API Design, Microservices Architecture, Distributed Systems, Cloud Computing, Database Management, Server-Side Development" },
+      "mob_interest": { "name": "Areas of Interest", "content": "Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase Integration, REST API Integration, Mobile UI/UX Design" },
+      "sys_interest": { "name": "Areas of Interest", "content": "Systems Programming, Low-Level Programming, Concurrency and Multithreading, Performance Optimization, Memory Management, Operating Systems, Networking" },
+      "languages": { "name": "Languages", "content": "English , Malayalam " }
     }
   },
   "recipes": {
     "standard": {
       "short_name": "SD",
-      "role_title": "SD",
-      "professional_summary": "SD",
-      "skills": "SD",
-      "projects": [
-        "will_it_rain",
-        "smart_traffic",
-        "cert_generator",
-        "irrigo",
-        "droidops"
-      ],
+      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "role_title": "sd",
+      "professional_summary": "sd",
+      "skills": ["lang_all", "web_sd", "frameworks_sd", "db_sd", "tools_sd", "deploy_sd", "os_linux_win"],
+      "projects": ["will_it_rain", "smart_traffic", "cert_generator", "irrigo", "droidops"],
       "education": "standard",
-      "certifications": "SD",
-      "achievements": "SD",
-      "additional_info": "SD"
+      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
+      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
+      "additional_info": ["sd_interest", "languages"]
     },
     "backend": {
       "short_name": "BC",
-      "role_title": "BC",
-      "professional_summary": "BC",
-      "skills": "BC",
-      "projects": [
-        "will_it_rain",
-        "cert_generator",
-        "irrigo",
-        "smart_traffic"
-      ],
+      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "role_title": "bc",
+      "professional_summary": "bc",
+      "skills": ["lang_bc", "backend_bc", "db_bc", "tools_bc", "cloud_bc", "arch_bc", "os_linux_win"],
+      "projects": ["will_it_rain", "cert_generator", "irrigo", "smart_traffic"],
       "education": "standard",
-      "certifications": "SD",
-      "achievements": "SD",
-      "additional_info": "BC"
+      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
+      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
+      "additional_info": ["bc_interest", "languages"]
     },
     "mobile": {
       "short_name": "MOB",
-      "role_title": "MOB",
-      "professional_summary": "MOB",
-      "skills": "MOB",
-      "projects": [
-        "will_it_rain",
-        "irrigo",
-        "droidops",
-        "smart_traffic",
-        "cert_generator"
-      ],
+      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "role_title": "mob",
+      "professional_summary": "mob",
+      "skills": ["lang_mob", "mobile_dev", "frameworks_sd", "db_mob", "tools_mob", "os_linux_win"],
+      "projects": ["will_it_rain", "irrigo", "droidops", "smart_traffic", "cert_generator"],
       "education": "standard",
-      "certifications": "SD",
-      "achievements": "SD",
-      "additional_info": "MOB"
+      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
+      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
+      "additional_info": ["mob_interest", "languages"]
     },
     "systems": {
       "short_name": "SYS",
-      "role_title": "SYS",
-      "professional_summary": "SYS",
-      "skills": "SYS",
-      "projects": [
-        "will_it_rain",
-        "droidops",
-        "smart_traffic",
-        "irrigo",
-        "cert_generator"
-      ],
+      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "role_title": "sys",
+      "professional_summary": "sys",
+      "skills": ["lang_sys", "sys_perf", "frameworks_sys", "tools_sys", "infra_sys", "os_sys"],
+      "projects": ["will_it_rain", "droidops", "smart_traffic", "irrigo", "cert_generator"],
       "education": "standard",
-      "certifications": "SYS",
-      "achievements": "SYS",
-      "additional_info": "SYS"
+      "certifications": ["python", "mozilla", "canonical"],
+      "achievements": ["nasa_2024", "nasa_2025_nom"],
+      "additional_info": ["sys_interest", "languages"]
     }
   }
 }

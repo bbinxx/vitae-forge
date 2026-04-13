@@ -113,6 +113,18 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
                 tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('content'))} \\\\\n"
         template = template.replace(tag, tex)
 
+    # Section Toggling
+    import re
+    sections_config = config.get("sections", {})
+    for section_name, is_active in sections_config.items():
+        if is_active is False:
+             pattern = rf"\% \[SECTION:{section_name.upper()}\].*?\% \[/SECTION:{section_name.upper()}\]"
+             template = re.sub(pattern, "", template, flags=re.DOTALL)
+    
+    # Final cleanup of any potential leftover markers
+    template = re.sub(r"\% \[SECTION:.*?\].*?\n", "", template)
+    template = re.sub(r"\% \[/SECTION:.*?\].*?\n", "", template)
+
     with open(output_path, 'w') as f:
         f.write(template)
     print(f"Generated LaTeX: {output_path}")
