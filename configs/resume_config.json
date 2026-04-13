@@ -256,25 +256,30 @@
       "SD": [
         {
           "name": "Galactic Problem Solver Award",
-          "issuer": "NASA Space Apps Challenge 2024"
+          "issuer": "NASA Space Apps Challenge",
+          "year": "2024"
         },
         {
           "name": "Global Connection Recognition Award",
-          "issuer": "NASA Space Apps Challenge 2025"
+          "issuer": "NASA Space Apps Challenge",
+          "year": "2025"
         },
         {
           "name": "Global Nominee",
-          "issuer": "NASA Space Apps Challenge 2025"
+          "issuer": "NASA Space Apps Challenge",
+          "year": "2025"
         }
       ],
       "SYS": [
         {
           "name": "Galactic Problem Solver Award",
-          "issuer": "NASA Space Apps Challenge 2024"
+          "issuer": "NASA Space Apps Challenge",
+          "year": "2024"
         },
         {
           "name": "Global Nominee",
-          "issuer": "NASA Space Apps Challenge 2025"
+          "issuer": "NASA Space Apps Challenge",
+          "year": "2025"
         }
       ]
     },
