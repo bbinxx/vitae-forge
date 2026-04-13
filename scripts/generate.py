@@ -109,6 +109,7 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
             elif key == "achievements":
                 tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('issuer'))} & {escape_latex(item.get('year', ''))} \\\\\n"
             else:
+                if item.get("name") == "Areas of Interest": continue
                 tex += f"{escape_latex(item.get('name'))} & {escape_latex(item.get('content'))} \\\\\n"
         template = template.replace(tag, tex)
 
