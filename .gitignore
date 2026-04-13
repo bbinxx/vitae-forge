@@ -24,3 +24,6 @@ logs/
 !shared/*.tex
 !scripts/*.py
 !scripts/*.sh
+
+# Ignore PDFs in shared
+shared/*.pdf
