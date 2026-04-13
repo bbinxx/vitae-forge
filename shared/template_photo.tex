@@ -47,7 +47,9 @@
   \raggedright
   {\fontsize{24}{28}\selectfont \textbf{<<NAME>>}}\par
   \vspace{2pt}
+% [SECTION:ROLE_TITLE]
   {\large\itshape\color{gray} <<ROLE_TITLE>> }\par
+% [/SECTION:ROLE_TITLE]
 \end{minipage}%
 \hfill
 \begin{minipage}[c]{0.36\textwidth}
@@ -62,6 +64,7 @@
     }
   \end{minipage}%
   \hspace{0.1pt}
+% [SECTION:PHOTO]
 \begin{minipage}[c]{0.26\linewidth}
     \raggedleft
     \fboxsep=2pt\fboxrule=0.5pt
@@ -69,40 +72,37 @@
       \includegraphics[height=0.75in,keepaspectratio]{<<PHOTO_PATH>>}%
     }%
   \end{minipage}
+% [/SECTION:PHOTO]
 \end{minipage}
 
 \vspace{5pt}
 
-% ── CONTENT ──────────────────────────────────────────────────────────────────
+% [SECTION:SUMMARY]
 \section*{Professional Summary}
 <<SUMMARY>>
+% [/SECTION:SUMMARY]
 
-%------------------------------------------------------------
-% TECHNICAL SKILLS
-%------------------------------------------------------------
+% [SECTION:SKILLS]
 \section*{Skills}
 
 \renewcommand{\arraystretch}{1.0}
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
 <<SKILLS>>
 \end{tabular}
+% [/SECTION:SKILLS]
 
-%------------------------------------------------------------
-% PROJECTS
-%------------------------------------------------------------
+% [SECTION:PROJECTS]
 \section*{Projects}
 
 <<PROJECTS>>
+% [/SECTION:PROJECTS]
 
-%------------------------------------------------------------
-% EDUCATION
-%------------------------------------------------------------
+% [SECTION:EDUCATION]
 \section*{Education}
 <<EDUCATION>>
+% [/SECTION:EDUCATION]
 
-%------------------------------------------------------------
-% CERTIFICATIONS
-%------------------------------------------------------------
+% [SECTION:CERTIFICATIONS]
 \section*{Certifications}
 
 \renewcommand{\arraystretch}{1.0}
@@ -110,23 +110,22 @@
 \textbf{Certificate} & \textbf{Issuer} & \textbf{Year} \\[1pt]
 <<CERTIFICATIONS>>
 \end{tabular}
+% [/SECTION:CERTIFICATIONS]
 
-%------------------------------------------------------------
-% ACHIEVEMENTS
-%------------------------------------------------------------
+% [SECTION:ACHIEVEMENTS]
 \section*{Achievements}
 
 \begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
 <<ACHIEVEMENTS>>
 \end{tabular}
+% [/SECTION:ACHIEVEMENTS]
 
-%------------------------------------------------------------
-% ADDITIONAL INFO
-%------------------------------------------------------------
+% [SECTION:LANGUAGES]
 \section*{Languages}
 
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
 <<ADDITIONAL>>
 \end{tabular}
+% [/SECTION:LANGUAGES]
 
 \end{document}

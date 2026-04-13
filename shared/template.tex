@@ -30,7 +30,9 @@
 %------------------------------------------------------------
 \begin{center}
 {\LARGE \textbf{<<NAME>>}}\\[3pt]
+% [SECTION:ROLE_TITLE]
 \textbf{ <<ROLE_TITLE>> }\\[3pt]
+% [/SECTION:ROLE_TITLE]
 \href{mailto:<<EMAIL>>}{<<EMAIL>>}
 ~$|$~
 <<PHONE>>
@@ -42,38 +44,32 @@
 
 \vspace{-5pt}
 
-%------------------------------------------------------------
-% PROFESSIONAL SUMMARY
-%------------------------------------------------------------
+% [SECTION:SUMMARY]
 \section*{Professional Summary}
 <<SUMMARY>>
+% [/SECTION:SUMMARY]
 
-%------------------------------------------------------------
-% TECHNICAL SKILLS
-%------------------------------------------------------------
+% [SECTION:SKILLS]
 \section*{Skills}
 
 \renewcommand{\arraystretch}{1.0}
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
 <<SKILLS>>
 \end{tabular}
+% [/SECTION:SKILLS]
 
-%------------------------------------------------------------
-% PROJECTS
-%------------------------------------------------------------
+% [SECTION:PROJECTS]
 \section*{Projects}
 
 <<PROJECTS>>
+% [/SECTION:PROJECTS]
 
-%------------------------------------------------------------
-% EDUCATION
-%------------------------------------------------------------
+% [SECTION:EDUCATION]
 \section*{Education}
 <<EDUCATION>>
+% [/SECTION:EDUCATION]
 
-%------------------------------------------------------------
-% CERTIFICATIONS
-%------------------------------------------------------------
+% [SECTION:CERTIFICATIONS]
 \section*{Certifications}
 
 \renewcommand{\arraystretch}{1.0}
@@ -81,23 +77,22 @@
 \textbf{Certificate} & \textbf{Issuer} & \textbf{Year} \\[1pt]
 <<CERTIFICATIONS>>
 \end{tabular}
+% [/SECTION:CERTIFICATIONS]
 
-%------------------------------------------------------------
-% ACHIEVEMENTS
-%------------------------------------------------------------
+% [SECTION:ACHIEVEMENTS]
 \section*{Achievements}
 
 \begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
 <<ACHIEVEMENTS>>
 \end{tabular}
+% [/SECTION:ACHIEVEMENTS]
 
-%------------------------------------------------------------
-% ADDITIONAL INFO
-%------------------------------------------------------------
+% [SECTION:LANGUAGES]
 \section*{Languages}
 
 \begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
 <<ADDITIONAL>>
 \end{tabular}
+% [/SECTION:LANGUAGES]
 
 \end{document}

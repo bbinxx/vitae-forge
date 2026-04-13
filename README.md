@@ -21,7 +21,12 @@ Every role generates **two** variants automatically:
 The entire system is powered by this one file, divided into three sections:
 *   `personal`: Your name and contact details.
 *   `library`: Your master database of projects, skills, and summaries.
-*   `recipes`: Definitions for each of your resume roles (Standard, Backend, etc.), which pull from the library via IDs.
+*   `recipes`: Definitions for each of your resume roles.
+    *   `sections`: A nested toggle block in each recipe to show/hide any part of the resume (e.g., `"achievements": false`).
+
+### 🛠️ Advanced: Toggle Anything
+You can wrap **any** part of the LaTeX templates with `% [SECTION:NAME]` and `% [/SECTION:NAME]` markers. Then, add `"NAME": true/false` to your recipe's `sections` config to toggle that specific block. Currently, this supports:
+*   `summary`, `skills`, `projects`, `education`, `certifications`, `achievements`, `languages`, `photo`, and `role_title`.
 
 ### 2. Generator & Builder
 *   `scripts/generate.py`: The engine that takes a role ID and the master config to build a custom LaTeX file.
