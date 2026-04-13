@@ -50,6 +50,7 @@ python scripts/studio.py
 ```
 *   **Live Preview**: View generated PDFs instantly in the browser.
 *   **One-Click R2**: Seamlessly sync built resumes to your Cloudflare R2 bucket.
+*   **Sync Status**: Intelligent badges (`synced`, `modified`, `new`) show you exactly what needs to be uploaded.
 *   **Role Builder**: Build specific roles or "Everything" with a single click.
 *   **Clean & Local Access**: Wipe the workspace or open the `dist/` folder directly.
 
