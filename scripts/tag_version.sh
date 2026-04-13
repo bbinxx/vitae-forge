@@ -1,17 +1,21 @@
 #!/bin/bash
 
-# Usage: ./scripts/tag_version.sh backend v1.0.0
+# Usage: ./scripts/tag_version.sh 1.7.0
 
-ROLE=$1
-VERSION=$2
+VERSION=$1
 
-if [ -z "$ROLE" ] || [ -z "$VERSION" ]; then
-    echo "Usage: ./scripts/tag_version.sh <role> <version>"
-    echo "Example: ./scripts/tag_version.sh backend v1.0.0"
+if [ -z "$VERSION" ]; then
+    echo "Usage: ./scripts/tag_version.sh <version>"
+    echo "Example: ./scripts/tag_version.sh 1.7.0"
     exit 1
 fi
 
-TAG="${ROLE}-${VERSION}"
+# Ensure version starts with 'v'
+if [[ ! "$VERSION" =~ ^v ]]; then
+    TAG="v$VERSION"
+else
+    TAG="$VERSION"
+fi
 
 echo "🏷️  Tagging current commit as $TAG..."
 
