@@ -42,7 +42,18 @@ You can wrap **any** part of the LaTeX templates with `% [SECTION:NAME]` and `% 
 2.  Edit your career history in the `library` section.
 3.  Add or tweak a resume role in the `recipes` section.
 
-### Building Locally
+### 🎨 Resume Studio (Visual Dashboard)
+A local FastAPI-powered control panel for visual management, live preview, and cloud deployments.
+```bash
+pip install -r requirements.txt
+python scripts/studio.py
+```
+*   **Live Preview**: View generated PDFs instantly in the browser.
+*   **One-Click R2**: Seamlessly sync built resumes to your Cloudflare R2 bucket.
+*   **Role Builder**: Build specific roles or "Everything" with a single click.
+*   **Clean & Local Access**: Wipe the workspace or open the `dist/` folder directly.
+
+### Building Locally (CLI)
 Requires `python3` and `pdflatex`.
 ```bash
 ./scripts/build.sh          # Build ALL resumes
