@@ -20,9 +20,10 @@ Every role generates **two** variants automatically:
 ### 1. The "One True File" (`configs/resume_config.json`)
 The entire system is powered by this one file, divided into three sections:
 *   `personal`: Your name and contact details.
-*   `library`: Your master database of projects, skills, and summaries.
-*   `recipes`: Definitions for each of your resume roles.
-    *   `sections`: A nested toggle block in each recipe to show/hide any part of the resume (e.g., `"achievements": false`).
+*   `library`: A flattened database of all your reusable content pieces. Each project, skill, and certification has a unique ID (e.g., `"nasa_2024"`).
+*   `recipes`: Defines each of your resume roles.
+    *   **Item Selection**: Add or remove item IDs from arrays to pull content into a resume (e.g., `"certifications": ["python", "nptel"]`).
+    *   `sections`: A nested boolean map to show/hide any top-level layout block (e.g., `"achievements": false`).
 
 ### 🛠️ Advanced: Toggle Anything
 You can wrap **any** part of the LaTeX templates with `% [SECTION:NAME]` and `% [/SECTION:NAME]` markers. Then, add `"NAME": true/false` to your recipe's `sections` config to toggle that specific block. Currently, this supports:
@@ -48,14 +49,19 @@ Requires `python3` and `pdflatex`.
 ./scripts/build.sh backend  # Build only the Backend variant
 ./scripts/build.sh clean    # Wipe temporary files and logs
 ```
-3. Run `./scripts/build.sh newrole` to test locally.
-4. Push and tag to deploy:
+
+### Deploying
+The CI/CD pipeline dynamically triggers on standard version tags.
+1. Commit your config changes:
    ```bash
-   git add . && git commit -m "Add new role"
-   git tag v1.x.y             # Or resume-v1.x.y
-   git push origin dev --tags
+   git add . && git commit -m "Update SD resume projects"
    ```
-Outputs are always found in the `dist/` folder.
+2. Tag and push to trigger automated PDF generation:
+   ```bash
+   ./scripts/tag_version.sh patch   # Auto-generates vX.Y.Z
+   git push origin main --tags
+   ```
+Outputs are always generated into Cloudflare R2 automatically, or found locally in the `dist/` folder.
 
 ---
 
