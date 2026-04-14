@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Studio Ultimate</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08080a; --surface: #111114; --surface2: #16161c; --surface3: #1c1c24;
+    --border: rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.1);
+    --text: #e0e0e6; --muted: #888899; --accent: #4f83ff; --accent-glow: rgba(79, 131, 255, 0.3);
+    --green: #4caf7d; --red: #ff5f5f; --yellow: #ffbd2e;
+    --radius: 10px; --font: 'Outfit', sans-serif; --mono: 'JetBrains Mono', monospace;
+  }
+  body {
+    font-family: var(--font); background: var(--bg); color: var(--text);
+    font-size: 14px; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  header { 
+    background: rgba(17, 17, 20, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); 
+    padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; z-index: 100;
+  }
+  header h1 { font-size: 1rem; font-weight: 600; background: linear-gradient(90deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em; }
+  .sub { font-size: 0.7rem; color: var(--muted); margin-left: 10px; font-weight: 400; -webkit-text-fill-color: var(--muted); }
+  
+  /* Layout */
+  .main-container { display: flex; flex: 1; min-height: 0; position: relative; }
+  
+  .sidebar-nav { 
+    width: 200px; background: var(--surface); border-right: 1px solid var(--border); 
+    overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column;
+  }
+  .nav-section { padding: 0.8rem 1.2rem 0.4rem; font-size: 0.65rem; color: var(--muted); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+  .nav-item { 
+    padding: 0.6rem 1.2rem; cursor: pointer; color: var(--muted); font-size: 0.85rem; 
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border-left: 3px solid transparent; display: flex; align-items: center; gap: 8px;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .nav-item.active { color: #fff; border-left-color: var(--accent); background: linear-gradient(90deg, rgba(79, 131, 255, 0.1), transparent); font-weight: 500; }
+
+  .editor-content { flex: 1; background: var(--bg); overflow-y: auto; padding: 2rem; scroll-behavior: smooth; }
+  .viewer { 
+    width: 45%; background: var(--surface2); border-left: 1px solid var(--border); 
+    display: flex; flex-direction: column; position: relative; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  }
+  
+  /* Cards & Inputs */
+  .card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: transform 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+  .card h2 { font-size: 0.9rem; font-weight: 600; color: #fff; }
+  
+  .field { margin-bottom: 1.2rem; }
+  .field label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 500; }
+  
+  input[type=text], textarea, select {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border); color: var(--text);
+    padding: 0.7rem 0.9rem; border-radius: 8px; font-family: var(--font); font-size: 0.9rem;
+    transition: all 0.2s; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  }
+  input:focus, textarea:focus, select:focus { 
+    border-color: var(--accent); background: #22222c; box-shadow: 0 0 0 3px var(--accent-glow); 
+  }
+  textarea { line-height: 1.5; resize: vertical; }
+
+  .btn {
+    background: var(--surface3); border: 1px solid var(--border2); color: var(--text);
+    padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;
+    font-family: inherit; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn:hover { background: var(--surface2); border-color: #555; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.primary:hover { background: #6091ff; box-shadow: 0 4px 15px var(--accent-glow); }
+  .btn.green { background: #1a3a2a; border-color: #2a5a3a; color: var(--green); }
+  .btn.green:hover { background: #204a35; border-color: var(--green); }
+  .btn.danger { background: #3a1a1a; border-color: #5a2a2a; color: var(--red); }
+  .btn.mini { padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 6px; }
+
+  /* Tags */
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.6rem; }
+  .tag {
+    padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border2);
+    font-size: 0.75rem; cursor: pointer; color: var(--muted); background: var(--surface3);
+    transition: all 0.2s; user-select: none;
+  }
+  .tag:hover { border-color: var(--accent); color: var(--text); }
+  .tag.selected { color: #fff; border-color: var(--accent); background: var(--accent); font-weight: 500; }
+  .tag.selected-green { color: #fff; border-color: var(--green); background: var(--green); font-weight: 500; }
+
+  /* Viewer Shell */
+  .viewer-toolbar { 
+    padding: 0.8rem 1.2rem; background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(8px);
+  }
+  .live-status { display: flex; align-items: center; gap: 8px; font-size: 0.7rem; color: var(--muted); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 10px var(--green); }
+
+  iframe { width: 100%; height: 100%; border: none; background: #fff; filter: brightness(0.95); transition: opacity 0.3s; }
+  
+  /* Loading Animation */
+  .loader {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #333; }
+
+  #toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    background: var(--surface3); border: 1px solid var(--accent); padding: 0.8rem 1.5rem;
+    border-radius: 30px; font-size: 0.85rem; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    display: none; animation: slideUp 0.3s ease-out; z-index: 1000;
+  }
+  @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>▸ RESUME STUDIO ULTIMATE <span class="sub">visual builder & deploy dashboard</span></h1>
+  </div>
+  <div style="display:flex; gap:0.5rem">
+    <button class="btn mini" onclick="exportJSON()">⬇ Download JSON</button>
+    <label class="btn mini" style="cursor:pointer">⬆ Load JSON <input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+    <div class="tabs" style="margin-left:10px">
+      <div class="tab active">Visual Builder</div>
+    </div>
+  </div>
+</header>
+
+<div class="main-container">
+  <div class="sidebar-nav">
+    <div class="nav-section">Personal</div>
+    <div class="nav-item active" onclick="showEditorPanel('personal', this)"><span>👤</span> Personal Info</div>
+    <div class="nav-section">Library</div>
+    <div class="nav-item" onclick="showEditorPanel('summaries', this)"><span>📝</span> Summaries</div>
+    <div class="nav-item" onclick="showEditorPanel('skills', this)"><span>🛠️</span> Skills</div>
+    <div class="nav-item" onclick="showEditorPanel('projects', this)"><span>🚀</span> Projects</div>
+    <div class="nav-item" onclick="showEditorPanel('education', this)"><span>🎓</span> Education</div>
+    <div class="nav-item" onclick="showEditorPanel('certifications', this)"><span>📜</span> Certifications</div>
+    <div class="nav-item" onclick="showEditorPanel('achievements', this)"><span>🏆</span> Achievements</div>
+    <div class="nav-section">Configuration</div>
+    <div class="nav-item" onclick="showEditorPanel('recipes', this)"><span>🥣</span> Role Recipes</div>
+    <div class="nav-section">System</div>
+    <div class="nav-item" onclick="showEditorPanel('settings', this)"><span>⚙️</span> App Settings</div>
+  </div>
+
+  <div class="editor-content">
+    <div id="panel-personal" class="editor-panel active">
+        <div class="card-header"><h2>Personal Information</h2></div>
+        <div class="card">
+            <div class="field"><label>Full Name</label><input type="text" id="p-name" oninput="p_sync()"></div>
+            <div class="field"><label>Email</label><input type="text" id="p-email" oninput="p_sync()"></div>
+            <div class="field"><label>Phone</label><input type="text" id="p-phone" oninput="p_sync()"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem">
+              <div class="field"><label>LinkedIn</label><input type="text" id="p-linkedin" oninput="p_sync()"></div>
+              <div class="field"><label>GitHub</label><input type="text" id="p-github" oninput="p_sync()"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="panel-summaries" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Professional Summaries</h2> <button class="btn mini primary" onclick="addSummary()">+ Add Role</button></div>
+        <div class="tag-grid" id="summary-tabs" style="margin-bottom:1.5rem"></div>
+        <div id="summary-fields" class="card"></div>
+    </div>
+
+    <div id="panel-skills" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Skills Library</h2> <button class="btn mini primary" onclick="addSkill()">+ Add Skill Group</button></div>
+        <div id="skills-list"></div>
+    </div>
+
+    <div id="panel-projects" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Projects Library</h2> <button class="btn mini primary" onclick="addProject()">+ Add Project</button></div>
+        <div id="projects-list"></div>
+    </div>
+
+    <div id="panel-education" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Education</h2> <button class="btn mini primary" onclick="addEducation()">+ Add Degree</button></div>
+        <div id="education-list"></div>
+    </div>
+
+    <div id="panel-certifications" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Certifications</h2> <button class="btn mini primary" onclick="addCert()">+ Add Certification</button></div>
+        <div id="certs-list"></div>
+    </div>
+
+    <div id="panel-achievements" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Achievements</h2> <button class="btn mini primary" onclick="addAchievement()">+ Add Achievement</button></div>
+        <div id="achievements-list"></div>
+    </div>
+
+    <div id="panel-recipes" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>Role Recipes</h2> <button class="btn mini primary" onclick="addRecipe()">+ Add Recipe</button></div>
+        <div class="tag-grid" id="recipe-tabs" style="margin-bottom:1.5rem"></div>
+        <div id="recipe-editor"></div>
+    </div>
+
+    <div id="panel-settings" class="editor-panel" style="display:none">
+        <div class="card-header"><h2>App Settings</h2></div>
+        <div class="card">
+            <div class="field">
+                <label>TexCompiler API URL</label>
+                <input type="text" id="s-compiler-url" placeholder="http://localhost:8000">
+            </div>
+            <div class="field">
+                <label>Compiler Type</label>
+                <select id="s-compiler-type">
+                    <option value="pdflatex">pdflatex (Standard)</option>
+                    <option value="xelatex">xelatex (Modern Fonts)</option>
+                    <option value="lualatex">lualatex</option>
+                </select>
+            </div>
+            <button class="btn green wide" onclick="saveSettings()" style="width:100%">Save System Settings</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="viewer">
+    <div class="viewer-toolbar">
+       <div style="display:flex; gap:0.8rem">
+         <div class="field" style="margin:0"><select id="live-role" class="btn mini" style="background:var(--surface3); min-width:120px"></select></div>
+         <div class="field" style="margin:0">
+           <select id="live-template" class="btn mini" style="background:var(--surface3)">
+             <option value="standard">Standard Style</option>
+             <option value="photo">Modern Style (Photo)</option>
+           </select>
+         </div>
+       </div>
+       <div style="display:flex; gap:0.6rem">
+         <button class="btn mini primary" onclick="runLiveBuild()">▶ LIVE PREVIEW</button>
+         <div style="position:relative">
+            <button class="btn mini" onclick="toggleExportMenu()">↓ Export</button>
+            <div id="export-menu" style="display:none; position:absolute; right:0; top:110%; background:var(--surface3); border:1px solid var(--border); border-radius:8px; width:150px; z-index:200; box-shadow:0 10px 30px rgba(0,0,0,0.5)">
+               <div onclick="downloadPreviewTex()" style="padding:0.75rem; cursor:pointer; font-size:0.8rem; border-bottom:1px solid var(--border)">LaTeX Source</div>
+               <div onclick="downloadPreviewBundle()" style="padding:0.75rem; cursor:pointer; font-size:0.8rem">ZIP Bundle</div>
+            </div>
+         </div>
+       </div>
+    </div>
+    
+    <div style="flex: 1; position: relative; background: #eee;">
+       <div id="loader" class="loader"><div class="spinner"></div></div>
+       <div id="live-viewer-container" style="height:100%">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#888;">
+            <div style="font-size:3rem; margin-bottom:1rem">📄</div>
+            <div style="letter-spacing:0.1em; font-weight:300">CLICK PREVIEW TO GENERATE</div>
+          </div>
+       </div>
+    </div>
+    
+    <div class="viewer-toolbar" style="border-top:1px solid var(--border); border-bottom:none; height:40px; padding:0 1.2rem">
+      <div class="live-status">
+        <div id="status-dot" class="status-dot active"></div>
+        <span id="status-text">SYSTEM READY</span>
+      </div>
+      <div style="font-size:0.65rem; color:var(--muted)">v7.0.0-MODULAR</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let state = { personal: {}, library: {}, recipes: {} };
+let activeSummaryTab = null, activeRecipeTab = null, selectedDashFile = null;
+
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.innerText = msg; t.style.display = 'block';
+  t.style.borderColor = type === 'error' ? 'var(--red)' : (type === 'success' ? 'var(--green)' : 'var(--accent)');
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function toggleExportMenu() {
+  const m = document.getElementById('export-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+
+function showEditorPanel(panelId, el) {
+  document.querySelectorAll('.editor-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('panel-' + panelId).style.display = 'block';
+  el.classList.add('active');
+}
+
+function p_sync() {
+  state.personal = { name: document.getElementById('p-name').value, email: document.getElementById('p-email').value, phone: document.getElementById('p-phone').value, linkedin: document.getElementById('p-linkedin').value, github: document.getElementById('p-github').value };
+}
+
+function renderAllEditor() {
+    renderSummaries(); renderSkills(); renderProjects(); renderEducation(); renderCerts(); renderAchievements(); renderRecipes();
+    document.getElementById('live-role').innerHTML = Object.keys(state.recipes).map(r => `<option value="${r}">${r}</option>`).join('');
+}
+
+function renderSummaries() {
+  const keys = Object.keys(state.library.professional_summary);
+  if (!activeSummaryTab && keys.length) activeSummaryTab = keys[0];
+  const tabs = document.getElementById('summary-tabs');
+  tabs.innerHTML = keys.map(k => `<button class="tag ${k===activeSummaryTab?'selected':''}" onclick="activeSummaryTab='${k}';renderSummaries()">${k}</button>`).join('') + (keys.length ? `<button class="btn danger mini" onclick="delSum('${activeSummaryTab}')" style="margin-left:8px">✕</button>` : '');
+  const fields = document.getElementById('summary-fields');
+  if (!activeSummaryTab || !state.library.professional_summary[activeSummaryTab]) { fields.innerHTML=''; return; }
+  fields.innerHTML = `
+    <div class="field"><label>ID</label><input type="text" value="${activeSummaryTab}" onchange="renKey('SUM','${activeSummaryTab}',this.value)"></div>
+    <div class="field"><label>Role Title</label><input type="text" placeholder="${state.library.role_title[activeSummaryTab]||''}" oninput="state.library.role_title['${activeSummaryTab}']=this.value"></div>
+    <div class="field"><label>Text</label><textarea rows="5" placeholder="${state.library.professional_summary[activeSummaryTab]}" oninput="state.library.professional_summary['${activeSummaryTab}']=this.value"></textarea>
+  `;
+}
+function addSummary() { const k = 'new_role'; state.library.professional_summary[k] = ''; state.library.role_title[k] = ''; activeSummaryTab = k; renderSummaries(); }
+function delSum(k) { delete state.library.professional_summary[k]; delete state.library.role_title[k]; activeSummaryTab = Object.keys(state.library.professional_summary)[0] || null; renderSummaries(); }
+function renderSkills() {
+  document.getElementById('skills-list').innerHTML = Object.entries(state.library.skills).map(([id, s]) => `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between"><strong>${id}</strong> <button class="btn danger mini" onclick="delLib('skills','${id}',renderSkills)">✕</button></div>
+      <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px">
+        <div class="field"><label>ID</label><input type="text" value="${id}" onchange="renKey('skills','${id}',this.value,renderSkills)"></div>
+        <div class="field"><label>Category</label><input type="text" placeholder="${s.name}" oninput="state.library.skills['${id}'].name=this.value"></div>
+      </div>
+      <div class="field"><label>Keywords (comma sep)</label><input type="text" placeholder="${s.keywords}" oninput="state.library.skills['${id}'].keywords=this.value"></div>
+    </div>
+  `).join('');
+}
+function addSkill() { const id = 'skill_'+Date.now().toString(36); state.library.skills[id] = {name:'', keywords:''}; renderSkills(); }
+function renderProjects() {
+    document.getElementById('projects-list').innerHTML = Object.entries(state.library.projects).map(([id, p]) => `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between"><strong>${id}</strong> <button class="btn danger mini" onclick="delLib('projects','${id}',renderProjects)">✕</button></div>
+          <div class="field" style="margin-top:10px"><label>Project Name</label><input type="text" placeholder="${p.name}" oninput="state.library.projects['${id}'].name=this.value"></div>
+          <div class="row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px"><div class="field"><label>ID</label><input type="text" value="${id}" onchange="renKey('projects','${id}',this.value,renderProjects)"></div><div class="field"><label>Tech</label><input type="text" placeholder="${p.tech}" oninput="state.library.projects['${id}'].tech=this.value"></div><div class="field"><label>Date</label><input type="text" placeholder="${p.date}" oninput="state.library.projects['${id}'].date=this.value"></div></div>
+          <div class="field"><label>Bullets</label>
+            ${(p.points||[]).map((pt,i)=>`<div style="display:flex; gap:5px; margin-bottom:5px"><textarea rows="2" oninput="state.library.projects['${id}'].points[${i}]=this.value">${pt}</textarea><button class="btn danger mini" onclick="state.library.projects['${id}'].points.splice(${i},1);renderProjects()">✕</button></div>`).join('')}
+            <button class="btn mini primary" onclick="state.library.projects['${id}'].points.push('');renderProjects()">+ Bullet</button>
+          </div>
+        </div>
+    `).join('');
+}
+function addProject() { const id = 'proj_'+Date.now().toString(36); state.library.projects[id] = {name:'', tech:'', date:'', points:[]}; renderProjects(); }
+function renderEducation() {
+  document.getElementById('education-list').innerHTML = Object.entries(state.library.education).map(([id, val]) => `
+    <div class="card"><div style="display:flex; justify-content:space-between"><strong>${id}</strong> <button class="btn danger mini" onclick="delLib('education','${id}',renderEducation)">✕</button></div><div class="field" style="margin-top:10px"><label>ID</label><input type="text" value="${id}" onchange="renKey('education','${id}',this.value,renderEducation)"></div><div class="field"><label>LaTeX Content</label><textarea rows="3" placeholder="${val}" oninput="state.library.education['${id}']=this.value"></textarea></div></div>
+  `).join('');
+}
+function addEducation() { const id = 'edu_'+Date.now().toString(36); state.library.education[id] = ''; renderEducation(); }
+function renderCerts() {
+  document.getElementById('certs-list').innerHTML = Object.entries(state.library.certifications).map(([id, c]) => `
+    <div class="card"><div style="display:flex; justify-content:space-between"><strong>${id}</strong> <button class="btn danger mini" onclick="delLib('certifications','${id}',renderCerts)">✕</button></div><div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px"><div class="field"><label>ID</label><input type="text" value="${id}" onchange="renKey('certifications','${id}',this.value,renderCerts)"></div><div class="field"><label>Name</label><input type="text" placeholder="${c.name}" oninput="state.library.certifications['${id}'].name=this.value"></div></div><div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px"><div class="field"><label>Issuer</label><input type="text" placeholder="${c.issuer}" oninput="state.library.certifications['${id}'].issuer=this.value"></div><div class="field"><label>Year</label><input type="text" placeholder="${c.year}" oninput="state.library.certifications['${id}'].year=this.value"></div></div></div>
+  `).join('');
+}
+function addCert() { const id = 'cert_'+Date.now().toString(36); state.library.certifications[id] = {name:'', issuer:'', year:''}; renderCerts(); }
+function renderAchievements() {
+  document.getElementById('achievements-list').innerHTML = Object.entries(state.library.achievements).map(([id, a]) => `
+    <div class="card"><div style="display:flex; justify-content:space-between"><strong>${id}</strong> <button class="btn danger mini" onclick="delLib('achievements','${id}',renderAchievements)">✕</button></div><div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px"><div class="field"><label>ID</label><input type="text" value="${id}" onchange="renKey('achievements','${id}',this.value,renderAchievements)"></div><div class="field"><label>Name</label><input type="text" placeholder="${a.name}" oninput="state.library.achievements['${id}'].name=this.value"></div></div><div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px"><div class="field"><label>Issuer</label><input type="text" placeholder="${a.issuer}" oninput="state.library.achievements['${id}'].issuer=this.value"></div><div class="field"><label>Year</label><input type="text" placeholder="${a.year||''}" oninput="state.library.achievements['${id}'].year=this.value"></div></div></div>
+  `).join('');
+}
+function addAchievement() { const id = 'ach_'+Date.now().toString(36); state.library.achievements[id] = {name:'', issuer:'', year:''}; renderAchievements(); }
+function renderRecipes() {
+  const keys = Object.keys(state.recipes); if (!activeRecipeTab && keys.length) activeRecipeTab = keys[0];
+  const tabs = document.getElementById('recipe-tabs'); tabs.innerHTML = keys.map(k => `<button class="tag ${k===activeRecipeTab?'selected':''}" onclick="activeRecipeTab='${k}';renderRecipes()">${k}</button>`).join('') + (keys.length ? `<button class="btn danger mini" onclick="delRec('${activeRecipeTab}')" style="margin-left:8px">✕</button>` : '');
+  const el = document.getElementById('recipe-editor'); if (!activeRecipeTab || !state.recipes[activeRecipeTab]) { el.innerHTML=''; return; }
+  const r = state.recipes[activeRecipeTab], sections = r.sections || {}, sectionKeys = ['role_title','photo','summary','skills','projects','education','certifications','achievements','languages'];
+  const allIds = { skill: Object.keys(state.library.skills), proj: Object.keys(state.library.projects), cert: Object.keys(state.library.certifications), ach: Object.keys(state.library.achievements), sum: Object.keys(state.library.professional_summary), edu: Object.keys(state.library.education) };
+  el.innerHTML = `<div class="card"><div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px"><div class="field"><label>ID</label><input type="text" value="${activeRecipeTab}" onchange="renRec('${activeRecipeTab}',this.value)"></div><div class="field"><label>Short Code</label><input type="text" value="${r.short_name}" oninput="state.recipes['${activeRecipeTab}'].short_name=this.value"></div></div><div class="field"><label>Role Title / Summary Key</label><div class="tag-grid">${allIds.sum.map(id=>`<span class="tag ${r.role_title===id?'selected':''}" onclick="state.recipes['${activeRecipeTab}'].role_title='${id}'; state.recipes['${activeRecipeTab}'].professional_summary='${id}';renderRecipes()">${id}</span>`).join('')}</div></div><div class="field"><label>Education Key</label><div class="tag-grid">${allIds.edu.map(id=>`<span class="tag ${r.education===id?'selected':''}" onclick="state.recipes['${activeRecipeTab}'].education='${id}';renderRecipes()">${id}</span>`).join('')}</div></div><div class="field"><label>Section Visibility</label><div class="toggle-grid">${sectionKeys.map(s=>`<div class="toggle-item"><input type="checkbox" ${sections[s]!==false?'checked':''} onchange="state.recipes['${activeRecipeTab}'].sections['${s}']=this.checked"><label>${s}</label></div>`).join('')}</div></div><hr style="border:0; border-top:1px solid #222; margin:10px 0"><div class="field"><label>Skills</label><div class="tag-grid">${allIds.skill.map(id=>`<span class="tag ${(r.skills||[]).includes(id)?'selected-green':''}" onclick="togArr('${activeRecipeTab}','skills','${id}')">${id}</span>`).join('')}</div></div><div class="field"><label>Projects</label><div class="tag-grid">${allIds.proj.map(id=>`<span class="tag ${(r.projects||[]).includes(id)?'selected-green':''}" onclick="togArr('${activeRecipeTab}','projects','${id}')">${id}</span>`).join('')}</div></div><div class="field"><label>Certs</label><div class="tag-grid">${allIds.cert.map(id=>`<span class="tag ${(r.certifications||[]).includes(id)?'selected-green':''}" onclick="togArr('${activeRecipeTab}','certifications','${id}')">${id}</span>`).join('')}</div></div><div class="field"><label>Achievements</label><div class="tag-grid">${allIds.ach.map(id=>`<span class="tag ${(r.achievements||[]).includes(id)?'selected-green':''}" onclick="togArr('${activeRecipeTab}','achievements','${id}')">${id}</span>`).join('')}</div></div></div>`;
+}
+function addRecipe() { const k = 'new_role'; state.recipes[k] = {short_name:'', sections:{}, role_title:'', professional_summary:'', skills:[], projects:[], education:'', certifications:[], achievements:[]}; activeRecipeTab = k; renderRecipes(); }
+function delRec(k) { delete state.recipes[k]; activeRecipeTab = Object.keys(state.recipes)[0]||null; renderRecipes(); }
+function renRec(old, nw) { nw = nw.replace(/ /g,'_').toLowerCase(); state.recipes[nw] = state.recipes[old]; delete state.recipes[old]; activeRecipeTab = nw; renderRecipes(); }
+function togArr(r, f, id) { const arr = state.recipes[r][f] || []; const idx = arr.indexOf(id); if (idx > -1) arr.splice(idx, 1); else arr.push(id); state.recipes[r][f] = arr; renderRecipes(); }
+function renKey(sec, old, nw, cb) { nw = nw.replace(/ /g,'_').toLowerCase(); if (sec==='SUM') { state.library.professional_summary[nw] = state.library.professional_summary[old]; state.library.role_title[nw] = state.library.role_title[old]; delete state.library.professional_summary[old]; delete state.library.role_title[old]; activeSummaryTab = nw; renderSummaries(); } else { state.library[sec][nw] = state.library[sec][old]; delete state.library[sec][old]; cb(); } }
+function delLib(sec, id, cb) { delete state.library[sec][id]; cb(); }
+
+async function runLiveBuild() {
+    const role = document.getElementById('live-role').value, template = document.getElementById('live-template').value;
+    const loader = document.getElementById('loader');
+    const statusText = document.getElementById('status-text');
+    
+    loader.style.display = 'flex';
+    statusText.innerText = 'COMPILING...';
+    
+    try {
+        const cleanProj = {}; Object.entries(state.library.projects).forEach(([id,p])=>{ cleanProj[id] = {...p}; if(!cleanProj[id].link) delete cleanProj[id].link; });
+        const res = await fetch('/live-build', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ config: { ...state, library: { ...state.library, projects: cleanProj } }, role, template }) });
+        const data = await res.json();
+        
+        if (data.ok) {
+            document.getElementById('live-viewer-container').innerHTML = `<iframe src="/pdf/${data.filename}?t=${Date.now()}#toolbar=0"></iframe>`;
+            toast('Preview Generated Successfully', 'success');
+            statusText.innerText = 'SYSTEM READY';
+        } else {
+            toast('Compilation Failed', 'error');
+            document.getElementById('live-viewer-container').innerHTML = `<div style="padding:2rem; color:var(--red)"><h4>Build Error</h4><pre style="font-size:0.7rem; margin-top:1rem; white-space:pre-wrap">${data.error}</pre></div>`;
+            statusText.innerText = 'ERROR';
+        }
+    } catch (err) {
+        toast('System Error', 'error');
+        statusText.innerText = 'SYSTEM ERROR';
+    } finally {
+        loader.style.display = 'none';
+    }
+}
+
+function downloadPreviewBundle() { window.open('/download-bundle/LIVE_PREVIEW_TEMP.tex', '_blank'); }
+function downloadPreviewTex() { window.open('/download/LIVE_PREVIEW_TEMP.tex', '_blank'); }
+
+async function init() {
+    const res = await fetch('/get-config'), data = await res.json(); state = data;
+    const sRes = await fetch('/get-settings'), sData = await sRes.json();
+    document.getElementById('s-compiler-url').value = sData.compiler_url;
+    document.getElementById('s-compiler-type').value = sData.compiler_type;
+    renderAllEditor();
+    
+    // Set personal info as placeholders and CLEAR state for clean-slate
+    const p = state.personal;
+    const fields = ['name', 'email', 'phone', 'linkedin', 'github'];
+    fields.forEach(f => {
+        const el = document.getElementById('p-' + f);
+        if (el) {
+            el.placeholder = p[f] || '';
+            state.personal[f] = ''; // Clear from state
+            el.value = '';
+        }
+    });
+    renderAllEditor();
+}
+async function saveSettings() {
+    const compiler_url = document.getElementById('s-compiler-url').value;
+    const compiler_type = document.getElementById('s-compiler-type').value;
+    const res = await fetch('/update-settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ compiler_url, compiler_type })
+    });
+    const data = await res.json();
+    if (data.ok) toast('Settings Saved', 'success');
+    else toast('Failed to Save', 'error');
+}
+function exportJSON() { const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'resume_config.json'; a.click(); }
+function importJSON(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader(); reader.onload = e => { try { state = JSON.parse(e.target.result); document.getElementById('p-name').value = state.personal.name || ''; document.getElementById('p-email').value = state.personal.email || ''; document.getElementById('p-phone').value = state.personal.phone || ''; document.getElementById('p-linkedin').value = state.personal.linkedin || ''; document.getElementById('p-github').value = state.personal.github || ''; renderAllEditor(); alert('✓ Configuration loaded'); } catch(err) { alert('Invalid JSON file'); } }; reader.readAsText(file);
+}
+init();
+</script></body></html>

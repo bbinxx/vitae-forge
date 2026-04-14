@@ -3,7 +3,7 @@ import os
 import sys
 
 # Paths
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(REPO_ROOT, "configs", "resume_config.json")
 
 def escape_latex(text):
@@ -136,6 +136,9 @@ def generate_resume(source, template_path, output_path, photo_path=None, role_id
     template = re.sub(r"\% \[SECTION:.*?\].*?\n", "", template)
     template = re.sub(r"\% \[/SECTION:.*?\].*?\n", "", template)
 
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    
     with open(output_path, 'w') as f:
         f.write(template)
     print(f"Generated LaTeX: {output_path}")
