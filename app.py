@@ -27,17 +27,8 @@ CONFIG_PATH = ROOT / "configs" / "resume_config.json"
 if not CONFIG_PATH.exists():
     CONFIG_PATH = ROOT / "configs" / "resume_config.template.json"
 
-TEMPLATES   = ROOT / "templates"
-UI_PATH     = TEMPLATES / "studio.html"
 ASSETS      = ROOT / "assets"
-SETTINGS_PATH = ROOT / "configs" / "settings.json"
 GENERATE_PY = ROOT / "generate.py"
-
-DEFAULT_SETTINGS = {
-    "compiler_url": "http://localhost:8000",
-    "compiler_type": "xelatex"
-}
-
 ENV_PATH    = ROOT / ".env"
 DIST_DIR    = ROOT / "dist"
 
@@ -57,10 +48,8 @@ class LiveBuildRequest(BaseModel):
     config: dict
     role: str
     template: str # 'standard' or 'photo'
-
-class SettingsUpdate(BaseModel):
-    compiler_url: str
-    compiler_type: str
+    compiler_url: str = "http://localhost:8000"
+    compiler_type: str = "xelatex"
 
 def get_file_hash(path):
     hash_md5 = hashlib.md5()
@@ -96,16 +85,7 @@ def get_r2_client():
 
 BUCKET = os.environ.get("R2_BUCKET_NAME", "dev-n1")
 
-def load_settings():
-    if SETTINGS_PATH.exists():
-        try:
-            return {**DEFAULT_SETTINGS, **json.loads(SETTINGS_PATH.read_text())}
-        except:
-            return DEFAULT_SETTINGS
-    return DEFAULT_SETTINGS
-
-def save_settings(data):
-    SETTINGS_PATH.write_text(json.dumps(data, indent=2))
+# Settings now managed client-side in localStorage
 
 # ── HTML UI ───────────────────────────────────────────────────────────────────
 HTML = """<!DOCTYPE html>
@@ -388,17 +368,17 @@ HTML = """<!DOCTYPE html>
         <div class="card">
             <div class="field">
                 <label>TexCompiler API URL</label>
-                <input type="text" id="s-compiler-url" placeholder="http://localhost:8000">
+                <input type="text" id="s-compiler-url" placeholder="http://localhost:8000" oninput="saveLocalSettings()">
             </div>
             <div class="field">
                 <label>Compiler Type</label>
-                <select id="s-compiler-type">
+                <select id="s-compiler-type" onchange="saveLocalSettings()">
                     <option value="pdflatex">pdflatex (Standard)</option>
                     <option value="xelatex">xelatex (Modern Fonts)</option>
                     <option value="lualatex">lualatex</option>
                 </select>
             </div>
-            <button class="btn green wide" onclick="saveSettings()" style="width:100%">Save System Settings</button>
+            <div style="font-size: 0.7rem; color: var(--muted); margin-bottom: 0.5rem;">Settings are saved locally in your browser.</div>
         </div>
     </div>
   </div>
@@ -585,7 +565,19 @@ async function runLiveBuild() {
     
     try {
         const cleanProj = {}; Object.entries(state.library.projects).forEach(([id,p])=>{ cleanProj[id] = {...p}; if(!cleanProj[id].link) delete cleanProj[id].link; });
-        const res = await fetch('/live-build', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ config: { ...state, library: { ...state.library, projects: cleanProj } }, role, template }) });
+        const compiler_url = document.getElementById('s-compiler-url').value || 'http://localhost:8000';
+        const compiler_type = document.getElementById('s-compiler-type').value || 'xelatex';
+        const res = await fetch('/live-build', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                config: { ...state, library: { ...state.library, projects: cleanProj } }, 
+                role, 
+                template,
+                compiler_url,
+                compiler_type
+            }) 
+        });
         const data = await res.json();
         
         if (data.ok) {
@@ -622,11 +614,26 @@ function downloadPreviewTex() {
   toggleExportMenu();
 }
 
+function saveLocalSettings() {
+    const data = {
+        compiler_url: document.getElementById('s-compiler-url').value,
+        compiler_type: document.getElementById('s-compiler-type').value
+    };
+    localStorage.setItem('forge_settings', JSON.stringify(data));
+}
+function loadLocalSettings() {
+    const saved = localStorage.getItem('forge_settings');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            document.getElementById('s-compiler-url').value = data.compiler_url || '';
+            document.getElementById('s-compiler-type').value = data.compiler_type || 'xelatex';
+        } catch(e) {}
+    }
+}
 async function init() {
     const res = await fetch('/get-config'), data = await res.json(); state = data;
-    const sRes = await fetch('/get-settings'), sData = await sRes.json();
-    document.getElementById('s-compiler-url').value = sData.compiler_url;
-    document.getElementById('s-compiler-type').value = sData.compiler_type;
+    loadLocalSettings();
     renderAllEditor();
     
     // Set personal info as placeholders and CLEAR state for clean-slate
@@ -642,18 +649,7 @@ async function init() {
     });
     renderAllEditor();
 }
-async function saveSettings() {
-    const compiler_url = document.getElementById('s-compiler-url').value;
-    const compiler_type = document.getElementById('s-compiler-type').value;
-    const res = await fetch('/update-settings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ compiler_url, compiler_type })
-    });
-    const data = await res.json();
-    if (data.ok) toast('Settings Saved', 'success');
-    else toast('Failed to Save', 'error');
-}
+// saveSettings replaced by saveLocalSettings
 function exportJSON() { 
   try {
     const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
@@ -736,17 +732,9 @@ You can also upload both files to Overleaf.com and hit 'Compile'.
     zip_buffer.seek(0)
     return StreamingResponse(zip_buffer, media_type="application/x-zip-compressed", headers={"Content-Disposition": f"attachment; filename=resume_bundle_{filename.replace('.tex','')}.zip"})
 
-@app.get("/get-settings")
-def get_settings():
-    return load_settings()
+# Server-side settings endpoints removed
 
-@app.post("/update-settings")
-def update_settings(s: SettingsUpdate):
-    save_settings(s.dict())
-    return {"ok": True}
-
-async def call_compiler_api(tex_content: str, is_photo: bool, output_pdf: Path):
-    settings = load_settings()
+async def call_compiler_api(tex_content: str, is_photo: bool, output_pdf: Path, compiler_url: str, compiler_type: str):
     files = { "resume.tex": tex_content }
     
     if is_photo:
@@ -760,12 +748,12 @@ async def call_compiler_api(tex_content: str, is_photo: bool, output_pdf: Path):
 
     payload = {
         "main_file": "resume.tex",
-        "compiler": settings.get("compiler_type", "xelatex"),
+        "compiler": compiler_type,
         "files": files
     }
     
     # We must use a timeout as LaTeX compilation can be slow
-    resp = requests.post(f"{settings['compiler_url'].rstrip('/')}/compile", json=payload, timeout=60)
+    resp = requests.post(f"{compiler_url.rstrip('/')}/compile", json=payload, timeout=60)
     
     if resp.status_code == 200:
         output_pdf.write_bytes(resp.content)
@@ -794,7 +782,7 @@ async def live_build(req: LiveBuildRequest):
         subprocess.run(["python3", str(GENERATE_PY), temp_config_path, str(template_path), str(output_tex), "--role", req.role], check=True, cwd=str(ROOT))
         
         # 2. Compile via API
-        ok, err = await call_compiler_api(output_tex.read_text(), req.template == "photo", output_pdf)
+        ok, err = await call_compiler_api(output_tex.read_text(), req.template == "photo", output_pdf, req.compiler_url, req.compiler_type)
         if ok:
             return {"ok": True, "filename": "LIVE_PREVIEW_TEMP.pdf"}
         else:
@@ -828,10 +816,13 @@ def list_files():
 
 @app.get("/build/{role}")
 async def build_role(role: str):
-    settings = load_settings()
+    # For bulk builds, we'll need to pass the settings as query params or use defaults
+    # Since this is a direct GET, we'll try to use a default or handle it
+    compiler_url = "http://localhost:8000"
+    compiler_type = "xelatex"
     
     async def build_generator():
-        yield f"🚀 Starting Full Build via API: {settings['compiler_url']}\n"
+        yield f"🚀 Starting Full Build via API: {compiler_url}\n"
         
         roles_to_build = []
         if role == "all":
@@ -868,7 +859,7 @@ async def build_role(role: str):
                     subprocess.run(args, check=True, cwd=str(ROOT))
                     
                     # 2. Compile via API
-                    ok, err = await call_compiler_api(output_tex.read_text(), is_photo, output_pdf)
+                    ok, err = await call_compiler_api(output_tex.read_text(), is_photo, output_pdf, compiler_url, compiler_type)
                     if ok:
                         yield " ✅ Success\n"
                     else:
