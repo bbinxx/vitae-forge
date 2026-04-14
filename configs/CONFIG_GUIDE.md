@@ -2,6 +2,10 @@
 
 This guide explains how to manage your master resume configuration file (`resume_config.json`). Follow these guidelines to ensure your resume remains ATS-optimized and visually balanced.
 
+> [!IMPORTANT]
+> **LaTeX Compilation**: This project uses the [TexCompiler API](https://github.com/[your-github]/TexCompiler) for PDF generation. Ensure the API URL is correctly configured in your app settings.
+
+
 ---
 
 ## 1. Personal Information (`personal`)
