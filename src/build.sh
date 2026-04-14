@@ -6,8 +6,8 @@ ROOT_DIR=$(pwd)
 
 # Configuration
 CONFIG_FILE="configs/resume_config.json"
-TEMPLATE_NO_PHOTO="shared/template.tex"
-TEMPLATE_PHOTO="shared/template_photo.tex"
+TEMPLATE_NO_PHOTO="templates/tex/template.tex"
+TEMPLATE_PHOTO="templates/tex/template_photo.tex"
 PHOTO_PATH="assets/profile-photo.jpg"
 DIST_DIR="dist"
 LOG_DIR="logs"
@@ -28,7 +28,7 @@ case $COMMAND in
         exit 0
         ;;
     "help")
-        echo "Usage: ./scripts/build.sh [role_id|clean|help]"
+        echo "Usage: ./run.sh [role_id|clean|help]"
         exit 0
         ;;
 esac
@@ -48,9 +48,9 @@ build_variant() {
     echo "  → Variant: ${suffix:-Standard}"
     
     if [ -n "$photo" ]; then
-        python3 scripts/generate.py "$source" "$template" "$tex_file" --photo "$photo"
+        python3 src/generate.py "$source" "$template" "$tex_file" --photo "$photo"
     else
-        python3 scripts/generate.py "$source" "$template" "$tex_file"
+        python3 src/generate.py "$source" "$template" "$tex_file"
     fi
     
     pdflatex -interaction=nonstopmode -output-directory="$DIST_DIR" "$tex_file" > "$LOG_DIR/${role_name}${suffix}_build.log" 2>&1
@@ -59,7 +59,8 @@ build_variant() {
         local pages=$(grep -a "Output written on" "$LOG_DIR/${role_name}${suffix}_build.log" | grep -oE "[0-9]+ page[s]?")
         echo "    ✅ Success: ${pdf_file} ($pages)"
         mv "$DIST_DIR/${role_name}${suffix}_temp.pdf" "$DIST_DIR/${pdf_file}"
-        rm "$tex_file" "$DIST_DIR/${role_name}${suffix}_temp".* 2>/dev/null
+        mv "$tex_file" "$DIST_DIR/${role_name}${suffix}.tex"
+        rm "$DIST_DIR/${role_name}${suffix}_temp".* 2>/dev/null
     else
         echo "    ❌ Error: Check $LOG_DIR/${role_name}${suffix}_build.log"
     fi

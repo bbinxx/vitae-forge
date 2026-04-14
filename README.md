@@ -42,37 +42,31 @@ You can wrap **any** part of the LaTeX templates with `% [SECTION:NAME]` and `% 
 2.  Edit your career history in the `library` section.
 3.  Add or tweak a resume role in the `recipes` section.
 
+### 🕹️ Unified Control Center
+The entire system is managed through a single menu-driven script:
+```bash
+./run.sh
+```
+This script handles:
+- **🚀 Starting Resume Studio** (Visual Dashboard)
+- **🏗️ Building all variants** (Standard & Photo)
+- **🎯 Targeting specific roles**
+- **🧹 Cleaning workspace**
+- **☁️ Syncing to Cloud** (Cloudflare R2)
+- **🏷️ Tagging versions** for CI/CD
+
 ### 🎨 Resume Studio (Visual Dashboard)
-A local FastAPI-powered control panel for visual management, live preview, and cloud deployments.
-```bash
-pip install -r requirements.txt
-python scripts/studio.py
-```
-*   **Live Preview**: View generated PDFs instantly in the browser.
-*   **One-Click R2**: Seamlessly sync built resumes to your Cloudflare R2 bucket.
-*   **Sync Status**: Intelligent badges (`synced`, `modified`, `new`) show you exactly what needs to be uploaded.
-*   **Role Builder**: Build specific roles or "Everything" with a single click.
-*   **Clean & Local Access**: Wipe the workspace or open the `dist/` folder directly.
+Accessible via `./run.sh` [Option 1].
+- **Live Preview**: View generated PDFs instantly in the browser.
+- **One-Click R2**: Seamlessly sync built resumes to your Cloudflare R2 bucket.
+- **Sync Status**: Intelligent badges (`synced`, `modified`, `new`) show you exactly what needs to be uploaded.
+- **ZIP Bundler**: Download a portable LaTeX package for any variant.
 
-### Building Locally (CLI)
-Requires `python3` and `pdflatex`.
-```bash
-./scripts/build.sh          # Build ALL resumes
-./scripts/build.sh backend  # Build only the Backend variant
-./scripts/build.sh clean    # Wipe temporary files and logs
-```
-
-### Deploying
-The CI/CD pipeline dynamically triggers on standard version tags.
-1. Commit your config changes:
-   ```bash
-   git add . && git commit -m "Update SD resume projects"
-   ```
-2. Tag and push to trigger automated PDF generation:
-   ```bash
-   ./scripts/tag_version.sh patch   # Auto-generates vX.Y.Z
-   git push origin main --tags
-   ```
+### 🏗️ Manual CLI Operations (Optional)
+While `./run.sh` is recommended, individual scripts remain available:
+- `python scripts/studio.py`: Start the web server.
+- `bash scripts/build.sh [role]`: Build resumes locally.
+- `bash scripts/tag_version.sh [vX.Y.Z]`: Tag and push for CI/CD.
 Outputs are always generated into Cloudflare R2 automatically, or found locally in the `dist/` folder.
 
 ---
@@ -80,13 +74,12 @@ Outputs are always generated into Cloudflare R2 automatically, or found locally 
 ## 📂 Repository Structure
 ```
 .
-├── configs/
-│   ├── resume_config.json   # THE ONLY FILE YOU NEED TO EDIT
-│   └── guidelines.md        # Layout and content tips
-├── shared/                  # LaTeX templates
-├── scripts/                 # Automation scripts
-├── assets/                  # Profile photo
-└── dist/                    # Final PDF artifacts (Generated)
+├── configs/                 # THE ONLY FILE YOU NEED TO EDIT (JSON)
+├── templates/               # LaTeX (.tex) and Dashboard (.html) templates
+├── src/                     # Python logic and build scripts
+├── assets/                  # Profile photo and static assets
+├── dist/                    # Final PDF artifacts (Generated)
+└── logs/                    # Build logs
 ```
 
 ---

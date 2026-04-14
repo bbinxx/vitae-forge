@@ -37,25 +37,36 @@ def resolve_modular(val, section_key, full_library):
 
     return val
 
-def generate_resume(role_id_or_file, template_path, output_path, photo_path=None):
-    with open(CONFIG_FILE, 'r') as f:
-        master_config = json.load(f)
-    
+def generate_resume(source, template_path, output_path, photo_path=None, role_id=None):
+    # Determine base config
+    if os.path.isfile(source):
+        with open(source, 'r') as f:
+            data = json.load(f)
+        
+        # Is this a full config or just a recipe?
+        if "recipes" in data and "library" in data:
+            master_config = data
+            # If it's a full config, we MUST have a role_id to know which one to build
+            if not role_id:
+                # Default to first recipe if not specified
+                role_id = list(data["recipes"].keys())[0]
+            recipe = data["recipes"].get(role_id, {})
+        else:
+            # It's an isolated recipe file
+            with open(CONFIG_FILE, 'r') as f:
+                master_config = json.load(f)
+            recipe = data
+    else:
+        # source is a role_id string
+        with open(CONFIG_FILE, 'r') as f:
+            master_config = json.load(f)
+        recipe = master_config.get("recipes", {}).get(source, {})
+        if not recipe:
+            raise ValueError(f"Role ID '{source}' not found.")
+
     personal_info = master_config.get("personal", {})
     library = master_config.get("library", {})
-    recipes = master_config.get("recipes", {})
     
-    # Load recipe
-    recipe = {}
-    if os.path.isfile(role_id_or_file):
-        with open(role_id_or_file, 'r') as f:
-            recipe = json.load(f)
-    else:
-        if role_id_or_file in recipes:
-            recipe = recipes[role_id_or_file]
-        else:
-            raise ValueError(f"Role ID '{role_id_or_file}' not found in master config.")
-
     # Merge personal info
     config = {**personal_info, **recipe}
     
@@ -76,9 +87,6 @@ def generate_resume(role_id_or_file, template_path, output_path, photo_path=None
     template = template.replace("<<GITHUB>>", escape_latex(config.get("github", "")))
     template = template.replace("<<SUMMARY>>", escape_latex(config.get("professional_summary", "")))
     template = template.replace("<<EDUCATION>>", config.get("education", "")) 
-
-    if photo_path:
-        template = template.replace("<<PHOTO_PATH>>", photo_path)
 
     # Skills
     skills_tex = ""
@@ -138,6 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("source", help="Role ID or JSON file")
     parser.add_argument("template", help="LateX template")
     parser.add_argument("output", help="Output .tex")
+    parser.add_argument("--role", help="Specific role ID if source is a full config")
     parser.add_argument("--photo", help="Profile photo")
     args = parser.parse_args()
-    generate_resume(args.source, args.template, args.output, args.photo)
+    generate_resume(args.source, args.template, args.output, args.photo, args.role)

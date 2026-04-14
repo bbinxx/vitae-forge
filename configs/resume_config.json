@@ -20,29 +20,106 @@
       "sys": "Systems Engineer"
     },
     "skills": {
-      "lang_all": { "name": "Languages", "keywords": "Python, JavaScript, Java, C, Rust, Go" },
-      "lang_bc": { "name": "Languages", "keywords": "Python, Go, JavaScript" },
-      "lang_mob": { "name": "Languages", "keywords": "Dart, JavaScript, TypeScript, Python, Java, C" },
-      "lang_sys": { "name": "Languages", "keywords": "Rust, Go, C, Python, JavaScript, Java" },
-      "web_sd": { "name": "Web Development", "keywords": "React.js, Node.js, Next.js, HTML, CSS, PHP" },
-      "backend_bc": { "name": "Backend Development", "keywords": "Node.js, Flask, Django, Express.js, Microservices, REST API Design" },
-      "mobile_dev": { "name": "Mobile Development", "keywords": "Flutter, Android SDK, Kotlin Multiplatform, Firebase, ADB, React Native" },
-      "sys_perf": { "name": "Systems & Performance", "keywords": "Concurrency, Multithreading, Memory Optimization, Native Binary Optimization, Low-Level Programming" },
-      "frameworks_sd": { "name": "Frameworks", "keywords": "Flask, Django, Express.js, Flutter, Firebase, Tauri, Wails" },
-      "frameworks_sys": { "name": "Frameworks", "keywords": "Tauri, Wails, Flask, Node.js" },
-      "db_sd": { "name": "Databases", "keywords": "MongoDB, MySQL, Supabase" },
-      "db_bc": { "name": "Databases", "keywords": "MongoDB, MySQL, Supabase, Database Optimization" },
-      "db_mob": { "name": "Databases", "keywords": "MongoDB, MySQL" },
-      "tools_sd": { "name": "Developer Tools", "keywords": "Git, GitHub, Docker, Postman, REST APIs" },
-      "tools_bc": { "name": "Tools", "keywords": "Docker, Postman, Git, GitHub" },
-      "tools_mob": { "name": "Developer Tools", "keywords": "Git, GitHub, Docker, Postman, Android Studio" },
-      "tools_sys": { "name": "Tools", "keywords": "Git, GitHub Actions, Docker, Postman, ADB" },
-      "deploy_sd": { "name": "Deployment", "keywords": "Vercel, Netlify, Render, DigitalOcean, Cloudflare, Heroku" },
-      "cloud_bc": { "name": "Cloud & Deployment", "keywords": "AWS API Gateway, DigitalOcean, Vercel, Render, Docker" },
-      "infra_sys": { "name": "Infrastructure", "keywords": "DigitalOcean, Vercel, Cloudflare" },
-      "os_linux_win": { "name": "Operating Systems", "keywords": "Linux, Windows" },
-      "os_sys": { "name": "Operating Systems", "keywords": "Linux, Windows, Win32 API" },
-      "arch_bc": { "name": "Architecture", "keywords": "Scalable Architecture, Authentication, Batch Processing, High-Concurrency Systems" }
+      "lang_all": {
+        "name": "Languages",
+        "keywords": "Python, JavaScript, Java, C, Rust, Go"
+      },
+      "lang_bc": {
+        "name": "Languages",
+        "keywords": "Python, Go, JavaScript"
+      },
+      "lang_mob": {
+        "name": "Languages",
+        "keywords": "Dart, JavaScript, TypeScript, Python, Java, C"
+      },
+      "lang_sys": {
+        "name": "Languages",
+        "keywords": "Rust, Go, C, Python, JavaScript, Java"
+      },
+      "web_sd": {
+        "name": "Web Development",
+        "keywords": "React.js, Node.js, Next.js, HTML, CSS, PHP"
+      },
+      "backend_bc": {
+        "name": "Backend Development",
+        "keywords": "Node.js, Flask, Django, Express.js, Microservices, REST API Design"
+      },
+      "mobile_dev": {
+        "name": "Mobile Development",
+        "keywords": "Flutter, Android SDK, Kotlin Multiplatform, Firebase, ADB, React Native"
+      },
+      "sys_perf": {
+        "name": "Systems & Performance",
+        "keywords": "Concurrency, Multithreading, Memory Optimization, Native Binary Optimization, Low-Level Programming"
+      },
+      "frameworks_sd": {
+        "name": "Frameworks",
+        "keywords": "Flask, Django, Express.js, Flutter, Firebase, Tauri, Wails"
+      },
+      "frameworks_sys": {
+        "name": "Frameworks",
+        "keywords": "Tauri, Wails, Flask, Node.js"
+      },
+      "db_sd": {
+        "name": "Databases",
+        "keywords": "MongoDB, MySQL, Supabase"
+      },
+      "db_bc": {
+        "name": "Databases",
+        "keywords": "MongoDB, MySQL, Supabase, Database Optimization"
+      },
+      "db_mob": {
+        "name": "Databases",
+        "keywords": "MongoDB, MySQL"
+      },
+      "tools_sd": {
+        "name": "Developer Tools",
+        "keywords": "Git, GitHub, Docker, Postman, REST APIs"
+      },
+      "tools_bc": {
+        "name": "Tools",
+        "keywords": "Docker, Postman, Git, GitHub"
+      },
+      "tools_mob": {
+        "name": "Developer Tools",
+        "keywords": "Git, GitHub, Docker, Postman, Android Studio"
+      },
+      "tools_sys": {
+        "name": "Tools",
+        "keywords": "Git, GitHub Actions, Docker, Postman, ADB"
+      },
+      "deploy_sd": {
+        "name": "Deployment",
+        "keywords": "Vercel, Netlify, Render, DigitalOcean, Cloudflare, Heroku"
+      },
+      "cloud_bc": {
+        "name": "Cloud & Deployment",
+        "keywords": "AWS API Gateway, DigitalOcean, Vercel, Render, Docker"
+      },
+      "infra_sys": {
+        "name": "Infrastructure",
+        "keywords": "DigitalOcean, Vercel, Cloudflare"
+      },
+      "os_linux_win": {
+        "name": "Operating Systems",
+        "keywords": "Linux, Windows"
+      },
+      "os_sys": {
+        "name": "Operating Systems",
+        "keywords": "Linux, Windows, Win32 API"
+      },
+      "arch_bc": {
+        "name": "Architecture",
+        "keywords": "Scalable Architecture, Authentication, Batch Processing, High-Concurrency Systems"
+      },
+      "design_tools": {
+        "name": "Design Tools",
+        "keywords": "Adobe Photoshop, Adobe Illustrator, Adobe Premiere Pro, Adobe After Effects, Blender"
+      },
+      "iot_embedded": {
+        "name": "IoT",
+        "keywords": "Arduino, Raspberry Pi, ESP32, ESP8266"
+      }
     },
     "projects": {
       "will_it_rain": {
@@ -114,73 +191,266 @@
       "standard": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University"
     },
     "certifications": {
-      "python": { "name": "Programming with Python", "issuer": "Python Institute OpenEDG", "year": "2024" },
-      "nptel": { "name": "Python for Data Science", "issuer": "NPTEL -- IIT Madras", "year": "2024" },
-      "mozilla": { "name": "JavaScript Foundations Professional Certificate", "issuer": "Mozilla", "year": "Jul 2025" },
-      "aws": { "name": "Amazon API Gateway for Serverless Applications", "issuer": "AWS Training", "year": "Jun 2025" },
-      "canonical": { "name": "Ubuntu Linux Professional Certificate", "issuer": "Canonical", "year": "Nov 2025" }
+      "python": {
+        "name": "Programming with Python",
+        "issuer": "Python Institute OpenEDG",
+        "year": "2024"
+      },
+      "nptel": {
+        "name": "Python for Data Science",
+        "issuer": "NPTEL -- IIT Madras",
+        "year": "2024"
+      },
+      "mozilla": {
+        "name": "JavaScript Foundations Professional Certificate",
+        "issuer": "Mozilla",
+        "year": "Jul 2025"
+      },
+      "aws": {
+        "name": "Amazon API Gateway for Serverless Applications",
+        "issuer": "AWS Training",
+        "year": "Jun 2025"
+      },
+      "canonical": {
+        "name": "Ubuntu Linux Professional Certificate",
+        "issuer": "Canonical",
+        "year": "Nov 2025"
+      }
     },
     "achievements": {
-      "nasa_2024": { "name": "Galactic Problem Solver Award", "issuer": "NASA Space Apps Challenge", "year": "2024" },
-      "nasa_2025_conn": { "name": "Global Connection Recognition Award", "issuer": "NASA Space Apps Challenge", "year": "2025" },
-      "nasa_2025_nom": { "name": "Global Nominee", "issuer": "NASA Space Apps Challenge", "year": "2025" }
+      "nasa_2024": {
+        "name": "Galactic Problem Solver Award",
+        "issuer": "NASA Space Apps Challenge",
+        "year": "2024"
+      },
+      "nasa_2025_conn": {
+        "name": "Global Connection Recognition Award",
+        "issuer": "NASA Space Apps Challenge",
+        "year": "2025"
+      },
+      "nasa_2025_nom": {
+        "name": "Global Nominee",
+        "issuer": "NASA Space Apps Challenge",
+        "year": "2025"
+      }
     },
     "additional_info": {
-      "sd_interest": { "name": "Areas of Interest", "content": "Full Stack Development, Software Engineering, Data Structures and Algorithms, Object-Oriented Programming, REST API Development, Database Systems, Backend Development" },
-      "bc_interest": { "name": "Areas of Interest", "content": "Backend Development, REST API Design, Microservices Architecture, Distributed Systems, Cloud Computing, Database Management, Server-Side Development" },
-      "mob_interest": { "name": "Areas of Interest", "content": "Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase Integration, REST API Integration, Mobile UI/UX Design" },
-      "sys_interest": { "name": "Areas of Interest", "content": "Systems Programming, Low-Level Programming, Concurrency and Multithreading, Performance Optimization, Memory Management, Operating Systems, Networking" },
-      "languages": { "name": "Languages", "content": "English , Malayalam " }
+      "sd_interest": {
+        "name": "Areas of Interest",
+        "content": "Full Stack Development, Software Engineering, Data Structures and Algorithms, Object-Oriented Programming, REST API Development, Database Systems, Backend Development"
+      },
+      "bc_interest": {
+        "name": "Areas of Interest",
+        "content": "Backend Development, REST API Design, Microservices Architecture, Distributed Systems, Cloud Computing, Database Management, Server-Side Development"
+      },
+      "mob_interest": {
+        "name": "Areas of Interest",
+        "content": "Mobile Application Development, Flutter, Android Development, Cross-Platform Development, Firebase Integration, REST API Integration, Mobile UI/UX Design"
+      },
+      "sys_interest": {
+        "name": "Areas of Interest",
+        "content": "Systems Programming, Low-Level Programming, Concurrency and Multithreading, Performance Optimization, Memory Management, Operating Systems, Networking"
+      },
+      "languages": {
+        "name": "Languages",
+        "content": "English , Malayalam "
+      }
     }
   },
   "recipes": {
     "standard": {
       "short_name": "SD",
-      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "sections": {
+        "role_title": true,
+        "photo": true,
+        "summary": true,
+        "skills": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "languages": true
+      },
       "role_title": "sd",
       "professional_summary": "sd",
-      "skills": ["lang_all", "web_sd", "frameworks_sd", "db_sd", "tools_sd", "deploy_sd", "os_linux_win"],
-      "projects": ["will_it_rain", "smart_traffic", "cert_generator", "irrigo", "droidops"],
+      "skills": [
+        "lang_all",
+        "web_sd",
+        "frameworks_sd",
+        "db_sd",
+        "tools_sd",
+        "design_tools",
+        "iot_embedded",
+        "deploy_sd",
+        "os_linux_win"
+      ],
+      "projects": [
+        "will_it_rain",
+        "smart_traffic",
+        "cert_generator",
+        "irrigo",
+        "droidops"
+      ],
       "education": "standard",
-      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
-      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
-      "additional_info": ["sd_interest", "languages"]
+      "certifications": [
+        "python",
+        "nptel",
+        "mozilla",
+        "aws",
+        "canonical"
+      ],
+      "achievements": [
+        "nasa_2024",
+        "nasa_2025_conn",
+        "nasa_2025_nom"
+      ],
+      "additional_info": [
+        "sd_interest",
+        "languages"
+      ]
     },
     "backend": {
       "short_name": "BC",
-      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "sections": {
+        "role_title": true,
+        "photo": true,
+        "summary": true,
+        "skills": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "languages": true
+      },
       "role_title": "bc",
       "professional_summary": "bc",
-      "skills": ["lang_bc", "backend_bc", "db_bc", "tools_bc", "cloud_bc", "arch_bc", "os_linux_win"],
-      "projects": ["will_it_rain", "cert_generator", "irrigo", "smart_traffic"],
+      "skills": [
+        "lang_bc",
+        "backend_bc",
+        "db_bc",
+        "tools_bc",
+        "cloud_bc",
+        "arch_bc",
+        "os_linux_win"
+      ],
+      "projects": [
+        "will_it_rain",
+        "cert_generator",
+        "irrigo",
+        "smart_traffic"
+      ],
       "education": "standard",
-      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
-      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
-      "additional_info": ["bc_interest", "languages"]
+      "certifications": [
+        "python",
+        "nptel",
+        "mozilla",
+        "aws",
+        "canonical"
+      ],
+      "achievements": [
+        "nasa_2024",
+        "nasa_2025_conn",
+        "nasa_2025_nom"
+      ],
+      "additional_info": [
+        "bc_interest",
+        "languages"
+      ]
     },
     "mobile": {
       "short_name": "MOB",
-      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "sections": {
+        "role_title": true,
+        "photo": true,
+        "summary": true,
+        "skills": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "languages": true
+      },
       "role_title": "mob",
       "professional_summary": "mob",
-      "skills": ["lang_mob", "mobile_dev", "frameworks_sd", "db_mob", "tools_mob", "os_linux_win"],
-      "projects": ["will_it_rain", "irrigo", "droidops", "smart_traffic", "cert_generator"],
+      "skills": [
+        "lang_mob",
+        "mobile_dev",
+        "frameworks_sd",
+        "db_mob",
+        "tools_mob",
+        "design_tools",
+        "os_linux_win"
+      ],
+      "projects": [
+        "will_it_rain",
+        "irrigo",
+        "droidops",
+        "smart_traffic",
+        "cert_generator"
+      ],
       "education": "standard",
-      "certifications": ["python", "nptel", "mozilla", "aws", "canonical"],
-      "achievements": ["nasa_2024", "nasa_2025_conn", "nasa_2025_nom"],
-      "additional_info": ["mob_interest", "languages"]
+      "certifications": [
+        "python",
+        "nptel",
+        "mozilla",
+        "aws",
+        "canonical"
+      ],
+      "achievements": [
+        "nasa_2024",
+        "nasa_2025_conn",
+        "nasa_2025_nom"
+      ],
+      "additional_info": [
+        "mob_interest",
+        "languages"
+      ]
     },
     "systems": {
       "short_name": "SYS",
-      "sections": { "role_title": true, "photo": true, "summary": true, "skills": true, "projects": true, "education": true, "certifications": true, "achievements": true, "languages": true },
+      "sections": {
+        "role_title": true,
+        "photo": true,
+        "summary": true,
+        "skills": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "languages": true
+      },
       "role_title": "sys",
       "professional_summary": "sys",
-      "skills": ["lang_sys", "sys_perf", "frameworks_sys", "tools_sys", "infra_sys", "os_sys"],
-      "projects": ["will_it_rain", "droidops", "smart_traffic", "irrigo", "cert_generator"],
+      "skills": [
+        "lang_sys",
+        "sys_perf",
+        "frameworks_sys",
+        "tools_sys",
+        "iot_embedded",
+        "infra_sys",
+        "os_sys"
+      ],
+      "projects": [
+        "will_it_rain",
+        "droidops",
+        "smart_traffic",
+        "irrigo",
+        "cert_generator"
+      ],
       "education": "standard",
-      "certifications": ["python", "mozilla", "canonical"],
-      "achievements": ["nasa_2024", "nasa_2025_nom"],
-      "additional_info": ["sys_interest", "languages"]
+      "certifications": [
+        "python",
+        "mozilla",
+        "canonical"
+      ],
+      "achievements": [
+        "nasa_2024",
+        "nasa_2025_nom"
+      ],
+      "additional_info": [
+        "sys_interest",
+        "languages"
+      ]
     }
   }
 }
