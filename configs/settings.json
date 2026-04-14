@@ -1,4 +1,4 @@
 {
-  "compiler_url": "http://localhost:8000",
+  "compiler_url": "https://texcompiler.onrender.com/",
   "compiler_type": "xelatex"
 }
