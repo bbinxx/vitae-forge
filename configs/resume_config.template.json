@@ -1,0 +1,83 @@
+{
+  "personal": {
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "+91 00000 00000",
+    "linkedin": "username",
+    "github": "username"
+  },
+  "library": {
+    "professional_summary": {
+      "role_id": "Summary here (250-400 chars). Focus on impact and key stack."
+    },
+    "role_title": {
+      "role_id": "Official Job Title"
+    },
+    "skills": {
+      "skill_id": {
+        "name": "Category Name",
+        "keywords": "Comma, Separated, List, Of, Skills (Max 10 per row)"
+      }
+    },
+    "projects": {
+      "proj_id": {
+        "name": "Project Name",
+        "tech": "Stack Used (Max 5)",
+        "date": "Month Year",
+        "link": "https://github.com/...",
+        "points": [
+          "Action Verb: Describe the specific task and the result (STAR method).",
+          "Metric: If possible, include percentages or performance numbers.",
+          "Tool: Mention the primary technical challenge solved."
+        ]
+      }
+    },
+    "education": {
+      "id": "\\textbf{Degree Name} \\hfill \\textbf{Start -- End}\\\\ \n University/College Name \\hfill Location/Board"
+    },
+    "certifications": {
+      "cert_id": {
+        "name": "Certificate Title",
+        "issuer": "Issuing Authority",
+        "year": "YYYY"
+      }
+    },
+    "achievements": {
+      "ach_id": {
+        "name": "Award Title",
+        "issuer": "Organizer/Scale",
+        "year": "YYYY"
+      }
+    },
+    "additional_info": {
+      "info_id": {
+        "name": "Field Label (e.g., Languages)",
+        "content": "Values (e.g., English, Spanish)"
+      }
+    }
+  },
+  "recipes": {
+    "role_key": {
+      "short_name": "ID_CODE",
+      "sections": {
+        "role_title": true,
+        "photo": true,
+        "summary": true,
+        "skills": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "languages": true
+      },
+      "role_title": "role_id",
+      "professional_summary": "role_id",
+      "skills": ["skill_id_1", "skill_id_2"],
+      "projects": ["proj_id_1"],
+      "education": "id",
+      "certifications": ["cert_id_1"],
+      "achievements": ["ach_id_1"],
+      "additional_info": ["info_id_1"]
+    }
+  }
+}

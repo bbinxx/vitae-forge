@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Usage: ./scripts/tag_version.sh 1.7.0
+# Usage: ./run.sh [Option 6] or bash src/tag_version.sh 1.7.0
 
 VERSION=$1
 
 if [ -z "$VERSION" ]; then
-    echo "Usage: ./scripts/tag_version.sh <version>"
-    echo "Example: ./scripts/tag_version.sh 1.7.0"
+    echo "Usage: bash src/tag_version.sh <version>"
+    echo "Example: bash src/tag_version.sh 1.7.0"
     exit 1
 fi
 
