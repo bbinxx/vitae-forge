@@ -185,6 +185,16 @@
           "Reduced application footprint to ~25MB using optimized native packaging techniques.",
           "Improved workflow efficiency by ~40% through faster metadata parsing and search functionality."
         ]
+      },
+      "texspace": {
+        "name": "TexSpace — Professional LaTeX IDE",
+        "tech": "Kotlin Multiplatform, Compose Multiplatform, LaTeX",
+        "date": "2026",
+        "points": [
+          "Developed a cross-platform LaTeX IDE supporting Android, iOS, JVM, and Web platforms with unified experience.",
+          "Implemented local-first project management with standard folder structure for portability and compatibility.",
+          "Built professional IDE interface featuring sidebar explorer, real-time syntax highlighting, and live PDF preview."
+        ]
       }
     },
     "education": {
@@ -279,8 +289,6 @@
         "frameworks_sd",
         "db_sd",
         "tools_sd",
-        "design_tools",
-        "iot_embedded",
         "deploy_sd",
         "os_linux_win"
       ],
@@ -289,7 +297,7 @@
         "smart_traffic",
         "cert_generator",
         "irrigo",
-        "droidops"
+        "texspace"
       ],
       "education": "standard",
       "certifications": [
@@ -337,7 +345,8 @@
         "will_it_rain",
         "cert_generator",
         "irrigo",
-        "smart_traffic"
+        "smart_traffic",
+        "texspace"
       ],
       "education": "standard",
       "certifications": [
@@ -383,10 +392,10 @@
       ],
       "projects": [
         "will_it_rain",
-        "irrigo",
         "droidops",
         "smart_traffic",
-        "cert_generator"
+        "cert_generator",
+        "texspace"
       ],
       "education": "standard",
       "certifications": [
@@ -426,7 +435,6 @@
         "sys_perf",
         "frameworks_sys",
         "tools_sys",
-        "iot_embedded",
         "infra_sys",
         "os_sys"
       ],
@@ -435,7 +443,8 @@
         "droidops",
         "smart_traffic",
         "irrigo",
-        "cert_generator"
+        "cert_generator",
+        "texspace"
       ],
       "education": "standard",
       "certifications": [

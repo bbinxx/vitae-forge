@@ -1,6 +1,19 @@
 import os
 import boto3
 from botocore.config import Config
+from pathlib import Path
+
+# Try to load env safely
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs): pass
+
+# Load environment variables from .env file
+ROOT = Path(__file__).parent.parent
+ENV_PATH = ROOT / ".env"
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
 
 def upload_to_r2():
     # Load from environment variables and trim whitespace
