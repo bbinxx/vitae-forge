@@ -1,215 +1,212 @@
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-950 text-gray-200">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resume Studio Ultimate</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0d0d0d; --surface: #141414; --surface2: #1a1a1a; --surface3: #222;
-    --border: #2a2a2a; --border2: #333;
-    --text: #e0e0e0; --muted: #666; --accent: #4a9eff; --green: #4caf7d;
-    --red: #e05c5c; --yellow: #d4a843;
-    --radius: 6px; --font: 'JetBrains Mono', 'Fira Code', monospace;
-  }
-  body {
-    font-family: var(--font); background: var(--bg); color: var(--text);
-    font-size: 13px; min-height: 100vh; display: flex; flex-direction: column;
-  }
-  header { 
-    background: var(--surface); border-bottom: 1px solid var(--border); 
-    padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center;
-  }
-  h1 { font-size: 0.9rem; color: #fff; letter-spacing: 0.1em; }
-  .sub { font-size: 0.65rem; color: var(--muted); margin-left: 10px; }
-  
-  .tabs { display: flex; gap: 0.5rem; }
-  .tab { 
-    padding: 0.4rem 1rem; cursor: pointer; font-size: 0.7rem; color: var(--muted); 
-    text-transform: uppercase; letter-spacing: 0.1em; border-radius: var(--radius);
-    transition: all 0.2s;
-  }
-  .tab.active { background: var(--surface3); color: #fff; }
-
-  /* Dashboard View */
-  .view { display: none; flex: 1; padding: 1.5rem; gap: 1.5rem; min-height: 0; }
-  .view.active { display: flex; }
-  
-  #dashboard-view { display: none; grid-template-columns: 400px 1fr; }
-  #dashboard-view.active { display: grid; }
-
-  /* Editor View (Visual) */
-  #editor-view { display: none; grid-template-columns: 200px 1fr 1fr; padding: 0; gap: 0; }
-  #editor-view.active { display: grid; }
-
-  .sidebar-nav { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 0.5rem 0; }
-  .nav-section { padding: 0.3rem 0.8rem 0.1rem; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.5rem; }
-  .nav-item { padding: 0.45rem 1rem; cursor: pointer; color: var(--muted); font-size: 0.75rem; transition: all 0.1s; border-left: 2px solid transparent; }
-  .nav-item:hover { color: var(--text); background: var(--surface2); }
-  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--surface2); }
-
-  .editor-content { background: var(--bg); overflow-y: auto; padding: 1.5rem; border-right: 1px solid var(--border); }
-  .viewer { background: var(--surface); overflow: hidden; display: flex; flex-direction: column; }
-  
-  /* Shared Components */
-  .card {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1rem;
-  }
-  .card h2 { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1rem; }
-  
-  .btn {
-    background: var(--surface3); border: 1px solid var(--border2); color: var(--text);
-    padding: 0.5rem 0.9rem; border-radius: 5px; cursor: pointer;
-    font-family: inherit; font-size: 0.75rem; transition: all 0.1s;
-  }
-  .btn:hover { border-color: #555; }
-  .btn.primary { background: #1a2d4a; border-color: #2a4a7a; color: var(--accent); }
-  .btn.green { background: #1a2d1e; border-color: #2a4a2e; color: var(--green); }
-  .btn.danger { background: #2d1a1a; border-color: #4a2a2a; color: var(--red); }
-  .btn.mini { padding: 0.25rem 0.5rem; font-size: 0.68rem; }
-  .btn.wide { width: 100%; margin-top: 0.4rem; }
-
-  /* Editor Specific */
-  .field { margin-bottom: 0.9rem; }
-  .field label { display: block; font-size: 0.68rem; color: var(--muted); margin-bottom: 0.3rem; letter-spacing: 0.06em; }
-  input[type=text], textarea, select {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-    padding: 0.45rem 0.6rem; border-radius: var(--radius); font-family: var(--font); font-size: 0.78rem;
-    transition: border-color 0.15s; outline: none;
-  }
-  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-  
-  .tag-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.3rem; }
-  .tag {
-    padding: 0.2rem 0.5rem; border-radius: 3px; border: 1px solid var(--border2);
-    font-size: 0.68rem; cursor: pointer; color: var(--muted); background: var(--surface3);
-    transition: all 0.15s; user-select: none;
-  }
-  .tag.selected { color: var(--accent); border-color: var(--accent); background: #1a2a3a; }
-  .tag.selected-green { color: var(--green); border-color: var(--green); background: #1a2d1e; }
-
-  .toggle-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
-  .toggle-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
-  
-  #log {
-    background: #0a0a0a; border: 1px solid var(--border); border-radius: 5px;
-    padding: 0.8rem; font-size: 0.7rem; color: var(--green);
-    height: 150px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px;
-  }
-  #status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #555; margin-right: 6px; }
-  #status-dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); }
-
-  iframe { width: 100%; height: 100%; border: none; background: #fff; }
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+  body { font-family: 'JetBrains Mono', monospace; }
+  /* Scrollbar styles */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #111; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #555; }
 </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col text-sm antialiased">
 
-<header>
-  <div>
-    <h1>▸ RESUME STUDIO ULTIMATE <span class="sub">visual builder & deploy dashboard</span></h1>
+<!-- Header -->
+<header class="bg-gray-900 border-b border-gray-800 p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm z-10 sticky top-0">
+  <div class="flex items-center gap-2">
+    <h1 class="text-white font-bold tracking-widest text-base">▸ RESUME STUDIO</h1>
+    <span class="text-[0.65rem] text-gray-500 uppercase tracking-widest mt-1 hidden sm:inline">visual builder</span>
   </div>
-  <div style="display:flex; gap:0.5rem">
-    <button class="btn mini" onclick="exportJSON()">⬇ Download JSON</button>
-    <label class="btn mini" style="cursor:pointer">⬆ Load JSON <input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-    <div class="tabs" style="margin-left:10px">
-      <div class="tab active" id="tab-dashboard">System Dashboard</div>
+  
+  <div class="flex flex-wrap items-center gap-3">
+    <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs transition-colors shadow-sm" onclick="exportJSON()">⬇ Download JSON</button>
+    <label class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs cursor-pointer transition-colors shadow-sm">
+      ⬆ Load JSON
+      <input type="file" accept=".json" onchange="importJSON(event)" class="hidden">
+    </label>
+    
+    <div class="flex bg-gray-950 border border-gray-800 p-1 rounded gap-1 ml-0 md:ml-4">
+      <button id="tab-dashboard" class="nav-tab bg-gray-800 text-white px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('dashboard')">Dashboard</button>
+      <button id="tab-library" class="nav-tab text-gray-400 hover:text-gray-200 px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('library')">Data Library</button>
+      <button id="tab-editor" class="nav-tab text-gray-400 hover:text-gray-200 px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('editor')">Role Editor</button>
     </div>
   </div>
 </header>
 
-<!-- DASHBOARD VIEW -->
-<div id="dashboard-view" class="view active">
-  <div class="sidebar">
-    <div class="card">
-      <h2>Build Manager</h2>
-      <div id="roles-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:1rem"></div>
-      <button class="btn primary wide" onclick="runBuild('all')">⬡ Build All</button>
-      <div id="log">ready.\n</div>
-      <p style="font-size: 0.65rem; color: #444; margin-top: 10px;"><span id="status-dot"></span><span id="status-text">IDLE</span></p>
-    </div>
-
-    <div class="card">
-      <h2>Generated Files <span style="float:right; cursor:pointer; color:var(--accent)" onclick="refreshSync()">↺ check sync</span></h2>
-      <div id="file-list" style="display:flex; flex-direction:column; gap:0.4rem; margin-top:10px"></div>
-    </div>
-  </div>
-
-  <div class="viewer" style="border: 1px solid var(--border); border-radius: 8px;">
-    <div id="viewer-header" style="background:var(--surface2); padding:0.6rem 1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-       <span id="current-filename" style="font-size:0.7rem; color:var(--muted)">No file selected</span>
-       <div id="dash-actions" style="display:none; gap:0.5rem">
-         <button class="btn mini primary" onclick="uploadCurrent()">☁ Upload</button>
-         <button class="btn mini" onclick="downloadCurrent()">↓ PDF</button>
-         <button id="btn-dash-bundle" class="btn mini" onclick="downloadCurrentBundle()">↓ ZIP Bundle</button>
-         <button id="btn-dash-tex" class="btn mini" onclick="downloadCurrentTex()">↓ LaTeX</button>
-       </div>
-    </div>
-    <div id="viewer-container" style="flex:1">
-       <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#222; letter-spacing:0.2em">PDF VIEWER</div>
-    </div>
-  </div>
-</div>
-
-</div>
-
-<script>
-let state = { personal: {}, library: {}, recipes: {} };
-let activeSummaryTab = null, activeRecipeTab = null, selectedDashFile = null;
-
-async function runBuild(role) {
-    const logEl = document.getElementById('log'), dot = document.getElementById('status-dot');
-    logEl.textContent = ''; dot.className = 'running'; document.getElementById('status-text').textContent = 'BUILDING...';
-    const res = await fetch(`/build/${role}`), reader = res.body.getReader(), dec = new TextDecoder();
-    while (true) { const { done, value } = await reader.read(); if (done) break; logEl.textContent += dec.decode(value); logEl.scrollTop = logEl.scrollHeight; }
-    dot.className = ''; document.getElementById('status-text').textContent = 'IDLE'; refreshSync();
-}
-
-async function refreshSync() {
-    const res = await fetch('/list-files'), files = await res.json();
-    document.getElementById('file-list').innerHTML = files.filter(f=>f.name!=='LIVE_PREVIEW_TEMP.pdf' && f.name!=='LIVE_PREVIEW_TEMP.tex').map(f => {
-        const isPhoto = f.name.includes('_X.pdf');
-        const color = f.sync_status==='synced'?'var(--green)':f.sync_status==='modified'?'var(--yellow)':'var(--accent)';
-        return `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface2); padding:0.5rem; border-radius:4px; font-size:0.75rem">
-          <div style="display:flex; align-items:center; gap:8px">
-            <span style="font-size:0.55rem; padding:1px 5px; border-radius:3px; background:#222; color:${color}; border:1px solid ${color}">${f.sync_status}</span>
-            ${isPhoto ? '<span style="font-size:0.55rem; color:var(--muted); border:1px solid #333; padding:1px 4px; border-radius:3px">PHOTO</span>' : ''}
-          </div>
-          <span style="flex:1; margin-left:10px; cursor:pointer; color:#ccc" onclick="dashPreview('${f.name}')">${f.name}</span>
-          <button class="btn mini primary" onclick="dashUpload('${f.name}')">☁</button>
-        </div>
-        `;
-    }).join('');
-}
-
-function dashPreview(f) { 
-    selectedDashFile = f; 
-    document.getElementById('current-filename').textContent = f; 
-    document.getElementById('dash-actions').style.display = 'flex'; 
-    document.getElementById('viewer-container').innerHTML = `<iframe src="/pdf/${f}#toolbar=0"></iframe>`; 
+<!-- Main Container -->
+<main class="flex-1 flex overflow-hidden">
+  
+  <!-- DASHBOARD VIEW -->
+  <div id="dashboard-view" class="view-content flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
     
-    // Toggle Bundle vs Tex
-    const isPhoto = f.includes('_X.pdf');
-    document.getElementById('btn-dash-bundle').style.display = isPhoto ? 'inline-block' : 'none';
-    document.getElementById('btn-dash-tex').style.display = isPhoto ? 'none' : 'inline-block';
-}
+    <!-- Sidebar -->
+    <div class="w-full lg:w-[400px] border-r border-gray-800 flex flex-col bg-gray-900 overflow-y-auto">
+      
+      <!-- Build Manager -->
+      <div class="p-5 border-b border-gray-800">
+        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Build Manager</h2>
+        <div id="roles-grid" class="grid grid-cols-2 gap-2 mb-4"></div>
+        <button class="w-full bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-4 py-2 rounded text-xs tracking-widest uppercase transition-colors" onclick="runBuild('all')">⬡ Build All</button>
+        
+        <div id="log" class="mt-4 bg-black border border-gray-800 rounded p-3 text-[0.65rem] text-green-500 h-32 overflow-y-auto whitespace-pre-wrap font-mono">ready.</div>
+        <div class="mt-2 flex items-center text-[0.65rem] text-gray-500 uppercase tracking-widest">
+          <span id="status-dot" class="inline-block w-2 h-2 rounded-full mr-2 bg-gray-600"></span>
+          <span id="status-text">IDLE</span>
+        </div>
+      </div>
 
-async function dashUpload(f) { const res = await fetch(`/upload/${f}`), data = await res.json(); refreshSync(); }
-function uploadCurrent() { if (selectedDashFile) dashUpload(selectedDashFile); }
-function downloadCurrent() { if (selectedDashFile) window.open(`/download/${selectedDashFile}`, '_blank'); }
-function downloadCurrentBundle() { if (selectedDashFile) window.open(`/download-bundle/${selectedDashFile.replace('.pdf', '.tex')}`, '_blank'); }
-function downloadCurrentTex() { if (selectedDashFile) window.open(`/download/${selectedDashFile.replace('.pdf', '.tex')}`, '_blank'); }
+      <!-- Generated Files -->
+      <div class="p-5 border-b border-gray-800">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase">Generated Files</h2>
+          <button class="text-[0.65rem] text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-1" onclick="refreshSync()">↺ Sync</button>
+        </div>
+        <div id="file-list" class="flex flex-col gap-1"></div>
+      </div>
+      
+      <!-- Photo Manager -->
+      <div class="p-5">
+        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-2">Photo Manager</h2>
+        <p class="text-[0.65rem] text-gray-400 mb-4 leading-relaxed">Upload a new profile photo. Aspect ratio must match the existing one (3:4).</p>
+        <input type="file" id="photo-upload-input" accept="image/jpeg, image/png, image/jpg" class="hidden" onchange="uploadPhoto(event)">
+        <label for="photo-upload-input" class="block w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded text-xs tracking-widest uppercase text-center cursor-pointer transition-colors">📷 Upload New Photo</label>
+      </div>
+      
+    </div>
 
-async function init() {
-    const res = await fetch('/get-config'), data = await res.json(); state = data;
-    document.getElementById('roles-grid').innerHTML = Object.keys(state.recipes).map(r => `<button class="btn" onclick="runBuild('${r}')">${r}</button>`).join('');
-    refreshSync();
-}
+    <!-- PDF Viewer -->
+    <div class="flex-1 flex flex-col bg-gray-950 p-4">
+      <div class="flex-1 border border-gray-800 rounded-lg overflow-hidden flex flex-col shadow-lg bg-gray-900">
+        
+        <div class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+           <span id="current-filename" class="text-xs text-gray-400 font-medium">No file selected</span>
+           <div id="dash-actions" class="hidden flex-wrap items-center gap-2">
+             <button class="bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="uploadCurrent()">☁ Upload</button>
+             <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrent()">↓ PDF</button>
+             <button id="btn-dash-bundle" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrentBundle()">↓ ZIP Bundle</button>
+             <button id="btn-dash-tex" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrentTex()">↓ LaTeX</button>
+           </div>
+        </div>
+        
+        <div id="viewer-container" class="flex-1 bg-white relative">
+           <div class="absolute inset-0 flex items-center justify-center text-gray-400 tracking-widest text-sm bg-gray-100">PDF VIEWER</div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
 
-function exportJSON() { const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'resume_config.json'; a.click(); }
-function importJSON(event) {
-    const file = event.target.files[0]; if (!file) return;
-    const reader = new FileReader(); reader.onload = e => { try { state = JSON.parse(e.target.result); alert('✓ Configuration loaded'); init(); } catch(err) { alert('Invalid JSON file'); } }; reader.readAsText(file);
-}
-init();
+  <!-- EDITOR VIEW -->
+  <div id="editor-view" class="view-content hidden flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
+    
+    <!-- Sidebar -->
+    <div class="w-full lg:w-[320px] border-r border-gray-800 bg-gray-900 flex flex-col">
+      <div class="p-5 flex-1 overflow-y-auto">
+        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Roles (Recipes)</h2>
+        <div id="roles-list" class="flex flex-col gap-2 mb-6"></div>
+        <button class="w-full bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-4 py-2 rounded text-xs tracking-widest uppercase transition-colors" onclick="addNewRole()">+ Add New Role</button>
+      </div>
+    </div>
+    
+    <!-- Editor Content -->
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-950">
+      
+      <div id="role-editor-empty" class="h-full flex items-center justify-center text-gray-500 uppercase tracking-widest text-xs">
+        Select a role to edit
+      </div>
+      
+      <div id="role-editor-form" class="max-w-3xl hidden mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 md:p-8 shadow-xl">
+        <h2 class="text-[0.65rem] text-blue-400 tracking-[0.15em] uppercase mb-6 pb-4 border-b border-gray-800">Role Configuration</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Role ID (Internal)</label>
+            <input type="text" id="edit-role-id" readonly class="bg-black border border-gray-800 text-gray-500 px-3 py-2 rounded text-xs w-full cursor-not-allowed">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Short Name</label>
+            <input type="text" id="edit-role-shortname" onchange="updateRoleField('short_name', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors">
+          </div>
+        </div>
+        
+        <div class="flex flex-col gap-1.5 mb-6">
+          <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Sections (Toggles)</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2" id="edit-role-sections"></div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Role Title (Library Key)</label>
+            <select id="edit-role-title" onchange="updateRoleField('role_title', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Summary (Library Key)</label>
+            <select id="edit-role-summary" onchange="updateRoleField('professional_summary', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
+          </div>
+        </div>
+        
+        <div class="space-y-5 border-t border-gray-800 pt-6">
+          <div class="flex flex-col gap-2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Skills</label>
+            <div class="flex flex-wrap gap-1.5" id="edit-role-skills"></div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Projects</label>
+            <div class="flex flex-wrap gap-1.5" id="edit-role-projects"></div>
+          </div>
+          <div class="flex flex-col gap-1.5 w-full md:w-1/2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Education</label>
+            <select id="edit-role-education" onchange="updateRoleField('education', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Certifications</label>
+            <div class="flex flex-wrap gap-1.5" id="edit-role-certifications"></div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Achievements</label>
+            <div class="flex flex-wrap gap-1.5" id="edit-role-achievements"></div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Additional Info</label>
+            <div class="flex flex-wrap gap-1.5" id="edit-role-additional"></div>
+          </div>
+        </div>
+        
+        <div class="mt-10 pt-6 border-t border-gray-800 flex flex-col sm:flex-row gap-3">
+            <button class="flex-1 bg-green-900 hover:bg-green-800 border border-green-700 text-green-300 px-4 py-2.5 rounded text-xs tracking-widest uppercase transition-colors" onclick="saveConfigToServer()">💾 Save Changes to Config</button>
+            <button class="bg-red-950 hover:bg-red-900 border border-red-800 text-red-400 px-4 py-2.5 rounded text-xs tracking-widest uppercase transition-colors" onclick="deleteCurrentRole()">🗑 Delete Role</button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- LIBRARY VIEW -->
+  <div id="library-view" class="view-content hidden flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
+    
+    <!-- Sidebar -->
+    <div class="w-full lg:w-[250px] border-r border-gray-800 bg-gray-900 flex flex-col">
+      <div class="p-5 flex-1 overflow-y-auto">
+        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Categories</h2>
+        <div id="lib-category-list" class="flex flex-col gap-2 mb-6"></div>
+      </div>
+    </div>
+    
+    <!-- Library Content -->
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-950">
+      <div id="lib-editor-container" class="max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 md:p-8 shadow-xl min-h-[400px]">
+      </div>
+    </div>
+  </div>
+  
+</main>
+
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
