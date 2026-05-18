@@ -4,15 +4,16 @@ scripts/studio.py — Resume Studio Ultimate (V6)
 Features: Build, Clean, Live Preview, R2 Sync, Visual Builder, LaTeX Bundler
 """
 
-import json, subprocess, os, hashlib, tempfile, zipfile, io
+import sys, json, subprocess, os, hashlib, tempfile, zipfile, io
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import boto3
 from botocore.client import Config
+from PIL import Image
 
 # Try to load env safely
 try:
@@ -37,6 +38,10 @@ app = FastAPI()
 
 if DIST_DIR.exists():
     app.mount("/pdf", StaticFiles(directory=str(DIST_DIR)), name="pdf")
+
+STATIC_DIR = ROOT / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 def get_file_hash(path):
     hash_md5 = hashlib.md5()
@@ -85,6 +90,12 @@ def index():
 @app.get("/get-config")
 def get_config():
     return load_full_config()
+
+@app.post("/save-config")
+async def save_config(request: Request):
+    data = await request.json()
+    CONFIG_PATH.write_text(json.dumps(data, indent=2))
+    return {"ok": True}
 
 @app.get("/download/{filename}")
 def download_file(filename: str):
@@ -151,10 +162,12 @@ def list_files():
         files.append({"name": f.name, "sync_status": status})
     return sorted(files, key=lambda x: x['name'])
 
+BUILD_PY = ROOT / "src" / "build.py"
+
 @app.get("/build/{role}")
 def build_role(role: str):
     def stream():
-        cmd = ["bash", str(BUILD_SH)] if role == "all" else ["bash", str(BUILD_SH), role]
+        cmd = [sys.executable, str(BUILD_PY)] if role == "all" else [sys.executable, str(BUILD_PY), role]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=str(ROOT))
         for line in proc.stdout: yield line
         proc.wait()
@@ -170,4 +183,35 @@ def upload_file_route(filename: str):
         return {"ok": True}
     except Exception as e: return {"ok": False, "error": str(e)}
 
-
+@app.post("/upload-photo")
+async def upload_photo(file: UploadFile = File(...)):
+    try:
+        photo_path = ASSETS / "profile-photo.jpg"
+        content = await file.read()
+        
+        try:
+            new_img = Image.open(io.BytesIO(content))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image file format")
+            
+        if photo_path.exists():
+            with Image.open(photo_path) as current_img:
+                current_aspect = current_img.width / current_img.height
+                new_aspect = new_img.width / new_img.height
+                
+                if abs(current_aspect - new_aspect) > 0.15:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Aspect ratio mismatch. Existing is {current_aspect:.2f}, new is {new_aspect:.2f}. Please provide an image with a similar ratio (e.g., 3:4)."
+                    )
+        
+        # Save photo, converting to RGB (JPEG) if necessary
+        if new_img.mode != "RGB":
+            new_img = new_img.convert("RGB")
+            
+        new_img.save(photo_path, "JPEG", quality=90)
+        return {"ok": True, "message": "Photo successfully updated"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
