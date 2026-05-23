@@ -24,6 +24,7 @@
     <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
     <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
     <button id="tab-checkpoints" class="nav-btn"      onclick="window.switchTab('checkpoints')">Version Control</button>
+    <button id="tab-settings"  class="nav-btn"        onclick="window.switchTab('settings')">Settings</button>
   </nav>
   <div class="header-actions" style="display:flex;gap:4px">
     <button class="btn btn-ghost btn-sm" onclick="createCheckpoint()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">history</span> Checkpoint</button>
@@ -217,6 +218,14 @@
       <p class="hint-text mb-4">Restore your entire configuration to a previous point in time. Checkpoints are automatically synced to Firebase.</p>
       <div id="checkpoint-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SETTINGS ═══════════════════ -->
+<div id="settings-view" class="view hidden">
+  <div class="panel-main p-6" style="max-width:800px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:20px;">
+    <div class="editor-form-header">System Settings</div>
+    <div id="settings-container"></div>
   </div>
 </div>
 

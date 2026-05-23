@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume - {{ ROLE_NAME }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0; padding: 0; font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f1115 0%, #1a1d24 100%);
+            color: #fff; display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+        }
+        .header {
+            width: 100%; max-width: 900px; padding: 40px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-sizing: border-box;
+        }
+        .profile {
+            display: flex; align-items: center; gap: 16px;
+        }
+        .avatar {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: #6366f1; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: bold; border: 2px solid #fff;
+        }
+        .info h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 700; }
+        .info p { margin: 0; color: #94a3b8; font-size: 14px; }
+        
+        .actions { display: flex; gap: 12px; }
+        .btn {
+            background: #6366f1; color: white; padding: 10px 20px; border-radius: 8px;
+            text-decoration: none; font-weight: 600; font-size: 14px; transition: background 0.2s;
+        }
+        .btn:hover { background: #4f46e5; }
+        .btn-outline {
+            background: transparent; border: 1px solid #475569;
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); }
+
+        .viewer-container {
+            width: 100%; max-width: 900px; height: 800px;
+            background: #fff; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            margin-bottom: 50px;
+        }
+        iframe {
+            width: 100%; height: 100%; border: none;
+        }
+        
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; gap: 20px; }
+            .profile { flex-direction: column; }
+            .viewer-container { height: 600px; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="profile">
+            <div class="avatar">{{ USER_INITIAL }}</div>
+            <div class="info">
+                <h1>{{ USER_NAME }}</h1>
+                <p>Application for {{ ROLE_NAME }}</p>
+            </div>
+        </div>
+        <div class="actions">
+            <a href="{{ PDF_URL }}" download class="btn btn-outline">Download PDF</a>
+            <a href="mailto:{{ USER_EMAIL }}" class="btn">Contact Me</a>
+        </div>
+    </div>
+    
+    <div class="viewer-container">
+        <!-- Using Google Docs Viewer fallback for mobile, or native iframe for desktop -->
+        <iframe src="{{ PDF_URL }}#toolbar=0" type="application/pdf"></iframe>
+    </div>
+</body>
+</html>

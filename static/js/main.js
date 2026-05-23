@@ -3,6 +3,7 @@ import './dashboard.js';
 import './editor.js';
 import './library.js';
 import { loadCheckpoints } from './checkpoints.js';
+import { loadSettings } from './settings.js';
 import { loadTracker, initTracker } from './tracker.js';
 
 // Expose switchTab globally
@@ -10,6 +11,7 @@ window.switchTab = (tabId) => {
     ui.switchTab(tabId);
     if (tabId === 'tracker') loadTracker();
     if (tabId === 'checkpoints') loadCheckpoints();
+    if (tabId === 'settings') loadSettings();
 };
 
 // Global actions

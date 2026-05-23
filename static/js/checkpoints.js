@@ -58,8 +58,22 @@ window.deleteCheckpoint = async function(name) {
 };
 
 // Override the createCheckpoint from main.js to reload the list
-const originalCreate = window.createCheckpoint;
 window.createCheckpoint = async function() {
-    await originalCreate();
-    loadCheckpoints();
+    const customName = prompt("Enter a name for this checkpoint (or leave blank for default timestamp):");
+    if (customName === null) return; // User cancelled
+    
+    try {
+        const res = await fetch('/checkpoints', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custom_name: customName })
+        });
+        const data = await res.json();
+        if(data.ok) {
+            alert(`Checkpoint created successfully!\nSaved as: ${data.name}`);
+            loadCheckpoints();
+        }
+    } catch(e) {
+        alert('Failed to create checkpoint.');
+    }
 };
