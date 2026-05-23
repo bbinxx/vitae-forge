@@ -1,0 +1,13 @@
+[build]
+  # Netlify doesn't run Docker natively, so this configuration is intended for 
+  # hosting the frontend static files ONLY, while the backend runs elsewhere.
+  # If you want full functionality, you must use Render or DigitalOcean App Platform.
+  publish = "templates"
+  command = "echo 'Deploying static frontend...'"
+
+[[redirects]]
+  # Redirect all API requests to your hosted backend
+  from = "/api/*"
+  to = "https://your-render-app-url.onrender.com/api/:splat"
+  status = 200
+  force = true
