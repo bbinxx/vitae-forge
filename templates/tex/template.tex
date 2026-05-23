@@ -14,12 +14,13 @@
   {}{0em}{\MakeUppercase}
   [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
 
-\titlespacing{\section}{0pt}{6pt}{2pt}
+\titlespacing{\section}{0pt}{6pt plus 1fill minus 3pt}{2pt minus 1pt}
+\flushbottom
 
-\setlist[itemize]{noitemsep, topsep=0pt, partopsep=0pt, parsep=0pt, leftmargin=1.2em, itemsep=0pt}
+\setlist[itemize]{topsep=0pt plus 0.05fill, partopsep=0pt, parsep=0pt plus 0.05fill, leftmargin=1.2em, itemsep=1pt plus 0.1fill minus 1pt}
 
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0pt}
+\setlength{\parskip}{1pt plus 0.15fill minus 1pt}
 
 \begin{document}
 
@@ -27,8 +28,8 @@
 
 %------------------------------------------------------------
 % HEADER
-%------------------------------------------------------------
-\begin{center}
+\noindent
+{\centering
 {\LARGE \textbf{<<NAME>>}}\\[3pt]
 % [SECTION:ROLE_TITLE]
 \textbf{ <<ROLE_TITLE>> }\\[3pt]
@@ -39,8 +40,8 @@
 ~$|$~
 \href{https://linkedin.com/in/<<LINKEDIN>>}{linkedin.com/in/<<LINKEDIN>>}
 ~$|$~
-\href{https://github.com/<<GITHUB>>}{github.com/<<GITHUB>>}
-\end{center}
+\href{https://github.com/<<GITHUB>>}{github.com/<<GITHUB>>}\par
+}
 
 \vspace{-5pt}
 

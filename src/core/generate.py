@@ -145,7 +145,7 @@ def generate_resume(
         projects_tex += "\\begin{itemize}\n"
         for pt in proj.get("points", []):
             projects_tex += f"\\item {escape_latex(pt)}\n"
-        projects_tex += "\\end{itemize}\n\\vspace{2pt}\n"
+        projects_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
     tmpl = tmpl.replace("<<PROJECTS>>", projects_tex)
 
     # ── Simple table sections ─────────────────────────────────────────────────
