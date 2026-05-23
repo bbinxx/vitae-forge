@@ -198,7 +198,12 @@
       }
     },
     "education": {
-      "standard": "\\textbf{B.Tech in Computer Science and Engineering} \\hfill \\textbf{2022 -- 2026}\\\\ \n Mar Baselios Christian College of Engineering and Technology, Kuttikkanam \\hfill APJ Abdul Kalam Technological University"
+      "standard": {
+        "institution": "Mar Baselios Christian College of Engineering and Technology, Kuttikkanam",
+        "degree": "B.Tech in Computer Science and Engineering",
+        "date": "2022 -- 2026",
+        "details": "APJ Abdul Kalam Technological University"
+      }
     },
     "certifications": {
       "python": {

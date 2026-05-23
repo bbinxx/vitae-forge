@@ -20,7 +20,7 @@ export function renderLibrarySidebar() {
     if (!list) return;
     
     list.innerHTML = categories.map(cat => `
-        <button class="w-full text-left px-4 py-2 rounded text-xs tracking-widest border transition-colors ${currentCategory === cat.id ? 'bg-blue-900 border-blue-700 text-blue-300' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white'}" onclick="window.selectLibCategory('${cat.id}')">
+        <button class="btn btn-secondary" style="width:100%;justify-content:flex-start;${currentCategory === cat.id ? 'background:var(--accent-dim);border-color:rgba(99,102,241,0.3);color:var(--accent-hover)' : ''}" onclick="window.selectLibCategory('${cat.id}')">
             ${cat.name}
         </button>
     `).join('');
@@ -51,15 +51,15 @@ export function addNewLibItem() {
     } else if (currentCategory === 'skills') {
         newItem = { name: "", keywords: "" };
     } else if (currentCategory === 'projects') {
-        newItem = { title: "", date: "", link: "", description: [] };
+        newItem = { name: "", tech: "", date: "", link: "", points: [] };
     } else if (currentCategory === 'education') {
-        newItem = { institution: "", degree: "", date: "", score: "" };
+        newItem = { institution: "", degree: "", date: "", details: "" };
     } else if (currentCategory === 'certifications') {
-        newItem = { name: "", issuer: "", date: "", link: "" };
+        newItem = { name: "", issuer: "", year: "", link: "" };
     } else if (currentCategory === 'achievements') {
-        newItem = { title: "", details: [] };
+        newItem = { name: "", issuer: "", year: "" };
     } else if (currentCategory === 'additional_info') {
-        newItem = { title: "", detail: "" };
+        newItem = { name: "", content: "" };
     }
     
     state.data.library[currentCategory][newId] = newItem;
@@ -74,19 +74,18 @@ export function deleteLibItem(itemId) {
 }
 
 function fieldGroup(label, html) {
-    return `<div class="flex flex-col gap-1.5 mb-4">
-        <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">${label}</label>
+    return `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">
+        <label style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)">${label}</label>
         ${html}
     </div>`;
 }
 
 function inputField(id, value, isTextArea = false) {
-    const cls = "bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors";
     const val = (value || '').toString().replace(/"/g, '&quot;');
     if (isTextArea) {
-        return `<textarea id="${id}" rows="4" class="${cls}" onchange="window.updateLibField()">${val}</textarea>`;
+        return `<textarea id="${id}" rows="4" class="input-field textarea" oninput="window.updateLibField()" onchange="window.updateLibField()">${val}</textarea>`;
     }
-    return `<input type="text" id="${id}" value="${val}" class="${cls}" onchange="window.updateLibField()">`;
+    return `<input type="text" id="${id}" value="${val}" class="input-field" oninput="window.updateLibField()" onchange="window.updateLibField()">`;
 }
 
 export function renderLibraryContent() {
@@ -96,16 +95,16 @@ export function renderLibraryContent() {
     if (currentCategory === 'personal') {
         const p = state.data.personal || {};
         container.innerHTML = `
-            <h2 class="text-[0.65rem] text-blue-400 tracking-[0.15em] uppercase mb-6 pb-4 border-b border-gray-800">Personal Info</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h2 style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">Personal Info</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
                 ${fieldGroup("Name", inputField("p_name", p.name))}
                 ${fieldGroup("Email", inputField("p_email", p.email))}
                 ${fieldGroup("Phone", inputField("p_phone", p.phone))}
                 ${fieldGroup("LinkedIn", inputField("p_linkedin", p.linkedin))}
                 ${fieldGroup("GitHub", inputField("p_github", p.github))}
             </div>
-            <div class="mt-6 pt-4 border-t border-gray-800">
-                <button class="bg-green-900 hover:bg-green-800 text-green-300 px-4 py-2 rounded text-xs uppercase" onclick="window.saveConfigToServer()">💾 Save Changes</button>
+            <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
+                <button class="btn btn-success" onclick="window.saveConfigToServer()">💾 Save Changes</button>
             </div>
         `;
         return;
@@ -114,21 +113,21 @@ export function renderLibraryContent() {
     // For library categories
     const items = state.data.library[currentCategory] || {};
     
-    let sidebarHtml = `<div class="w-full md:w-64 border-r border-gray-800 pr-4 flex flex-col gap-2">
-        <button class="w-full bg-blue-900 hover:bg-blue-800 text-blue-300 px-4 py-2 rounded text-xs tracking-widest uppercase transition-colors mb-4" onclick="window.addNewLibItem()">+ Add Item</button>
-        <div class="flex flex-col gap-1 overflow-y-auto">
+    let sidebarHtml = `<div style="width:200px;border-right:1px solid var(--border);padding-right:16px;flex-shrink:0;display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-primary" style="margin-bottom:10px" onclick="window.addNewLibItem()">+ Add Item</button>
+        <div style="display:flex;flex-direction:column;gap:3px;overflow-y:auto">
             ${Object.keys(items).map(k => `
-                <button class="w-full text-left px-3 py-1.5 rounded text-xs tracking-wide border transition-colors ${currentItemId === k ? 'bg-gray-800 border-gray-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800'}" onclick="window.selectLibItem('${k}')">${k}</button>
+                <button style="width:100%;text-align:left;padding:5px 8px;border-radius:var(--radius);font-size:11px;border:1px solid;cursor:pointer;${currentItemId === k ? 'background:var(--bg-hover);border-color:var(--border);color:var(--text-primary)' : 'border-color:transparent;color:var(--text-muted);background:none'}" onclick="window.selectLibItem('${k}')">${k}</button>
             `).join('')}
         </div>
     </div>`;
     
-    let formHtml = `<div class="flex-1 pl-0 md:pl-6 pt-4 md:pt-0">`;
+    let formHtml = `<div style="flex:1;padding-left:20px">`;
     if (!currentItemId || !items[currentItemId]) {
-        formHtml += `<div class="h-full flex items-center justify-center text-gray-500 uppercase text-xs">Select an item</div></div>`;
+        formHtml += `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px">Select an item</div></div>`;
     } else {
         const data = items[currentItemId];
-        formHtml += `<h2 class="text-[0.65rem] text-blue-400 tracking-[0.15em] uppercase mb-6 pb-4 border-b border-gray-800">Editing: ${currentItemId}</h2>`;
+        formHtml += `<h2 style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border)">Editing: ${currentItemId}</h2>`;
         
         if (currentCategory === 'role_title' || currentCategory === 'professional_summary') {
             formHtml += fieldGroup("Value", inputField("l_val", data, currentCategory === 'professional_summary'));
@@ -138,39 +137,41 @@ export function renderLibraryContent() {
             formHtml += fieldGroup("Keywords", inputField("l_keywords", data.keywords, true));
         }
         else if (currentCategory === 'projects') {
-            formHtml += fieldGroup("Title", inputField("l_title", data.title));
+            formHtml += fieldGroup("Project Name", inputField("l_name", data.name));
+            formHtml += fieldGroup("Technologies", inputField("l_tech", data.tech));
             formHtml += fieldGroup("Date", inputField("l_date", data.date));
             formHtml += fieldGroup("Link", inputField("l_link", data.link));
-            formHtml += fieldGroup("Description (One bullet per line)", inputField("l_desc", (data.description||[]).join('\\n'), true));
+            formHtml += fieldGroup("Bullet Points (One bullet per line)", inputField("l_points", (data.points||[]).join('\n'), true));
         }
         else if (currentCategory === 'education') {
             formHtml += fieldGroup("Institution", inputField("l_inst", data.institution));
             formHtml += fieldGroup("Degree", inputField("l_degree", data.degree));
             formHtml += fieldGroup("Date", inputField("l_date", data.date));
-            formHtml += fieldGroup("Score", inputField("l_score", data.score));
+            formHtml += fieldGroup("University / Board / Details", inputField("l_details", data.details));
         }
         else if (currentCategory === 'certifications') {
-            formHtml += fieldGroup("Name", inputField("l_name", data.name));
+            formHtml += fieldGroup("Certificate Name", inputField("l_name", data.name));
             formHtml += fieldGroup("Issuer", inputField("l_issuer", data.issuer));
-            formHtml += fieldGroup("Date", inputField("l_date", data.date));
-            formHtml += fieldGroup("Link", inputField("l_link", data.link));
+            formHtml += fieldGroup("Year", inputField("l_year", data.year));
+            formHtml += fieldGroup("Link (Optional)", inputField("l_link", data.link));
         }
         else if (currentCategory === 'achievements') {
-            formHtml += fieldGroup("Title", inputField("l_title", data.title));
-            formHtml += fieldGroup("Details (One bullet per line)", inputField("l_details", (data.details||[]).join('\\n'), true));
+            formHtml += fieldGroup("Achievement/Award Title", inputField("l_name", data.name));
+            formHtml += fieldGroup("Issuer", inputField("l_issuer", data.issuer));
+            formHtml += fieldGroup("Year", inputField("l_year", data.year));
         }
         else if (currentCategory === 'additional_info') {
-            formHtml += fieldGroup("Title", inputField("l_title", data.title));
-            formHtml += fieldGroup("Detail", inputField("l_detail", data.detail, true));
+            formHtml += fieldGroup("Section Title (e.g. Areas of Interest)", inputField("l_name", data.name));
+            formHtml += fieldGroup("Content", inputField("l_content", data.content, true));
         }
         
-        formHtml += `<div class="mt-6 pt-4 border-t border-gray-800 flex gap-3">
-            <button class="bg-green-900 hover:bg-green-800 text-green-300 px-4 py-2 rounded text-xs uppercase" onclick="window.saveConfigToServer()">💾 Save</button>
-            <button class="bg-red-950 hover:bg-red-900 text-red-400 px-4 py-2 rounded text-xs uppercase" onclick="window.deleteLibItem('${currentItemId}')">🗑 Delete</button>
+        formHtml += `<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:10px">
+            <button class="btn btn-success" onclick="window.saveConfigToServer()">💾 Save</button>
+            <button class="btn btn-danger" onclick="window.deleteLibItem('${currentItemId}')">🗑 Delete</button>
         </div></div>`;
     }
     
-    container.innerHTML = `<div class="flex flex-col md:flex-row h-full">${sidebarHtml}${formHtml}</div>`;
+    container.innerHTML = `<div style="display:flex;height:100%">${sidebarHtml}${formHtml}</div>`;
 }
 
 export function updateLibField() {
@@ -189,7 +190,7 @@ export function updateLibField() {
     
     const obj = state.data.library[currentCategory][currentItemId];
     const getVal = (id) => document.getElementById(id)?.value || '';
-    const getList = (id) => getVal(id).split('\\n').map(s=>s.trim()).filter(s=>s);
+    const getList = (id) => getVal(id).split('\n').map(s=>s.trim()).filter(s=>s);
     
     if (currentCategory === 'role_title' || currentCategory === 'professional_summary') {
         state.data.library[currentCategory][currentItemId] = getVal('l_val');
@@ -199,30 +200,32 @@ export function updateLibField() {
         obj.keywords = getVal('l_keywords');
     }
     else if (currentCategory === 'projects') {
-        obj.title = getVal('l_title');
+        obj.name = getVal('l_name');
+        obj.tech = getVal('l_tech');
         obj.date = getVal('l_date');
         obj.link = getVal('l_link');
-        obj.description = getList('l_desc');
+        obj.points = getList('l_points');
     }
     else if (currentCategory === 'education') {
         obj.institution = getVal('l_inst');
         obj.degree = getVal('l_degree');
         obj.date = getVal('l_date');
-        obj.score = getVal('l_score');
+        obj.details = getVal('l_details');
     }
     else if (currentCategory === 'certifications') {
         obj.name = getVal('l_name');
         obj.issuer = getVal('l_issuer');
-        obj.date = getVal('l_date');
+        obj.year = getVal('l_year');
         obj.link = getVal('l_link');
     }
     else if (currentCategory === 'achievements') {
-        obj.title = getVal('l_title');
-        obj.details = getList('l_details');
+        obj.name = getVal('l_name');
+        obj.issuer = getVal('l_issuer');
+        obj.year = getVal('l_year');
     }
     else if (currentCategory === 'additional_info') {
-        obj.title = getVal('l_title');
-        obj.detail = getVal('l_detail');
+        obj.name = getVal('l_name');
+        obj.content = getVal('l_content');
     }
 }
 

@@ -1,19 +1,14 @@
 #!/bin/bash
-
-# ── RESUME ULTIMATE CONTROL CENTER ───────────────────────────────────────────
-# Unified Entry Point for Building, Deploying, and Managing Resumes
-# ─────────────────────────────────────────────────────────────────────────────
-
+# Resume Studio — Start Script (Linux / macOS)
 cd "$(dirname "$0")"
 
-# Setup Virtual Environment
 if [ ! -d "venv" ]; then
-    echo -e "\033[1;33m📦 Creating virtual environment...\033[0m"
+    echo "📦 Creating virtual environment..."
     python3 -m venv venv
 fi
+
 source venv/bin/activate
-# Quietly ensure dependencies are up-to-date
 pip install -q -r requirements.txt
 
-# Run Manager
-python3 src/manager.py
+echo "🚀 Starting Resume Studio → http://127.0.0.1:5050"
+python3 -m uvicorn src.app:app --host 127.0.0.1 --port 5050 --reload
