@@ -24,9 +24,10 @@
     <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
     <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
   </nav>
-  <div class="header-actions">
-    <button class="btn btn-ghost btn-sm" onclick="exportJSON()"> JSON</button>
-    <label class="btn btn-ghost btn-sm" style="cursor:pointer"> Load<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+  <div class="header-actions" style="display:flex;gap:4px">
+    <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+    <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
   </div>
 </header>
 
@@ -42,6 +43,7 @@
         <div id="roles-grid" class="roles-grid"></div>
         <button class="btn btn-primary w-full mt-2" onclick="runBuild('all')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">play_circle</span> Build All</button>
         <button class="btn btn-secondary w-full mt-2" onclick="uploadAll()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">cloud_upload</span> Upload All</button>
+        <button class="btn btn-secondary w-full mt-2" onclick="exportAllPDFs()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">archive</span> Download All PDFs</button>
         <div id="log" class="log-box mt-3">ready.</div>
         <div class="build-status">
           <span id="status-dot" class="dot dot-idle"></span>
