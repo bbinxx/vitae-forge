@@ -15,12 +15,12 @@ def main():
     else:
         tag = version
         
-    print(f"🏷️  Tagging current commit as {tag}...")
+    print(f"  Tagging current commit as {tag}...")
     
     subprocess.run(["git", "tag", "-a", tag, "-m", f"Release {tag}"], check=True)
     subprocess.run(["git", "push", "origin", tag], check=True)
     
-    print(f"✅ Success: Pushed tag {tag} to origin. CI/CD will build and upload.")
+    print(f" Success: Pushed tag {tag} to origin. CI/CD will build and upload.")
 
 if __name__ == "__main__":
     main()

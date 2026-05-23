@@ -24,14 +24,14 @@ def upload_to_r2():
     endpoint_url = os.environ.get("R2_ENDPOINT_URL", "").strip()
 
     if not all([access_key, secret_key, endpoint_url]):
-        print(f"❌ Error: Missing R2 credentials.")
+        print(f" Error: Missing R2 credentials.")
         print(f"   Access Key: {'Set' if access_key else 'Missing'}")
         print(f"   Secret Key: {'Set' if secret_key else 'Missing'}")
         print(f"   Endpoint URL: {'Set' if endpoint_url else 'Missing'}")
         return
 
     if not endpoint_url.startswith("http"):
-        print(f"❌ Error: R2_ENDPOINT_URL must start with http:// or https://. Current value starts with: {endpoint_url[:10]}...")
+        print(f" Error: R2_ENDPOINT_URL must start with http:// or https://. Current value starts with: {endpoint_url[:10]}...")
         return
 
     s3 = boto3.client(
@@ -45,7 +45,7 @@ def upload_to_r2():
 
     dist_dir = "dist"
     if not os.path.exists(dist_dir):
-        print(f"❌ Error: {dist_dir} directory not found.")
+        print(f" Error: {dist_dir} directory not found.")
         return
 
     for filename in os.listdir(dist_dir):
@@ -54,7 +54,7 @@ def upload_to_r2():
             # Keeping the extension: standard.pdf stays standard.pdf in R2
             object_name = filename
             
-            print(f"🚀 Uploading {filename} to R2 (overwriting if exists)...")
+            print(f" Uploading {filename} to R2 (overwriting if exists)...")
             try:
                 s3.upload_file(
                     file_path, 
@@ -62,9 +62,9 @@ def upload_to_r2():
                     object_name,
                     ExtraArgs={'ContentType': 'application/pdf'}
                 )
-                print(f"✅ Success: {filename} is now live.")
+                print(f" Success: {filename} is now live.")
             except Exception as e:
-                print(f"❌ Failed to upload {filename}: {e}")
+                print(f" Failed to upload {filename}: {e}")
 
 if __name__ == "__main__":
     upload_to_r2()

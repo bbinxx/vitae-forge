@@ -19,7 +19,7 @@ export const state = {
     async saveConfig() {
         const ok = await api.saveConfig(this.data);
         if (ok) { alert('✓ Configuration saved to file successfully'); this.notify(); }
-        else      alert('❌ Error saving configuration');
+        else      alert(' Error saving configuration');
     }
 };
 

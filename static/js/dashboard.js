@@ -18,7 +18,7 @@ export async function refreshSync() {
             <div class="file-item" onclick="window.dashPreview('${f.name}')">
                 <span class="sync-tag ${syncClass}">${f.sync_status}</span>
                 <span class="file-name">${f.name}</span>
-                <button class="btn btn-sm btn-outline" style="padding:2px 8px" onclick="event.stopPropagation();window.dashUpload('${f.name}')">☁</button>
+                <button class="btn btn-sm btn-outline" style="padding:2px 8px" onclick="event.stopPropagation();window.dashUpload('${f.name}')"></button>
             </div>`;
         }).join('');
     } catch (e) { console.error('Server offline', e); }
@@ -59,10 +59,27 @@ export async function uploadPhoto(event) {
     if (!file) return;
     try {
         const res = await api.uploadPhoto(file);
-        if (res.ok) alert('✅ ' + res.data.message);
-        else alert('❌ Upload failed:\n' + (res.data.detail || 'Unknown error'));
-    } catch (e) { alert('❌ Error uploading photo.'); }
+        if (res.ok) alert(' ' + res.data.message);
+        else alert(' Upload failed:\n' + (res.data.detail || 'Unknown error'));
+    } catch (e) { alert(' Error uploading photo.'); }
     event.target.value = '';
+}
+
+export async function uploadAll() {
+    try {
+        const log = document.getElementById('log');
+        if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Uploading all PDFs to R2...`;
+        
+        const res = await window.apiClient.post('/upload-all');
+        if (res.ok) {
+            alert(' Success: ' + res.data.message);
+            if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Upload All Complete: ${res.data.message}`;
+        } else {
+            alert(' Upload All failed:\n' + (res.data.detail || res.data.message || 'Unknown error'));
+        }
+    } catch (e) { 
+        alert(' Error uploading files.'); 
+    }
 }
 
 // Bind globals
@@ -71,6 +88,7 @@ window.dashUpload  = dashUpload;
 window.runBuild    = runBuild;
 window.uploadPhoto = uploadPhoto;
 window.refreshSync = refreshSync;
+window.uploadAll   = uploadAll;
 window.downloadCurrent       = () => { if (state.selectedDashFile) window.open(`/download/${state.selectedDashFile}`, '_blank'); };
 window.downloadCurrentBundle = () => { if (state.selectedDashFile) window.open(`/download-bundle/${state.selectedDashFile.replace('.pdf','.tex')}`, '_blank'); };
 window.downloadCurrentTex    = () => { if (state.selectedDashFile) window.open(`/download/${state.selectedDashFile.replace('.pdf','.tex')}`, '_blank'); };

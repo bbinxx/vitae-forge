@@ -136,6 +136,24 @@ def build_role_stream(role: str):
 def upload_file_route(filename: str):
     return upload_pdf(filename)
 
+@router.post("/upload-all")
+def upload_all_files():
+    from src.core.config import DIST_DIR
+    import concurrent.futures
+    pdfs = list(DIST_DIR.glob("*.pdf"))
+    if not pdfs:
+        return {"ok": False, "message": "No PDFs found."}
+        
+    success = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(upload_pdf, p.name): p.name for p in pdfs}
+        for future in concurrent.futures.as_completed(futures):
+            res = future.result()
+            if res.get("ok"):
+                success.append(futures[future])
+    
+    return {"ok": True, "message": f"Uploaded {len(success)} of {len(pdfs)} files."}
+
 
 # ── Photo Manager ─────────────────────────────────────────────────────────────
 

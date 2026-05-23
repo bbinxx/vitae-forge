@@ -13,13 +13,13 @@ let filterSearch = '';
 let resumes = []; // Available PDF files
 
 const STATUS_CONFIG = {
-    'Bookmarked':  { color: '#6366f1', bg: 'rgba(99,102,241,0.15)',  icon: '🔖' },
-    'Applied':     { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  icon: '📤' },
-    'Screening':   { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)',  icon: '🔍' },
-    'Interview':   { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: '🗣️' },
-    'Offer':       { color: '#10b981', bg: 'rgba(16,185,129,0.15)',  icon: '🎉' },
-    'Rejected':    { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: '✗'  },
-    'Withdrawn':   { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '↩️' },
+    'Bookmarked':  { color: '#6366f1', bg: 'rgba(99,102,241,0.15)',  icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">bookmark</span>' },
+    'Applied':     { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">send</span>' },
+    'Screening':   { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)',  icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">search</span>' },
+    'Interview':   { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">forum</span>' },
+    'Offer':       { color: '#10b981', bg: 'rgba(16,185,129,0.15)',  icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">celebration</span>' },
+    'Rejected':    { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">cancel</span>'  },
+    'Withdrawn':   { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">undo</span>' },
 };
 
 // ── API Helpers ───────────────────────────────────────────────────────────────
@@ -173,8 +173,8 @@ function renderList() {
             </div>
             <div class="app-role">${escHtml(app.role)}</div>
             <div class="app-meta">
-                ${app.location ? `<span>📍 ${escHtml(app.location)}</span>` : ''}
-                ${app.assigned_pdf ? `<span class="resume-chip">📄 ${escHtml(app.assigned_pdf)}</span>` : '<span class="resume-chip unassigned">📄 No resume</span>'}
+                ${app.location ? `<span> ${escHtml(app.location)}</span>` : ''}
+                ${app.assigned_pdf ? `<span class="resume-chip"> ${escHtml(app.assigned_pdf)}</span>` : '<span class="resume-chip unassigned"> No resume</span>'}
                 <span class="app-date">${formatDateRelative(app.updated_at)}</span>
             </div>
         </div>`;
@@ -184,7 +184,7 @@ function renderList() {
 function renderEmptyDetail() {
     return `
     <div class="detail-empty">
-        <div class="detail-empty-icon">📋</div>
+        <div class="detail-empty-icon"></div>
         <p>Select an application to view details</p>
         <button class="btn btn-primary" onclick="window.openNewAppModal()">+ New Application</button>
     </div>`;
@@ -225,15 +225,15 @@ function renderDetail(app) {
             <div class="detail-company">${escHtml(app.company)}</div>
             <div class="detail-role">${escHtml(app.role)}</div>
             <div class="detail-submeta">
-                ${app.location ? `<span>📍 ${escHtml(app.location)}</span>` : ''}
-                ${app.deadline ? `<span>⏰ Deadline: ${formatDate(app.deadline)}</span>` : ''}
-                ${app.salary_range ? `<span>💰 ${escHtml(app.salary_range)}</span>` : ''}
+                ${app.location ? `<span> ${escHtml(app.location)}</span>` : ''}
+                ${app.deadline ? `<span> Deadline: ${formatDate(app.deadline)}</span>` : ''}
+                ${app.salary_range ? `<span> ${escHtml(app.salary_range)}</span>` : ''}
                 <span class="detail-created">Created ${formatDate(app.created_at)}</span>
             </div>
         </div>
         <div class="detail-header-actions">
-            ${app.job_url ? `<a href="${escHtml(app.job_url)}" target="_blank" class="btn btn-sm btn-outline">🔗 Job Posting</a>` : ''}
-            <button class="btn btn-sm btn-danger" onclick="window.deleteApp('${app.id}')">🗑 Delete</button>
+            ${app.job_url ? `<a href="${escHtml(app.job_url)}" target="_blank" class="btn btn-sm btn-outline"> Job Posting</a>` : ''}
+            <button class="btn btn-sm btn-danger" onclick="window.deleteApp('${app.id}')"> Delete</button>
         </div>
     </div>
 
@@ -254,10 +254,10 @@ function renderDetail(app) {
                     ${resumeOptions}
                 </select>
                 <div class="resume-actions">
-                ${app.assigned_pdf ? `<button class="btn btn-sm btn-outline" onclick="window.previewAssignedResume('${app.assigned_pdf}')">👁 Preview</button>` : ''}
-                ${app.archived_pdf ? `<a class="btn btn-sm btn-success" href="/applications/${app.id}/archived-resume" target="_blank" download>⬇ Download Archived</a>` : ''}
-                <button class="btn btn-sm btn-secondary" onclick="window.openBuildForAppModal('${app.id}')">⚙ Build &amp; Assign</button>
-                <button class="btn btn-sm btn-secondary" onclick="window.openCustomizeModal('${app.id}')">✏ Customize &amp; Build</button>
+                ${app.assigned_pdf ? `<button class="btn btn-sm btn-outline" onclick="window.previewAssignedResume('${app.assigned_pdf}')"> Preview</button>` : ''}
+                ${app.archived_pdf ? `<a class="btn btn-sm btn-success" href="/applications/${app.id}/archived-resume" target="_blank" download> Download Archived</a>` : ''}
+                <button class="btn btn-sm btn-secondary" onclick="window.openBuildForAppModal('${app.id}')"> Build &amp; Assign</button>
+                <button class="btn btn-sm btn-secondary" onclick="window.openCustomizeModal('${app.id}')"> Customize &amp; Build</button>
             </div>
             </div>
 

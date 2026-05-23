@@ -247,7 +247,7 @@ def build_and_assign(app_id: str, role: str):
         non_photo    = [p for p in candidates if "_X" not in p.name]
         chosen       = (non_photo or candidates)
         if not chosen:
-            yield "\n⚠ Could not find built PDF to assign.\n"
+            yield "\n Could not find built PDF to assign.\n"
             return
 
         chosen = chosen[0]
@@ -255,7 +255,7 @@ def build_and_assign(app_id: str, role: str):
         data = load_applications()
         app  = _get_app(data, app_id)
         if not app:
-            yield "\n⚠ Application not found in DB.\n"
+            yield "\n Application not found in DB.\n"
             return
 
         archived = _archive_pdf(app_id, chosen.name)
@@ -267,6 +267,6 @@ def build_and_assign(app_id: str, role: str):
             _timeline_event(app.get("status", ""), f"Resume built & assigned: {chosen.name}")
         )
         save_applications(data)
-        yield f"\n✅ Archived & assigned → {archived or chosen.name}\n"
+        yield f"\n Archived & assigned → {archived or chosen.name}\n"
 
     return StreamingResponse(stream(), media_type="text/plain")
