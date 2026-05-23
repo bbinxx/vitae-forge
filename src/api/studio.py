@@ -97,6 +97,48 @@ def download_bundle(filename: str):
     )
 
 
+@router.get("/download-workspace-archive")
+def download_workspace_archive():
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
+        # Save configs
+        for f in (ROOT / "configs").glob("*"):
+            if f.is_file(): zf.write(str(f), arcname=f"configs/{f.name}")
+        # Save templates
+        for f in (ROOT / "templates").glob("*"):
+            if f.is_file(): zf.write(str(f), arcname=f"templates/{f.name}")
+        # Save assets
+        for f in (ROOT / "assets").glob("*"):
+            if f.is_file(): zf.write(str(f), arcname=f"assets/{f.name}")
+        # Save dist (compiled pdfs and tracker_db)
+        if DIST_DIR.exists():
+            for f in DIST_DIR.glob("*"):
+                if f.is_file(): zf.write(str(f), arcname=f"dist/{f.name}")
+    
+    zip_buf.seek(0)
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": 'attachment; filename="resume_workspace_backup.zip"'},
+    )
+
+
+@router.get("/download-all-pdfs")
+def download_all_pdfs():
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
+        if DIST_DIR.exists():
+            for f in DIST_DIR.glob("*.pdf"):
+                zf.write(str(f), arcname=f.name)
+                
+    zip_buf.seek(0)
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": 'attachment; filename="all_resumes.zip"'},
+    )
+
+
 def _bundle_instructions() -> str:
     return (
         "HOW TO COMPILE YOUR RESUME\n"

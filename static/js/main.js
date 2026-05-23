@@ -19,6 +19,20 @@ window.exportJSON = function() {
     a.click();
 };
 
+window.exportWorkspace = function() {
+    const a = document.createElement('a');
+    a.href = '/download-workspace-archive';
+    a.download = 'resume_workspace_backup.zip';
+    a.click();
+};
+
+window.exportAllPDFs = function() {
+    const a = document.createElement('a');
+    a.href = '/download-all-pdfs';
+    a.download = 'all_resumes.zip';
+    a.click();
+};
+
 window.importJSON = function(event) {
     const file = event.target.files[0];
     if (!file) return;
