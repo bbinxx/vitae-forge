@@ -79,3 +79,23 @@ def push_template_to_firebase(name: str, content: str):
         return True
     except Exception:
         return False
+
+def get_settings():
+    db = get_firebase_db()
+    if not db: return {}
+    try:
+        doc = db.collection("resume_system").document("settings").get()
+        if doc.exists:
+            return doc.to_dict()
+        return {}
+    except Exception:
+        return {}
+
+def save_settings(settings: dict):
+    db = get_firebase_db()
+    if not db: return False
+    try:
+        db.collection("resume_system").document("settings").set(settings)
+        return True
+    except Exception:
+        return False

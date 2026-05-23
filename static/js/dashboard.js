@@ -70,12 +70,13 @@ export async function uploadAll() {
         const log = document.getElementById('log');
         if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Uploading all PDFs to R2...`;
         
-        const res = await window.apiClient.post('/upload-all');
-        if (res.ok) {
-            alert(' Success: ' + res.data.message);
-            if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Upload All Complete: ${res.data.message}`;
+        const res = await fetch('/upload-all', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+            alert(' Success: ' + data.message);
+            if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Upload All Complete: ${data.message}`;
         } else {
-            alert(' Upload All failed:\n' + (res.data.detail || res.data.message || 'Unknown error'));
+            alert(' Upload All failed:\n' + (data.detail || data.message || 'Unknown error'));
         }
     } catch (e) { 
         alert(' Error uploading files.'); 
@@ -96,17 +97,15 @@ window.uploadCurrent         = () => { if (state.selectedDashFile) dashUpload(st
 
 window.shareCurrent = async () => {
     if (!state.selectedDashFile) return;
+    
+    // Construct the elegant public URL
+    const publicUrl = window.location.origin + '/share/' + state.selectedDashFile;
+    
     try {
-        const response = await fetch(`/presigned-url/${state.selectedDashFile}`);
-        const data = await response.json();
-        if (data.ok) {
-            navigator.clipboard.writeText(data.url);
-            alert('Public sharing link copied to clipboard! (Valid for 7 days)');
-        } else {
-            alert('Error generating link.');
-        }
+        await navigator.clipboard.writeText(publicUrl);
+        alert(`Smart Portfolio Link copied to clipboard!\n\n${publicUrl}\n\n(Valid for 7 days)`);
     } catch(e) {
-        alert('Failed to generate link.');
+        alert('Failed to copy link.');
     }
 };
 

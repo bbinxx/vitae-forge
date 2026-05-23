@@ -61,12 +61,21 @@ def list_checkpoints():
         })
     return sorted(cps, key=lambda x: x["created"], reverse=True)
 
+class CheckpointRequest(BaseModel):
+    custom_name: str = ""
+
 @router.post("/checkpoints")
-def create_checkpoint():
+def create_checkpoint(req: CheckpointRequest):
     CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
     config = load_resume_config()
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    name = f"checkpoint_{timestamp}.json"
+    
+    clean_name = req.custom_name.strip().replace(" ", "_").replace("/", "-")
+    if clean_name:
+        name = f"checkpoint_{clean_name}_{timestamp}.json"
+    else:
+        name = f"checkpoint_{timestamp}.json"
+        
     import json
     (CHECKPOINTS_DIR / name).write_text(json.dumps(config, indent=4))
     
@@ -102,6 +111,44 @@ def delete_checkpoint(name: str):
     if cp_file.exists():
         cp_file.unlink()
     return {"ok": True}
+
+# ── Settings (Firebase) ───────────────────────────────────────────────────────
+
+@router.get("/api/settings")
+def get_settings_route():
+    from src.core.firebase import get_settings
+    return get_settings()
+
+@router.post("/api/settings")
+async def save_settings_route(request: Request):
+    data = await request.json()
+    from src.core.firebase import save_settings
+    save_settings(data)
+    return {"ok": True}
+
+@router.post("/api/r2-backup")
+def trigger_r2_backup():
+    from src.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(500, "R2 not configured")
+        
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"backups/resume_workspace_{timestamp}.zip"
+    
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED, False) as zf:
+        for f in (ROOT / "configs").glob("*"):
+            if f.is_file(): zf.write(str(f), arcname=f"configs/{f.name}")
+        for f in (ROOT / "templates").glob("*"):
+            if f.is_file(): zf.write(str(f), arcname=f"templates/{f.name}")
+    
+    zip_buf.seek(0)
+    try:
+        client.upload_fileobj(zip_buf, BUCKET, filename)
+        return {"ok": True, "filename": filename}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 
@@ -274,6 +321,45 @@ def get_presigned_url(filename: str):
         return {"ok": True, "url": url}
     except Exception as e:
         raise HTTPException(500, str(e))
+
+@router.get("/share/{filename}")
+def public_share_page(filename: str):
+    from src.core.upload import get_r2_client, BUCKET
+    from fastapi.responses import HTMLResponse
+    
+    client = get_r2_client()
+    if not client:
+        return HTMLResponse("<h1>Error: Cloud Storage not configured</h1>", status_code=500)
+        
+    try:
+        # Generate a 7-day valid link for the PDF
+        url = client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET, 'Key': filename},
+            ExpiresIn=3600 * 24 * 7
+        )
+        
+        # Load user data
+        config = load_resume_config()
+        personal = config.get("personal", {})
+        user_name = personal.get("name", "Candidate")
+        user_email = personal.get("email", "contact@example.com")
+        user_initial = user_name[0].upper() if user_name else "C"
+        
+        # Load the presentation template
+        template_path = ROOT / "templates" / "share.html"
+        html = template_path.read_text()
+        
+        # Inject the dynamic data
+        html = html.replace("{{ PDF_URL }}", url)
+        html = html.replace("{{ ROLE_NAME }}", filename.replace(".pdf", "").replace("_", " "))
+        html = html.replace("{{ USER_NAME }}", user_name)
+        html = html.replace("{{ USER_EMAIL }}", user_email)
+        html = html.replace("{{ USER_INITIAL }}", user_initial)
+        
+        return HTMLResponse(html)
+    except Exception as e:
+        return HTMLResponse(f"<h1>Error loading document</h1><p>{str(e)}</p>", status_code=500)
 
 
 
