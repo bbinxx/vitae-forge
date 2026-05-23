@@ -2,12 +2,14 @@ import { ui, state } from './app.js';
 import './dashboard.js';
 import './editor.js';
 import './library.js';
+import { loadCheckpoints } from './checkpoints.js';
 import { loadTracker, initTracker } from './tracker.js';
 
 // Expose switchTab globally
 window.switchTab = (tabId) => {
     ui.switchTab(tabId);
     if (tabId === 'tracker') loadTracker();
+    if (tabId === 'checkpoints') loadCheckpoints();
 };
 
 // Global actions
@@ -31,6 +33,16 @@ window.exportAllPDFs = function() {
     a.href = '/download-all-pdfs';
     a.download = 'all_resumes.zip';
     a.click();
+};
+
+window.createCheckpoint = async function() {
+    try {
+        const res = await fetch('/checkpoints', { method: 'POST' });
+        const data = await res.json();
+        if(data.ok) alert(`Checkpoint created successfully!\nSaved as: ${data.name}`);
+    } catch(e) {
+        alert('Failed to create checkpoint.');
+    }
 };
 
 window.importJSON = function(event) {
