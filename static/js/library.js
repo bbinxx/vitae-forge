@@ -104,7 +104,7 @@ export function renderLibraryContent() {
                 ${fieldGroup("GitHub", inputField("p_github", p.github))}
             </div>
             <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
-                <button class="btn btn-success" onclick="window.saveConfigToServer()">💾 Save Changes</button>
+                <button class="btn btn-success" onclick="window.saveConfigToServer()"> Save Changes</button>
             </div>
         `;
         return;
@@ -166,8 +166,8 @@ export function renderLibraryContent() {
         }
         
         formHtml += `<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:10px">
-            <button class="btn btn-success" onclick="window.saveConfigToServer()">💾 Save</button>
-            <button class="btn btn-danger" onclick="window.deleteLibItem('${currentItemId}')">🗑 Delete</button>
+            <button class="btn btn-success" onclick="window.saveConfigToServer()"> Save</button>
+            <button class="btn btn-danger" onclick="window.deleteLibItem('${currentItemId}')"> Delete</button>
         </div></div>`;
     }
     

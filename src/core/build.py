@@ -26,7 +26,7 @@ LOG_DIR.mkdir(exist_ok=True)
 
 def clean() -> None:
     """Remove all build artefacts (dist PDFs/TEX/AUX, logs)."""
-    print("🧹 Cleaning build artefacts...")
+    print(" Cleaning build artefacts...")
     if LOG_DIR.exists():
         shutil.rmtree(LOG_DIR)
     LOG_DIR.mkdir(exist_ok=True)
@@ -39,7 +39,7 @@ def clean() -> None:
     for f in ROOT.glob("*_temp.tex"):
         f.unlink()
 
-    print("✅ Clean complete.")
+    print(" Clean complete.")
 
 
 def build_variant(
@@ -78,7 +78,7 @@ def build_variant(
             m = re.search(r"Output written on.*?\(([0-9]+) page", lf.read())
             if m:
                 pages = m.group(1)
-        print(f"    ✅ {pdf_name} ({pages} page(s))")
+        print(f"     {pdf_name} ({pages} page(s))")
 
         # Rename temp → final
         temp_pdf = DIST_DIR / f"{display_name}{suffix}_temp.pdf"
@@ -95,7 +95,7 @@ def build_variant(
                 tmp.unlink()
         return True
     else:
-        print(f"    ❌ Build failed — check {log_file}")
+        print(f"     Build failed — check {log_file}")
         return False
 
 
@@ -107,7 +107,7 @@ def build_role(role_id: str) -> None:
     display  = f"{name_raw.upper().replace(' ', '_')}_{short}"
 
     print("-" * 44)
-    print(f"🏗  Building: {display}")
+    print(f"  Building: {display}")
     print("-" * 44)
     build_variant(role_id, display, TEMPLATE_PLAIN, "")
     build_variant(role_id, display, TEMPLATE_PHOTO, "_X", PROFILE_PHOTO)
@@ -116,10 +116,14 @@ def build_role(role_id: str) -> None:
 def build_all() -> None:
     """Build every role defined in the resume config."""
     config = json.loads(RESUME_CONFIG.read_text())
-    for role_id in config.get("recipes", {}).keys():
-        build_role(role_id)
+    roles = list(config.get("recipes", {}).keys())
+    
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        executor.map(build_role, roles)
+        
     print("=" * 44)
-    print("🎉 All builds complete.")
+    print(" All builds complete.")
     print("=" * 44)
 
 
