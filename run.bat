@@ -1,18 +1,14 @@
 @echo off
-REM ── RESUME ULTIMATE CONTROL CENTER ───────────────────────────────────────────
-REM Unified Entry Point for Building, Deploying, and Managing Resumes (Windows)
-REM ─────────────────────────────────────────────────────────────────────────────
-
+REM Resume Studio — Start Script (Windows)
 cd /d "%~dp0"
 
-REM Setup Virtual Environment
 IF NOT EXIST "venv" (
-    echo [INFO] Creating virtual environment...
+    echo 📦 Creating virtual environment...
     python -m venv venv
 )
+
 call venv\Scripts\activate.bat
-REM Quietly ensure dependencies are up-to-date
 pip install -q -r requirements.txt
 
-REM Run Manager
-python src\manager.py
+echo 🚀 Starting Resume Studio ^-^> http://127.0.0.1:5050
+python -m uvicorn src.app:app --host 127.0.0.1 --port 5050 --reload

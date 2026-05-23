@@ -1,211 +1,204 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-950 text-gray-200">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resume Studio Ultimate</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
-  body { font-family: 'JetBrains Mono', monospace; }
-  /* Scrollbar styles */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #111; }
-  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #555; }
-</style>
+<title>Resume Studio — Control Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/studio.css">
 </head>
-<body class="min-h-screen flex flex-col text-sm antialiased">
+<body>
 
 <!-- Header -->
-<header class="bg-gray-900 border-b border-gray-800 p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm z-10 sticky top-0">
-  <div class="flex items-center gap-2">
-    <h1 class="text-white font-bold tracking-widest text-base">▸ RESUME STUDIO</h1>
-    <span class="text-[0.65rem] text-gray-500 uppercase tracking-widest mt-1 hidden sm:inline">visual builder</span>
+<header class="header">
+  <div class="header-brand">
+    <span class="brand-icon">◈</span>
+    <span class="brand-name">Resume Studio</span>
+    <span class="brand-tag">v7 · Ultimate</span>
   </div>
-  
-  <div class="flex flex-wrap items-center gap-3">
-    <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs transition-colors shadow-sm" onclick="exportJSON()">⬇ Download JSON</button>
-    <label class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs cursor-pointer transition-colors shadow-sm">
-      ⬆ Load JSON
-      <input type="file" accept=".json" onchange="importJSON(event)" class="hidden">
-    </label>
-    
-    <div class="flex bg-gray-950 border border-gray-800 p-1 rounded gap-1 ml-0 md:ml-4">
-      <button id="tab-dashboard" class="nav-tab bg-gray-800 text-white px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('dashboard')">Dashboard</button>
-      <button id="tab-library" class="nav-tab text-gray-400 hover:text-gray-200 px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('library')">Data Library</button>
-      <button id="tab-editor" class="nav-tab text-gray-400 hover:text-gray-200 px-4 py-1.5 rounded text-xs uppercase tracking-widest transition-colors" onclick="switchTab('editor')">Role Editor</button>
-    </div>
+  <nav class="header-nav">
+    <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
+    <button id="tab-tracker"   class="nav-btn"        onclick="window.switchTab('tracker')">Applications</button>
+    <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
+    <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
+  </nav>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="exportJSON()">⬇ JSON</button>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer">⬆ Load<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
   </div>
 </header>
 
-<!-- Main Container -->
-<main class="flex-1 flex overflow-hidden">
-  
-  <!-- DASHBOARD VIEW -->
-  <div id="dashboard-view" class="view-content flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
-    
-    <!-- Sidebar -->
-    <div class="w-full lg:w-[400px] border-r border-gray-800 flex flex-col bg-gray-900 overflow-y-auto">
-      
-      <!-- Build Manager -->
-      <div class="p-5 border-b border-gray-800">
-        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Build Manager</h2>
-        <div id="roles-grid" class="grid grid-cols-2 gap-2 mb-4"></div>
-        <button class="w-full bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-4 py-2 rounded text-xs tracking-widest uppercase transition-colors" onclick="runBuild('all')">⬡ Build All</button>
-        
-        <div id="log" class="mt-4 bg-black border border-gray-800 rounded p-3 text-[0.65rem] text-green-500 h-32 overflow-y-auto whitespace-pre-wrap font-mono">ready.</div>
-        <div class="mt-2 flex items-center text-[0.65rem] text-gray-500 uppercase tracking-widest">
-          <span id="status-dot" class="inline-block w-2 h-2 rounded-full mr-2 bg-gray-600"></span>
+<main class="main-content">
+
+<!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+<div id="dashboard-view" class="view active">
+  <div class="split-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">Build Manager</div>
+        <div id="roles-grid" class="roles-grid"></div>
+        <button class="btn btn-primary w-full mt-2" onclick="runBuild('all')">⬡ Build All</button>
+        <div id="log" class="log-box mt-3">ready.</div>
+        <div class="build-status">
+          <span id="status-dot" class="dot dot-idle"></span>
           <span id="status-text">IDLE</span>
         </div>
       </div>
 
-      <!-- Generated Files -->
-      <div class="p-5 border-b border-gray-800">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase">Generated Files</h2>
-          <button class="text-[0.65rem] text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-1" onclick="refreshSync()">↺ Sync</button>
+      <div class="sidebar-section">
+        <div class="section-title-row">
+          <span class="section-title">Generated Files</span>
+          <button class="link-btn" onclick="refreshSync()">↺ Refresh</button>
         </div>
-        <div id="file-list" class="flex flex-col gap-1"></div>
+        <div id="file-list"></div>
       </div>
-      
-      <!-- Photo Manager -->
-      <div class="p-5">
-        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-2">Photo Manager</h2>
-        <p class="text-[0.65rem] text-gray-400 mb-4 leading-relaxed">Upload a new profile photo. Aspect ratio must match the existing one (3:4).</p>
-        <input type="file" id="photo-upload-input" accept="image/jpeg, image/png, image/jpg" class="hidden" onchange="uploadPhoto(event)">
-        <label for="photo-upload-input" class="block w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded text-xs tracking-widest uppercase text-center cursor-pointer transition-colors">📷 Upload New Photo</label>
+
+      <div class="sidebar-section">
+        <div class="section-title">Photo Manager</div>
+        <p class="hint-text">Upload profile photo. Must match 3:4 aspect ratio.</p>
+        <input type="file" id="photo-upload-input" accept="image/*" class="hidden" onchange="uploadPhoto(event)">
+        <label for="photo-upload-input" class="btn btn-secondary w-full" style="cursor:pointer;text-align:center">📷 Upload Photo</label>
       </div>
-      
+    </aside>
+
+    <div class="panel-main">
+      <div class="viewer-bar">
+        <span id="current-filename" class="viewer-filename">No file selected</span>
+        <div id="dash-actions" class="viewer-actions" style="display:none">
+          <button class="btn btn-sm btn-primary" onclick="uploadCurrent()">☁ Upload</button>
+          <button class="btn btn-sm btn-secondary" onclick="downloadCurrent()">↓ PDF</button>
+          <button id="btn-dash-bundle" class="btn btn-sm btn-secondary" onclick="downloadCurrentBundle()">↓ ZIP</button>
+          <button id="btn-dash-tex" class="btn btn-sm btn-secondary" onclick="downloadCurrentTex()">↓ LaTeX</button>
+        </div>
+      </div>
+      <div id="viewer-container" class="pdf-viewer">
+        <div class="viewer-placeholder">◈ PDF VIEWER</div>
+      </div>
     </div>
 
-    <!-- PDF Viewer -->
-    <div class="flex-1 flex flex-col bg-gray-950 p-4">
-      <div class="flex-1 border border-gray-800 rounded-lg overflow-hidden flex flex-col shadow-lg bg-gray-900">
-        
-        <div class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex flex-wrap justify-between items-center gap-2">
-           <span id="current-filename" class="text-xs text-gray-400 font-medium">No file selected</span>
-           <div id="dash-actions" class="hidden flex-wrap items-center gap-2">
-             <button class="bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="uploadCurrent()">☁ Upload</button>
-             <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrent()">↓ PDF</button>
-             <button id="btn-dash-bundle" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrentBundle()">↓ ZIP Bundle</button>
-             <button id="btn-dash-tex" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1 rounded text-[0.7rem] transition-colors" onclick="downloadCurrentTex()">↓ LaTeX</button>
-           </div>
-        </div>
-        
-        <div id="viewer-container" class="flex-1 bg-white relative">
-           <div class="absolute inset-0 flex items-center justify-center text-gray-400 tracking-widest text-sm bg-gray-100">PDF VIEWER</div>
-        </div>
-        
-      </div>
-    </div>
   </div>
+</div>
 
-  <!-- EDITOR VIEW -->
-  <div id="editor-view" class="view-content hidden flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
-    
-    <!-- Sidebar -->
-    <div class="w-full lg:w-[320px] border-r border-gray-800 bg-gray-900 flex flex-col">
-      <div class="p-5 flex-1 overflow-y-auto">
-        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Roles (Recipes)</h2>
-        <div id="roles-list" class="flex flex-col gap-2 mb-6"></div>
-        <button class="w-full bg-blue-900 hover:bg-blue-800 border border-blue-700 text-blue-300 px-4 py-2 rounded text-xs tracking-widest uppercase transition-colors" onclick="addNewRole()">+ Add New Role</button>
+<!-- ═══════════════════ TRACKER ═══════════════════ -->
+<div id="tracker-view" class="view hidden">
+
+  <!-- Stats Bar -->
+  <div id="tracker-stats-bar" class="stats-bar"></div>
+
+  <div class="tracker-layout">
+
+    <!-- Left: Application List -->
+    <aside class="tracker-sidebar">
+      <div class="tracker-sidebar-header">
+        <input id="app-search" type="text" class="search-input" placeholder="🔍 Search company, role...">
+        <button class="btn btn-primary" onclick="window.openNewAppModal()">+ New</button>
+      </div>
+      <div id="app-list" class="app-list"></div>
+    </aside>
+
+    <!-- Right: Detail Panel -->
+    <div id="app-detail-panel" class="app-detail-panel">
+      <div class="detail-empty">
+        <div class="detail-empty-icon">📋</div>
+        <p>Select an application to view details</p>
+        <button class="btn btn-primary" onclick="window.openNewAppModal()">+ New Application</button>
       </div>
     </div>
-    
-    <!-- Editor Content -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-950">
-      
-      <div id="role-editor-empty" class="h-full flex items-center justify-center text-gray-500 uppercase tracking-widest text-xs">
-        Select a role to edit
-      </div>
-      
-      <div id="role-editor-form" class="max-w-3xl hidden mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 md:p-8 shadow-xl">
-        <h2 class="text-[0.65rem] text-blue-400 tracking-[0.15em] uppercase mb-6 pb-4 border-b border-gray-800">Role Configuration</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Role ID (Internal)</label>
-            <input type="text" id="edit-role-id" readonly class="bg-black border border-gray-800 text-gray-500 px-3 py-2 rounded text-xs w-full cursor-not-allowed">
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Short Name</label>
-            <input type="text" id="edit-role-shortname" onchange="updateRoleField('short_name', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors">
-          </div>
-        </div>
-        
-        <div class="flex flex-col gap-1.5 mb-6">
-          <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Sections (Toggles)</label>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2" id="edit-role-sections"></div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Role Title (Library Key)</label>
-            <select id="edit-role-title" onchange="updateRoleField('role_title', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Summary (Library Key)</label>
-            <select id="edit-role-summary" onchange="updateRoleField('professional_summary', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
-          </div>
-        </div>
-        
-        <div class="space-y-5 border-t border-gray-800 pt-6">
-          <div class="flex flex-col gap-2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Skills</label>
-            <div class="flex flex-wrap gap-1.5" id="edit-role-skills"></div>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Projects</label>
-            <div class="flex flex-wrap gap-1.5" id="edit-role-projects"></div>
-          </div>
-          <div class="flex flex-col gap-1.5 w-full md:w-1/2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Education</label>
-            <select id="edit-role-education" onchange="updateRoleField('education', this.value)" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded text-xs w-full focus:border-blue-500 focus:outline-none transition-colors"></select>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Certifications</label>
-            <div class="flex flex-wrap gap-1.5" id="edit-role-certifications"></div>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Achievements</label>
-            <div class="flex flex-wrap gap-1.5" id="edit-role-achievements"></div>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-[0.65rem] text-gray-400 tracking-wider uppercase">Additional Info</label>
-            <div class="flex flex-wrap gap-1.5" id="edit-role-additional"></div>
-          </div>
-        </div>
-        
-        <div class="mt-10 pt-6 border-t border-gray-800 flex flex-col sm:flex-row gap-3">
-            <button class="flex-1 bg-green-900 hover:bg-green-800 border border-green-700 text-green-300 px-4 py-2.5 rounded text-xs tracking-widest uppercase transition-colors" onclick="saveConfigToServer()">💾 Save Changes to Config</button>
-            <button class="bg-red-950 hover:bg-red-900 border border-red-800 text-red-400 px-4 py-2.5 rounded text-xs tracking-widest uppercase transition-colors" onclick="deleteCurrentRole()">🗑 Delete Role</button>
-        </div>
-        
-      </div>
-    </div>
+
   </div>
-  
-  <!-- LIBRARY VIEW -->
-  <div id="library-view" class="view-content hidden flex flex-col lg:flex-row w-full h-[calc(100vh-73px)]">
-    
-    <!-- Sidebar -->
-    <div class="w-full lg:w-[250px] border-r border-gray-800 bg-gray-900 flex flex-col">
-      <div class="p-5 flex-1 overflow-y-auto">
-        <h2 class="text-[0.65rem] text-gray-500 tracking-[0.15em] uppercase mb-4">Categories</h2>
-        <div id="lib-category-list" class="flex flex-col gap-2 mb-6"></div>
+</div>
+
+<!-- ═══════════════════ ROLE EDITOR ═══════════════════ -->
+<div id="editor-view" class="view hidden">
+  <div class="split-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">Recipes</div>
+        <div id="roles-list" class="roles-list"></div>
+        <button class="btn btn-primary w-full mt-3" onclick="addNewRole()">+ New Role</button>
+      </div>
+    </aside>
+
+    <div class="panel-main p-6">
+      <div id="role-editor-empty" class="editor-placeholder">Select a role to edit</div>
+
+      <div id="role-editor-form" class="editor-form hidden">
+        <div class="editor-form-header">Role Configuration</div>
+
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label>Role ID</label>
+            <input type="text" id="edit-role-id" class="input-field" readonly>
+          </div>
+          <div class="field-group">
+            <label>Short Name</label>
+            <input type="text" id="edit-role-shortname" class="input-field" onchange="updateRoleField('short_name', this.value)">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Section Toggles</label>
+          <div id="edit-role-sections" class="toggle-grid"></div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label>Role Title</label>
+            <select id="edit-role-title" class="input-field" onchange="updateRoleField('role_title', this.value)"></select>
+          </div>
+          <div class="field-group">
+            <label>Summary</label>
+            <select id="edit-role-summary" class="input-field" onchange="updateRoleField('professional_summary', this.value)"></select>
+          </div>
+        </div>
+
+        <div class="chips-section">
+          <div class="field-group"><label>Skills</label><div id="edit-role-skills" class="chips-row"></div></div>
+          <div class="field-group"><label>Projects</label><div id="edit-role-projects" class="chips-row"></div></div>
+          <div class="field-group">
+            <label>Education</label>
+            <select id="edit-role-education" class="input-field" onchange="updateRoleField('education', this.value)" style="max-width:300px"></select>
+          </div>
+          <div class="field-group"><label>Certifications</label><div id="edit-role-certifications" class="chips-row"></div></div>
+          <div class="field-group"><label>Achievements</label><div id="edit-role-achievements" class="chips-row"></div></div>
+          <div class="field-group"><label>Additional Info</label><div id="edit-role-additional" class="chips-row"></div></div>
+        </div>
+
+        <div class="editor-form-footer">
+          <button class="btn btn-success" onclick="saveConfigToServer()">💾 Save Config</button>
+          <button class="btn btn-danger" onclick="deleteCurrentRole()">🗑 Delete Role</button>
+        </div>
       </div>
     </div>
-    
-    <!-- Library Content -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-950">
-      <div id="lib-editor-container" class="max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 md:p-8 shadow-xl min-h-[400px]">
-      </div>
-    </div>
+
   </div>
-  
+</div>
+
+<!-- ═══════════════════ LIBRARY ═══════════════════ -->
+<div id="library-view" class="view hidden">
+  <div class="split-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">Categories</div>
+        <div id="lib-category-list" class="roles-list"></div>
+      </div>
+    </aside>
+
+    <div class="panel-main p-6">
+      <div id="lib-editor-container" class="library-container"></div>
+    </div>
+
+  </div>
+</div>
+
 </main>
+
+<!-- Tracker Modal (injected by tracker.js) -->
+<div id="tracker-modal" class="modal-overlay hidden" onclick="this.style.display='none'"></div>
 
 <script type="module" src="/static/js/main.js"></script>
 </body>

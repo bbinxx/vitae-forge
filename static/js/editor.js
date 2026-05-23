@@ -5,8 +5,8 @@ export function renderRoleEditor() {
     if(!rolesList) return;
     
     rolesList.innerHTML = Object.keys(state.data.recipes).map(r => `
-        <button class="w-full text-left px-4 py-2 rounded text-xs tracking-widest border transition-colors ${state.currentEditingRole === r ? 'bg-blue-900 border-blue-700 text-blue-300' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white'}" onclick="window.selectRole('${r}')">
-            ${r} <span class="ml-2 text-[0.6rem] text-gray-500">(${state.data.recipes[r].short_name})</span>
+        <button class="btn btn-secondary" style="width:100%;justify-content:flex-start;${state.currentEditingRole === r ? 'background:var(--accent-dim);border-color:rgba(99,102,241,0.3);color:var(--accent-hover)' : ''}" onclick="window.selectRole('${r}')">
+            ${r} <span style="margin-left:6px;font-size:10px;opacity:0.5">(${state.data.recipes[r].short_name})</span>
         </button>
     `).join('');
     
@@ -55,9 +55,9 @@ export function populateRoleEditor(roleId) {
     
     const sections = ['role_title', 'photo', 'summary', 'skills', 'projects', 'education', 'certifications', 'achievements', 'languages'];
     document.getElementById('edit-role-sections').innerHTML = sections.map(sec => `
-        <label class="flex items-center gap-2 p-2 bg-gray-800 border border-gray-700 rounded cursor-pointer hover:border-gray-500">
-            <input type="checkbox" class="rounded text-blue-500 focus:ring-blue-500 bg-gray-900 border-gray-600" ${role.sections && role.sections[sec] ? 'checked' : ''} onchange="window.updateRoleSection('${sec}', this.checked)">
-            <span class="text-xs uppercase tracking-wider text-gray-300">${sec}</span>
+        <label style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-size:11px;color:var(--text-secondary)">
+            <input type="checkbox" ${role.sections && role.sections[sec] ? 'checked' : ''} onchange="window.updateRoleSection('${sec}', this.checked)" style="accent-color:var(--accent)">
+            ${sec}
         </label>
     `).join('');
     
@@ -72,7 +72,8 @@ export function populateRoleEditor(roleId) {
     
     const buildTags = (libKey, arr, updateField) => Object.keys(state.data.library[libKey] || {}).map(k => {
         const isSel = (arr || []).includes(k);
-        return `<div class="px-2 py-1 rounded text-[0.65rem] uppercase cursor-pointer border transition-colors ${isSel ? 'bg-blue-900 border-blue-500 text-blue-300' : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'}" onclick="window.toggleRoleArrayItem('${updateField}', '${k}')">${k}</div>`;
+        const sel = isSel ? 'background:var(--accent-dim);border-color:rgba(99,102,241,0.4);color:var(--accent-hover)' : 'background:var(--bg-card);border-color:var(--border);color:var(--text-secondary)';
+        return `<div style="padding:4px 10px;border-radius:var(--radius);font-size:10px;text-transform:uppercase;cursor:pointer;border:1px solid;${sel}" onclick="window.toggleRoleArrayItem('${updateField}', '${k}')">${k}</div>`;
     }).join('');
     
     document.getElementById('edit-role-skills').innerHTML = buildTags('skills', role.skills, 'skills');
