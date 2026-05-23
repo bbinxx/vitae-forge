@@ -40,6 +40,22 @@ export function addNewRole() {
     selectRole(newId);
 }
 
+export function duplicateCurrentRole() {
+    if (!state.currentEditingRole) return;
+    const newId = prompt("Enter ID for the duplicated role (e.g., " + state.currentEditingRole + "_v2):");
+    if (!newId) return;
+    if (state.data.recipes[newId]) return alert("Role ID already exists");
+    
+    // Deep copy the current role
+    state.data.recipes[newId] = JSON.parse(JSON.stringify(state.data.recipes[state.currentEditingRole]));
+    
+    // Optionally prefix the short name to indicate it's a copy
+    state.data.recipes[newId].short_name = (state.data.recipes[newId].short_name || "COPY") + " (Copy)";
+    
+    selectRole(newId);
+    state.notify(); // Re-render dashboard
+}
+
 export function deleteCurrentRole() {
     if (!confirm("Are you sure you want to delete this role?")) return;
     delete state.data.recipes[state.currentEditingRole];
@@ -112,6 +128,7 @@ export function toggleRoleArrayItem(field, item) {
 // Bind globals for HTML inline listeners
 window.selectRole = selectRole;
 window.addNewRole = addNewRole;
+window.duplicateCurrentRole = duplicateCurrentRole;
 window.deleteCurrentRole = deleteCurrentRole;
 window.updateRoleField = updateRoleField;
 window.updateRoleSection = updateRoleSection;
