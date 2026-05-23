@@ -94,6 +94,22 @@ window.downloadCurrentBundle = () => { if (state.selectedDashFile) window.open(`
 window.downloadCurrentTex    = () => { if (state.selectedDashFile) window.open(`/download/${state.selectedDashFile.replace('.pdf','.tex')}`, '_blank'); };
 window.uploadCurrent         = () => { if (state.selectedDashFile) dashUpload(state.selectedDashFile); };
 
+window.shareCurrent = async () => {
+    if (!state.selectedDashFile) return;
+    try {
+        const response = await fetch(`/presigned-url/${state.selectedDashFile}`);
+        const data = await response.json();
+        if (data.ok) {
+            navigator.clipboard.writeText(data.url);
+            alert('Public sharing link copied to clipboard! (Valid for 7 days)');
+        } else {
+            alert('Error generating link.');
+        }
+    } catch(e) {
+        alert('Failed to generate link.');
+    }
+};
+
 state.subscribe(() => {
     const rolesGrid = document.getElementById('roles-grid');
     if (rolesGrid) {

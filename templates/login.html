@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Studio - Locked</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f1115;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+        }
+        .login-box {
+            background: #1a1d24;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 300px;
+            border: 1px solid #2d3139;
+        }
+        .login-box h1 {
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 24px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .passcode-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #3b4252;
+            background: #0f1115;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            letter-spacing: 4px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="password"]:focus {
+            border-color: #6366f1;
+        }
+        
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        
+        .error-msg {
+            color: #ef4444;
+            font-size: 12px;
+            height: 15px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box" id="login-box">
+        <h1>Enter Passcode</h1>
+        <div class="passcode-container">
+            <input type="password" id="passcode" placeholder="••••••••" autofocus autocomplete="off">
+            <div class="error-msg" id="error-msg">Incorrect passcode</div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('passcode');
+        const box = document.getElementById('login-box');
+        const errorMsg = document.getElementById('error-msg');
+        
+        let typingTimer;
+        
+        input.addEventListener('keyup', (e) => {
+            clearTimeout(typingTimer);
+            errorMsg.style.opacity = '0';
+            box.classList.remove('shake');
+            
+            if (e.key === 'Enter') {
+                checkPasscode(input.value);
+            } else if (input.value.length > 0) {
+                // Auto check after 600ms of typing stop
+                typingTimer = setTimeout(() => {
+                    checkPasscode(input.value);
+                }, 600);
+            }
+        });
+        
+        async function checkPasscode(passcode) {
+            if (!passcode) return;
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ passcode })
+                });
+                
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    triggerError();
+                }
+            } catch (e) {
+                triggerError();
+            }
+        }
+        
+        function triggerError() {
+            box.classList.remove('shake');
+            void box.offsetWidth; // trigger reflow
+            box.classList.add('shake');
+            errorMsg.style.opacity = '1';
+            input.value = '';
+            input.focus();
+        }
+    </script>
+</body>
+</html>

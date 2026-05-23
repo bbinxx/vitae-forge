@@ -149,7 +149,7 @@
         "date": "Dec 2024",
         "link": "https://github.com/your-github/advanced-certificate-generator",
         "points": [
-          "Streamlined bulk certificate generation handling 1,000+ records per cycle, reducing manual workload by ~85–90%.",
+          "Streamlined bulk certificate generation handling 1,000+ records per cycle, reducing manual workload by ~85\u201390%.",
           "Introduced QR-based verification enabling secure and immediate credential validation.",
           "Created a dynamic canvas editor supporting flexible layouts and reusable design components."
         ]
@@ -187,7 +187,7 @@
         ]
       },
       "texspace": {
-        "name": "TexSpace — Professional LaTeX IDE",
+        "name": "TexSpace \u2014 Professional LaTeX IDE",
         "tech": "Kotlin Multiplatform, Compose Multiplatform, LaTeX",
         "date": "2026",
         "points": [

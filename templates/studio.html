@@ -23,8 +23,10 @@
     <button id="tab-tracker"   class="nav-btn"        onclick="window.switchTab('tracker')">Applications</button>
     <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
     <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
+    <button id="tab-checkpoints" class="nav-btn"      onclick="window.switchTab('checkpoints')">Version Control</button>
   </nav>
   <div class="header-actions" style="display:flex;gap:4px">
+    <button class="btn btn-ghost btn-sm" onclick="createCheckpoint()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">history</span> Checkpoint</button>
     <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
     <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
@@ -72,6 +74,7 @@
         <span id="current-filename" class="viewer-filename">No file selected</span>
         <div id="dash-actions" class="viewer-actions" style="display:none">
           <button class="btn btn-sm btn-primary" onclick="uploadCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">cloud_upload</span> Upload</button>
+          <button class="btn btn-sm btn-success" onclick="shareCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">link</span> Share</button>
           <button class="btn btn-sm btn-secondary" onclick="downloadCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">picture_as_pdf</span> PDF</button>
           <button id="btn-dash-bundle" class="btn btn-sm btn-secondary" onclick="downloadCurrentBundle()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">folder_zip</span> ZIP</button>
           <button id="btn-dash-tex" class="btn btn-sm btn-secondary" onclick="downloadCurrentTex()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">code</span> LaTeX</button>
@@ -197,6 +200,23 @@
       <div id="lib-editor-container" class="library-container"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- ═══════════════════ CHECKPOINTS ═══════════════════ -->
+<div id="checkpoints-view" class="view hidden">
+  <div class="split-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">Version Control</div>
+        <button class="btn btn-primary w-full mt-2" onclick="createCheckpoint()">+ Create Checkpoint</button>
+      </div>
+    </aside>
+    <div class="panel-main p-6">
+      <div class="editor-form-header">Checkpoint History</div>
+      <p class="hint-text mb-4">Restore your entire configuration to a previous point in time. Checkpoints are automatically synced to Firebase.</p>
+      <div id="checkpoint-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
   </div>
 </div>
 

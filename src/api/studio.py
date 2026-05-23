@@ -39,7 +39,70 @@ def get_config():
 async def save_config(request: Request):
     data = await request.json()
     save_resume_config(data)
+    
+    # Try pushing to Firebase as well
+    from src.core.firebase import push_config_to_firebase
+    push_config_to_firebase(data)
+    
     return {"ok": True}
+
+# ── Checkpoints (Version Control) ─────────────────────────────────────────────
+CHECKPOINTS_DIR = ROOT / "configs" / "checkpoints"
+
+@router.get("/checkpoints")
+def list_checkpoints():
+    if not CHECKPOINTS_DIR.exists():
+        return []
+    cps = []
+    for f in CHECKPOINTS_DIR.glob("*.json"):
+        cps.append({
+            "name": f.name,
+            "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+        })
+    return sorted(cps, key=lambda x: x["created"], reverse=True)
+
+@router.post("/checkpoints")
+def create_checkpoint():
+    CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+    config = load_resume_config()
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    name = f"checkpoint_{timestamp}.json"
+    import json
+    (CHECKPOINTS_DIR / name).write_text(json.dumps(config, indent=4))
+    
+    # Push to Firebase
+    from src.core.firebase import push_checkpoint_to_firebase
+    push_checkpoint_to_firebase(name, config)
+    
+    return {"ok": True, "name": name}
+
+@router.post("/checkpoints/{name}/restore")
+def restore_checkpoint(name: str):
+    cp_file = CHECKPOINTS_DIR / name
+    import json
+    if not cp_file.exists():
+        # Try fetching from Firebase
+        from src.core.firebase import get_firebase_db
+        db = get_firebase_db()
+        if db:
+            doc = db.collection("checkpoints").document(name).get()
+            if doc.exists:
+                config = doc.to_dict()
+                save_resume_config(config)
+                return {"ok": True, "source": "firebase"}
+        raise HTTPException(404, "Checkpoint not found")
+        
+    config = json.loads(cp_file.read_text())
+    save_resume_config(config)
+    return {"ok": True, "source": "local"}
+
+@router.delete("/checkpoints/{name}")
+def delete_checkpoint(name: str):
+    cp_file = CHECKPOINTS_DIR / name
+    if cp_file.exists():
+        cp_file.unlink()
+    return {"ok": True}
+
 
 
 # ── File listing ──────────────────────────────────────────────────────────────
@@ -195,6 +258,23 @@ def upload_all_files():
                 success.append(futures[future])
     
     return {"ok": True, "message": f"Uploaded {len(success)} of {len(pdfs)} files."}
+
+@router.get("/presigned-url/{filename}")
+def get_presigned_url(filename: str):
+    from src.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(500, "R2 not configured")
+    try:
+        url = client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET, 'Key': filename},
+            ExpiresIn=3600 * 24 * 7 # 7 days
+        )
+        return {"ok": True, "url": url}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 
 
 # ── Photo Manager ─────────────────────────────────────────────────────────────
