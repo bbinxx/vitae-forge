@@ -80,7 +80,10 @@ def generate_resume(
         if not recipe:
             raise ValueError(f"Role ID '{source}' not found in config.")
 
-    personal = master_config.get("personal", {})
+    personal = master_config.get("personal", {}).copy()
+    if "personal" in recipe and isinstance(recipe["personal"], dict):
+        personal.update(recipe["personal"])
+        
     library  = master_config.get("library", {})
 
     config = {**personal, **recipe}
