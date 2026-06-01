@@ -65,14 +65,31 @@ def build_variant(
 
     log_file = LOG_DIR / f"{display_name}{suffix}_build.log"
     print("  → Compiling with pdflatex...")
-    with open(log_file, "w") as lf:
-        res = subprocess.run(
-            ["pdflatex", "-interaction=nonstopmode",
-             f"-output-directory={DIST_DIR}", tex_name],
-            cwd=str(ROOT), stdout=lf, stderr=lf,
-        )
+    
+    import os
+    import glob
+    pdflatex_cmd = shutil.which("pdflatex")
+    if not pdflatex_cmd:
+        tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
+        if tinytex_paths:
+            pdflatex_cmd = tinytex_paths[0]
+            
+    if not pdflatex_cmd:
+        print("     Error: 'pdflatex' executable not found in PATH.")
+        with open(log_file, "w") as lf:
+            lf.write("Error: 'pdflatex' executable not found in PATH.\n")
+            lf.write("Please install a LaTeX distribution (like TeX Live or MiKTeX) to compile PDFs.\n")
+        return False
 
-    if res.returncode == 0:
+    subprocess.run(
+        [pdflatex_cmd, "-interaction=nonstopmode",
+         f"-output-directory={DIST_DIR}", tex_name],
+        cwd=str(ROOT), stdout=open(log_file, "w"), stderr=subprocess.STDOUT,
+    )
+
+    # Check if the PDF was actually produced (pdflatex may exit non-zero on warnings)
+    temp_pdf = DIST_DIR / f"{display_name}{suffix}_temp.pdf"
+    if temp_pdf.exists():
         pages = "?"
         with open(log_file, encoding="utf-8", errors="ignore") as lf:
             m = re.search(r"Output written on.*?\(([0-9]+) page", lf.read())
@@ -81,9 +98,7 @@ def build_variant(
         print(f"     {pdf_name} ({pages} page(s))")
 
         # Rename temp → final
-        temp_pdf = DIST_DIR / f"{display_name}{suffix}_temp.pdf"
-        if temp_pdf.exists():
-            temp_pdf.rename(DIST_DIR / pdf_name)
+        temp_pdf.rename(DIST_DIR / pdf_name)
 
         tex_src = ROOT / tex_name
         if tex_src.exists():
@@ -95,7 +110,14 @@ def build_variant(
                 tmp.unlink()
         return True
     else:
-        print(f"     Build failed — check {log_file}")
+        # Read last 30 lines of log for diagnostics
+        try:
+            with open(log_file, encoding="utf-8", errors="ignore") as lf:
+                lines = lf.readlines()
+                tail = "".join(lines[-30:])
+            print(f"     Build failed — last log lines:\n{tail}")
+        except Exception:
+            pass
         return False
 
 
@@ -111,6 +133,54 @@ def build_role(role_id: str) -> None:
     print("-" * 44)
     build_variant(role_id, display, TEMPLATE_PLAIN, "")
     build_variant(role_id, display, TEMPLATE_PHOTO, "_X", PROFILE_PHOTO)
+
+
+def build_custom_version(version_data: dict, display_name: str, include_photo: bool, custom_photo_path: Path | None = None) -> bool:
+    """
+    Build a PDF from an arbitrary configuration dictionary instead of a global recipe.
+    Used for application-specific custom versions.
+    """
+    import tempfile
+    
+    # Merge with personal/library from main config to ensure complete data
+    main_config = json.loads(RESUME_CONFIG.read_text())
+    full_config = {
+        "personal": main_config.get("personal", {}),
+        "library": main_config.get("library", {}),
+    }
+    
+    # Recursively merge library so we don't lose un-customized items
+    if "library" in version_data:
+        for lib_type, lib_items in version_data["library"].items():
+            if lib_type not in full_config["library"]:
+                full_config["library"][lib_type] = {}
+            for item_id, item_data in lib_items.items():
+                full_config["library"][lib_type][item_id] = item_data
+        
+        # Don't overwrite the whole library dict in the shallow update
+        v_data = dict(version_data)
+        del v_data["library"]
+        full_config.update(v_data)
+    else:
+        full_config.update(version_data)
+    
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(full_config, tmp)
+        tmp_path = tmp.name
+        
+    try:
+        print("-" * 44)
+        print(f"  Building Custom Version: {display_name}")
+        print("-" * 44)
+        
+        template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
+        suffix = "_X" if include_photo else ""
+        photo_to_use = custom_photo_path if (include_photo and custom_photo_path) else (PROFILE_PHOTO if include_photo else None)
+        
+        success = build_variant(tmp_path, display_name, template, suffix, photo_to_use)
+        return success
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 def build_all() -> None:
