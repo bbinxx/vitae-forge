@@ -2,62 +2,54 @@
 src/api/tracker.py
 FastAPI router for job application tracking.
 
-Key design decision (per user request):
-  When a resume PDF is assigned to an application, an immutable copy is
-  archived to dist/archived/{app_id}/ so the exact version sent is always
-  preserved, even if the same recipe is rebuilt later.
+Key design decisions:
+  - All applications are stored in Firebase.
+  - Resume versions are stored as subcollections inside applications.
+  - Built PDFs and photos are uploaded to R2 and their URLs/keys are saved.
 """
 import sys
+import csv
 import uuid
-import shutil
+import re
 import subprocess
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 
-from src.core.config import (
-    ROOT, DIST_DIR, load_applications, save_applications,
+from src.core.config import ROOT, DIST_DIR
+from src.core.firebase import (
+    get_all_applications,
+    save_application,
+    delete_application as firebase_delete_application,
+    get_app_versions,
+    save_app_version,
+    get_app_version,
+    delete_app_version
 )
+from src.core.upload import upload_pdf, BUCKET
 
 router = APIRouter(prefix="/applications", tags=["tracker"])
 
-BUILD_PY     = ROOT / "src" / "core" / "build.py"
-ARCHIVE_DIR  = DIST_DIR / "archived"          # immutable resume copies
-ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+BUILD_PY = ROOT / "src" / "core" / "build.py"
 
 STATUS_OPTIONS = [
     "Bookmarked", "Applied", "Screening",
     "Interview", "Offer", "Rejected", "Withdrawn",
 ]
-
+PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _get_app(data: dict, app_id: str) -> dict | None:
-    for app in data["applications"]:
+def _get_app(app_id: str) -> dict | None:
+    apps = get_all_applications()
+    for app in apps:
         if app["id"] == app_id:
             return app
     return None
-
-
-def _archive_pdf(app_id: str, pdf_filename: str) -> str | None:
-    """
-    Copy `dist/{pdf_filename}` into `dist/archived/{app_id}/`.
-    Returns the relative archive path (for storage in the DB),
-    or None if the source file doesn't exist.
-    """
-    src = DIST_DIR / pdf_filename
-    if not src.exists():
-        return None
-    dest_dir = ARCHIVE_DIR / app_id
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / pdf_filename
-    shutil.copy2(src, dest)
-    return str(dest.relative_to(DIST_DIR))   # e.g. "archived/abc123/BIBIN_RAJU_BC.pdf"
-
 
 def _timeline_event(status: str, note: str = "") -> dict:
     return {
@@ -67,111 +59,169 @@ def _timeline_event(status: str, note: str = "") -> dict:
     }
 
 
+def _sanitize_filename(value: str, fallback: str = "app") -> str:
+    if not value or not isinstance(value, str):
+        return fallback
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip().replace(' ', '_'))
+    cleaned = re.sub(r"_+", "_", cleaned).strip('_')
+    return cleaned or fallback
+
+
+def _build_display_name(app: dict) -> str:
+    if not app:
+        return 'app'
+    company = app.get('company', '')
+    role = app.get('role', '')
+    if company or role:
+        name = f"{company}_{role}".strip('_')
+        return _sanitize_filename(name, fallback='app')
+    return _sanitize_filename(app.get('id', ''), fallback='app')
+
+
+def _default_app(app_id: str, body: dict) -> dict:
+    status = body.get("status", "Bookmarked")
+    return {
+        "id":               app_id,
+        "company":          body.get("company", ""),
+        "role":             body.get("role", ""),
+        "location":         body.get("location", ""),
+        "job_url":          body.get("job_url", ""),
+        "status":           status,
+        "priority":         body.get("priority", "Medium"),
+        "job_type":         body.get("job_type", ""),
+        "source":           body.get("source", ""),
+        "tags":             body.get("tags", []),
+        "assigned_resume":      body.get("assigned_resume", ""),
+        "assigned_pdf":         body.get("assigned_pdf", ""),
+        "assigned_version_id":  body.get("assigned_version_id", ""),
+        "archived_pdf":         body.get("archived_pdf", ""), # R2 key or URL
+        "resume_template":      body.get("resume_template", {}),  # Per-app JSON resume template
+        "notes":            body.get("notes", ""),
+        "job_description":  body.get("job_description", ""),
+        "deadline":         body.get("deadline", ""),
+        "salary_range":     body.get("salary_range", ""),
+        "contact_name":     body.get("contact_name", ""),
+        "contact_email":    body.get("contact_email", ""),
+        "interview_rounds": body.get("interview_rounds", []),
+        "created_at":       datetime.now().isoformat(),
+        "updated_at":       datetime.now().isoformat(),
+        "timeline":         [_timeline_event(status, "Application created")],
+    }
+
+_UPDATABLE_FIELDS = [
+    "company", "role", "location", "job_url", "status",
+    "priority", "job_type", "source", "tags",
+    "assigned_resume", "assigned_pdf", "assigned_version_id", "archived_pdf",
+    "resume_template",
+    "notes", "job_description", "deadline",
+    "salary_range", "contact_name", "contact_email",
+    "interview_rounds",
+]
+
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 @router.get("")
 def list_applications():
-    return load_applications()
-
+    return {"applications": get_all_applications()}
 
 @router.post("")
 async def create_application(request: Request):
     body = await request.json()
-    data = load_applications()
-
-    app_id  = str(uuid.uuid4())
-    status  = body.get("status", "Bookmarked")
-    pdf     = body.get("assigned_pdf", "")
-
-    # Archive the resume if one is already being assigned at creation time
-    archived_path = ""
-    if pdf:
-        archived_path = _archive_pdf(app_id, pdf) or ""
-
-    new_app = {
-        "id":             app_id,
-        "company":        body.get("company", ""),
-        "role":           body.get("role", ""),
-        "location":       body.get("location", ""),
-        "job_url":        body.get("job_url", ""),
-        "status":         status,
-        "assigned_resume": body.get("assigned_resume", ""),   # recipe key
-        "assigned_pdf":   pdf,                                 # live filename
-        "archived_pdf":   archived_path,                       # immutable copy path
-        "notes":          body.get("notes", ""),
-        "deadline":       body.get("deadline", ""),
-        "salary_range":   body.get("salary_range", ""),
-        "contact_name":   body.get("contact_name", ""),
-        "contact_email":  body.get("contact_email", ""),
-        "created_at":     datetime.now().isoformat(),
-        "updated_at":     datetime.now().isoformat(),
-        "timeline": [_timeline_event(status, "Application created")],
-    }
-    data["applications"].append(new_app)
-    save_applications(data)
+    app_id = str(uuid.uuid4())
+    new_app = _default_app(app_id, body)
+    if new_app.get('resume_template'):
+        try:
+            display_name = _build_display_name(new_app)
+            from src.core.build import build_custom_version
+            success = build_custom_version(new_app['resume_template'], display_name, False)
+            if success:
+                new_app['assigned_pdf'] = f"{display_name}.pdf"
+        except Exception as e:
+            print(f"Error compiling new application resume for {app_id}: {e}")
+    save_application(new_app)
     return new_app
-
 
 @router.put("/{app_id}")
 async def update_application(app_id: str, request: Request):
     body = await request.json()
-    data = load_applications()
-    app  = _get_app(data, app_id)
+    app = _get_app(app_id)
     if not app:
         raise HTTPException(404, "Application not found")
 
     old_status = app.get("status")
     new_status = body.get("status", old_status)
-    old_pdf    = app.get("assigned_pdf", "")
-    new_pdf    = body.get("assigned_pdf", old_pdf)
 
-    # Archive new PDF if the assignment changed
-    if new_pdf and new_pdf != old_pdf:
-        archived = _archive_pdf(app_id, new_pdf)
-        if archived:
-            app["archived_pdf"] = archived
-
-    # Update scalar fields
-    for field in [
-        "company", "role", "location", "job_url", "status",
-        "assigned_resume", "assigned_pdf", "notes", "deadline",
-        "salary_range", "contact_name", "contact_email",
-    ]:
+    for field in _UPDATABLE_FIELDS:
         if field in body:
             app[field] = body[field]
 
+    # If a custom template is provided, build a custom PDF
+    if "resume_template" in body and body["resume_template"]:
+        try:
+            include_photo = False
+            assigned = app.get("assigned_pdf", "")
+            if assigned and "_X" in assigned:
+                include_photo = True
+            display_name = _build_display_name(app)
+            from src.core.build import build_custom_version
+            success = build_custom_version(app["resume_template"], display_name, include_photo)
+            if success:
+                suffix_str = "_X" if include_photo else ""
+                app["assigned_pdf"] = f"{display_name}{suffix_str}.pdf"
+        except Exception as e:
+            print(f"Error compiling custom resume for application {app_id}: {e}")
+
     app["updated_at"] = datetime.now().isoformat()
 
-    # Record timeline event on status change
     if old_status != new_status:
-        if "timeline" not in app:
-            app["timeline"] = []
-        app["timeline"].append(
+        app.setdefault("timeline", []).append(
             _timeline_event(new_status, body.get("timeline_note", f"Status → {new_status}"))
         )
 
-    save_applications(data)
+    save_application(app)
     return app
 
-
 @router.delete("/{app_id}")
-def delete_application(app_id: str):
-    data = load_applications()
-    data["applications"] = [a for a in data["applications"] if a["id"] != app_id]
-    save_applications(data)
+def delete_app(app_id: str):
+    firebase_delete_application(app_id)
     return {"ok": True}
 
+# ── Bulk Actions ──────────────────────────────────────────────────────────────
 
-# ── Timeline ──────────────────────────────────────────────────────────────────
+@router.post("/bulk-update")
+async def bulk_update(request: Request):
+    body = await request.json()
+    ids = body.get("ids", [])
+    changes = body.get("changes", {})
+    if not ids:
+        raise HTTPException(400, "No application IDs provided")
+
+    apps = get_all_applications()
+    count = 0
+    for app in apps:
+        if app["id"] in ids:
+            old_status = app.get("status")
+            new_status = changes.get("status", old_status)
+            for field in _UPDATABLE_FIELDS:
+                if field in changes:
+                    app[field] = changes[field]
+            app["updated_at"] = datetime.now().isoformat()
+            if old_status != new_status:
+                app.setdefault("timeline", []).append(
+                    _timeline_event(new_status, f"Bulk update → {new_status}")
+                )
+            save_application(app)
+            count += 1
+
+    return {"ok": True, "updated": count}
+
+# ── Stats & Timeline & Rounds ─────────────────────────────────────────────────
 
 @router.post("/{app_id}/timeline")
 async def add_timeline_event(app_id: str, request: Request):
     body = await request.json()
-    data = load_applications()
-    app  = _get_app(data, app_id)
-    if not app:
-        raise HTTPException(404, "Application not found")
-
+    app = _get_app(app_id)
+    if not app: raise HTTPException(404, "Not found")
     event = {
         "status": body.get("status", app.get("status", "")),
         "date":   body.get("date", datetime.now().isoformat()),
@@ -179,94 +229,423 @@ async def add_timeline_event(app_id: str, request: Request):
     }
     app.setdefault("timeline", []).append(event)
     app["updated_at"] = datetime.now().isoformat()
-    save_applications(data)
+    save_application(app)
     return event
 
+@router.post("/{app_id}/interview-rounds")
+async def add_interview_round(app_id: str, request: Request):
+    body = await request.json()
+    app = _get_app(app_id)
+    if not app: raise HTTPException(404, "Not found")
+    round_entry = {
+        "id": str(uuid.uuid4()),
+        "name": body.get("name", "Interview"),
+        "type": body.get("type", "Technical"),
+        "date": body.get("date", ""),
+        "result": body.get("result", "Pending"),
+        "notes": body.get("notes", ""),
+    }
+    app.setdefault("interview_rounds", []).append(round_entry)
+    app.setdefault("timeline", []).append(
+        _timeline_event(app.get("status", "Interview"), f"Interview Round: {round_entry['name']}")
+    )
+    app["updated_at"] = datetime.now().isoformat()
+    save_application(app)
+    return round_entry
 
-# ── Stats ─────────────────────────────────────────────────────────────────────
+@router.delete("/{app_id}/interview-rounds/{round_id}")
+def delete_interview_round(app_id: str, round_id: str):
+    app = _get_app(app_id)
+    if not app: raise HTTPException(404, "Not found")
+    app["interview_rounds"] = [r for r in app.get("interview_rounds", []) if r.get("id") != round_id]
+    app["updated_at"] = datetime.now().isoformat()
+    save_application(app)
+    return {"ok": True}
 
 @router.get("/stats/summary")
 def get_stats():
-    data = load_applications()
-    apps = data["applications"]
+    apps = get_all_applications()
     by_status = {s: 0 for s in STATUS_OPTIONS}
+    by_priority = {p: 0 for p in PRIORITY_OPTIONS}
     for app in apps:
         s = app.get("status", "Bookmarked")
-        if s in by_status:
-            by_status[s] += 1
+        p = app.get("priority", "Medium")
+        if s in by_status: by_status[s] += 1
+        if p in by_priority: by_priority[p] += 1
     return {
-        "total":     len(apps),
+        "total": len(apps),
         "by_status": by_status,
-        "recent":    sorted(apps, key=lambda x: x.get("updated_at", ""), reverse=True)[:5],
+        "by_priority": by_priority,
+        "recent": sorted(apps, key=lambda x: x.get("updated_at", ""), reverse=True)[:5],
     }
 
+# ── CSV Export ────────────────────────────────────────────────────────────────
 
-# ── Archived resume download ──────────────────────────────────────────────────
+@router.get("/export-csv")
+def export_csv():
+    apps = get_all_applications()
+    fields = [
+        "company", "role", "location", "status", "priority",
+        "job_type", "source", "salary_range", "deadline",
+        "contact_name", "contact_email", "job_url",
+        "assigned_pdf", "notes", "created_at", "updated_at",
+    ]
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    for app in apps:
+        row = {f: app.get(f, "") for f in fields}
+        if isinstance(row.get("tags"), list):
+            row["tags"] = ", ".join(row["tags"])
+        writer.writerow(row)
+    output.seek(0)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="applications_{timestamp}.csv"'},
+    )
+
+# ── Cross-App Archived Resumes ────────────────────────────────────────────────
+
+@router.get("/all-archived-pdfs")
+def get_all_archived_pdfs():
+    apps = get_all_applications()
+    result = []
+    seen = set()
+    for app in apps:
+        archived = app.get("archived_pdf", "")
+        # archived is now an R2 key or filename
+        if archived and archived not in seen:
+            seen.add(archived)
+            result.append({
+                "path": archived,
+                "filename": Path(archived).name,
+                "source_app": app.get("company", ""),
+                "source_role": app.get("role", ""),
+                "source_app_id": app.get("id", ""),
+                "exists": True, # Assume true for R2 links, or we could verify
+            })
+    return result
+
+# ── Versions & Custom Builds ──────────────────────────────────────────────────
+
+@router.get("/{app_id}/versions")
+def list_versions(app_id: str):
+    versions = get_app_versions(app_id)
+    return sorted(versions, key=lambda x: x.get("created_at", ""), reverse=True)
+
+@router.post("/{app_id}/versions")
+async def create_version(app_id: str, request: Request):
+    """Save a custom resume configuration as a specific version for this app."""
+    body = await request.json()
+    app = _get_app(app_id)
+    if not app: raise HTTPException(404, "Application not found")
+
+    default_name = f"{app.get('company','App')} — {app.get('role','Version')}"
+    v_id = str(uuid.uuid4())
+    version_data = {
+        "id": v_id,
+        "name": body.get("name", default_name),
+        "base_recipe": body.get("base_recipe", ""),
+        "customizations": body.get("customizations", {}),
+        "include_photo": body.get("include_photo", False),
+        "photo_r2_key": body.get("photo_r2_key", ""),
+        "created_at": datetime.now().isoformat(),
+        "pdf_r2_key": "",
+    }
+    save_app_version(app_id, version_data)
+    return {"ok": True, "version": version_data}
+
+@router.put("/{app_id}/versions/{v_id}")
+async def update_version(app_id: str, v_id: str, request: Request):
+    """Update a custom resume configuration version and clear its built PDF key."""
+    body = await request.json()
+    app = _get_app(app_id)
+    version = get_app_version(app_id, v_id)
+    if not app or not version:
+        raise HTTPException(404, "Application or version not found")
+
+    version["customizations"] = body.get("customizations", version.get("customizations", {}))
+    if "name" in body:
+        version["name"] = body["name"]
+    version["pdf_r2_key"] = ""  # Needs rebuild
+    version["updated_at"] = datetime.now().isoformat()
+    
+    save_app_version(app_id, version)
+    return {"ok": True, "version": version}
+
+@router.post("/{app_id}/photo")
+async def upload_custom_photo(app_id: str, file: UploadFile = File(...)):
+    """Upload a custom photo to R2 for an application version."""
+    import tempfile
+    try:
+        content = await file.read()
+        suffix = Path(file.filename).suffix
+        key = f"photos/{app_id}_{uuid.uuid4().hex[:8]}{suffix}"
+        
+        with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+            
+        # We need to upload to R2
+        from src.core.upload import get_r2_client, BUCKET
+        client = get_r2_client()
+        if not client:
+            raise HTTPException(500, "R2 not configured")
+            
+        client.upload_file(tmp_path, BUCKET, key)
+        Path(tmp_path).unlink()
+        
+        return {"ok": True, "photo_r2_key": key}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@router.get("/{app_id}/versions/{v_id}/build")
+def build_version(app_id: str, v_id: str):
+    """
+    Build a PDF from the specified version configuration,
+    upload it to R2, and assign it to the application.
+    """
+    app = _get_app(app_id)
+    version = get_app_version(app_id, v_id)
+    if not app or not version:
+        raise HTTPException(404, "Application or version not found")
+
+    def stream():
+        import shutil
+        pdflatex_cmd = shutil.which("pdflatex")
+        if not pdflatex_cmd:
+            import glob
+            import os
+            tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
+            if tinytex_paths:
+                pdflatex_cmd = tinytex_paths[0]
+                
+        if not pdflatex_cmd:
+            yield "Error: LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or another LaTeX distribution on this system to compile PDFs.\n"
+            return
+
+        yield f"Building version {version.get('name')}...\n"
+        from src.core.build import build_custom_version
+        
+        # Merge base recipe with customizations
+        from src.core.config import load_resume_config
+        main_config = load_resume_config()
+        base_recipe_key = version.get("base_recipe")
+        base_recipe = main_config.get("recipes", {}).get(base_recipe_key, {})
+        
+        # Apply customizations
+        merged_recipe = dict(base_recipe)
+        merged_recipe.update(version.get("customizations", {}))
+        
+        # Fetch photo from R2 if needed
+        custom_photo_path = None
+        photo_r2_key = version.get("photo_r2_key")
+        if version.get("include_photo") and photo_r2_key:
+            yield "Downloading custom photo from R2...\n"
+            import tempfile
+            from src.core.upload import get_r2_client, BUCKET
+            client = get_r2_client()
+            if client:
+                suffix = Path(photo_r2_key).suffix
+                with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
+                    client.download_fileobj(BUCKET, photo_r2_key, tmp)
+                    custom_photo_path = Path(tmp.name)
+        
+        display_name = _build_display_name(app)
+        success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path)
+        
+        if custom_photo_path:
+            custom_photo_path.unlink(missing_ok=True)
+            
+        if not success:
+            yield "Build failed.\n"
+            return
+            
+        # Find the built PDF
+        suffix_str = "_X" if version.get("include_photo") else ""
+        built_pdf_name = f"{display_name}{suffix_str}.pdf"
+        built_pdf_path = DIST_DIR / built_pdf_name
+        
+        if not built_pdf_path.exists():
+            yield "Could not find built PDF.\n"
+            return
+            
+        yield f"Uploading {built_pdf_name} to R2...\n"
+        # Upload to R2
+        from src.core.upload import get_r2_client, BUCKET
+        client = get_r2_client()
+        if not client:
+            yield "R2 not configured, cannot save to R2.\n"
+            return
+            
+        r2_key = f"resumes/{app_id}/{v_id}.pdf"
+        client.upload_file(str(built_pdf_path), BUCKET, r2_key, ExtraArgs={"ContentType": "application/pdf"})
+        
+        # Update version and app
+        version["pdf_r2_key"] = r2_key
+        save_app_version(app_id, version)
+        
+        app["assigned_resume"] = version.get("name")
+        app["assigned_pdf"] = built_pdf_name
+        app["assigned_version_id"] = v_id
+        app["archived_pdf"] = r2_key
+        app["updated_at"] = datetime.now().isoformat()
+        app.setdefault("timeline", []).append(
+            _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' built & assigned")
+        )
+        save_application(app)
+        
+        yield f"\nSuccessfully built, uploaded to R2 ({r2_key}), and assigned to application.\n"
+
+    return StreamingResponse(stream(), media_type="text/plain")
 
 @router.get("/{app_id}/archived-resume")
 def download_archived_resume(app_id: str):
-    """Download the exact PDF copy that was archived for this application."""
-    data = load_applications()
-    app  = _get_app(data, app_id)
+    app = _get_app(app_id)
+    if not app: raise HTTPException(404, "Application not found")
+    r2_key = app.get("archived_pdf")
+    if not r2_key: raise HTTPException(404, "No archived resume")
+    
+    from src.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client: raise HTTPException(500, "R2 not configured")
+    
+    try:
+        url = client.generate_presigned_url(
+            'get_object', Params={'Bucket': BUCKET, 'Key': r2_key}, ExpiresIn=3600
+        )
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@router.delete("/{app_id}/versions/{v_id}")
+def delete_version(app_id: str, v_id: str):
+    """Delete a custom resume version from an application."""
+    if delete_app_version(app_id, v_id):
+        return {"ok": True}
+    raise HTTPException(500, "Failed to delete version")
+
+@router.post("/{app_id}/versions/{v_id}/assign")
+def assign_version(app_id: str, v_id: str):
+    """Set a built version as the application's active assigned resume."""
+    app = _get_app(app_id)
+    version = get_app_version(app_id, v_id)
+    if not app or not version:
+        raise HTTPException(404, "Application or version not found")
+        
+    r2_key = version.get("pdf_r2_key")
+    if not r2_key:
+        raise HTTPException(400, "Version has not been built yet (no PDF)")
+        
+    app["assigned_resume"] = version.get("name")
+    app["assigned_pdf"] = Path(r2_key).name if r2_key else ""
+    app["assigned_version_id"] = v_id
+    app["archived_pdf"] = r2_key
+    app["updated_at"] = datetime.now().isoformat()
+    app.setdefault("timeline", []).append(
+        _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' manually assigned")
+    )
+    save_application(app)
+    return {"ok": True, "app": app}
+
+@router.get("/{app_id}/versions/{v_id}/pdf")
+def download_version_pdf(app_id: str, v_id: str):
+    """Redirect to the R2 presigned URL for a specific version's PDF."""
+    version = get_app_version(app_id, v_id)
+    if not version: raise HTTPException(404, "Version not found")
+    r2_key = version.get("pdf_r2_key")
+    if not r2_key: raise HTTPException(404, "No PDF built for this version")
+    
+    from src.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client: raise HTTPException(500, "R2 not configured")
+    
+    try:
+        url = client.generate_presigned_url(
+            'get_object', Params={'Bucket': BUCKET, 'Key': r2_key}, ExpiresIn=3600
+        )
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@router.post("/{app_id}/compile-pdf")
+async def compile_pdf(app_id: str, request: Request):
+    """Compile and save a PDF from JSON config with role_company naming."""
+    app = _get_app(app_id)
     if not app:
         raise HTTPException(404, "Application not found")
+    
+    try:
+        body = await request.json()
+        config = body.get("config", {})
+        pdf_name = body.get("pdf_name", f"{app['role']}_{app['company']}").lower().replace(" ", "_")
+        if pdf_name.endswith(".pdf"):
+            pdf_name = pdf_name[:-4]
+        
+        if not config:
+            raise HTTPException(400, "Missing 'config' in request body")
+        
+        # 1. Save the JSON config to application first so edits are never lost
+        app["resume_template"] = config
+        app["updated_at"] = datetime.now().isoformat()
+        save_application(app)
 
-    archived = app.get("archived_pdf", "")
-    if not archived:
-        raise HTTPException(404, "No archived resume for this application")
+        # 2. Check if LaTeX compiler (pdflatex) is available
+        import shutil
+        import os
+        import glob
+        
+        pdflatex_cmd = shutil.which("pdflatex")
+        if not pdflatex_cmd:
+            tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
+            if tinytex_paths:
+                pdflatex_cmd = tinytex_paths[0]
+                
+        if not pdflatex_cmd:
+            raise HTTPException(
+                status_code=400,
+                detail="LaTeX compiler 'pdflatex' not found on system. The JSON configuration was saved successfully, but the PDF could not be compiled. Please install a LaTeX distribution (like TeX Live) on this system."
+            )
 
-    file_path = DIST_DIR / archived
-    if not file_path.exists():
-        raise HTTPException(404, "Archived file not found on disk")
-
-    return FileResponse(path=file_path, filename=file_path.name)
-
-
-# ── Build & auto-assign ───────────────────────────────────────────────────────
-
-@router.get("/{app_id}/build/{role}")
-def build_and_assign(app_id: str, role: str):
-    """
-    Stream-build a recipe, then auto-assign + archive the resulting PDF
-    to this application.
-    """
-    def stream():
-        cmd  = [sys.executable, str(BUILD_PY), role]
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, cwd=str(ROOT),
-        )
-        for line in proc.stdout:
-            yield line
-        proc.wait()
-
-        # Find the built PDF (prefer non-photo variant)
-        candidates   = list(DIST_DIR.glob(f"*{role.upper()}*.pdf")) + \
-                       list(DIST_DIR.glob(f"*{role}*.pdf"))
-        candidates   = [p for p in candidates if "archived" not in str(p)]
-        non_photo    = [p for p in candidates if "_X" not in p.name]
-        chosen       = (non_photo or candidates)
-        if not chosen:
-            yield "\n Could not find built PDF to assign.\n"
-            return
-
-        chosen = chosen[0]
-
-        data = load_applications()
-        app  = _get_app(data, app_id)
-        if not app:
-            yield "\n Application not found in DB.\n"
-            return
-
-        archived = _archive_pdf(app_id, chosen.name)
-        app["assigned_resume"] = role
-        app["assigned_pdf"]    = chosen.name
-        app["archived_pdf"]    = archived or ""
-        app["updated_at"]      = datetime.now().isoformat()
-        app.setdefault("timeline", []).append(
-            _timeline_event(app.get("status", ""), f"Resume built & assigned: {chosen.name}")
-        )
-        save_applications(data)
-        yield f"\n Archived & assigned → {archived or chosen.name}\n"
-
-    return StreamingResponse(stream(), media_type="text/plain")
+        # 3. Build the custom PDF
+        from src.core.build import build_custom_version
+        success = build_custom_version(config, pdf_name, include_photo=False)
+        
+        if not success:
+            # Read build log to surface actual error
+            import os, glob as _glob
+            log_pattern = str(ROOT / "logs" / f"{pdf_name}_build.log")
+            log_files = _glob.glob(log_pattern)
+            log_tail = ""
+            if log_files:
+                try:
+                    with open(log_files[0], encoding="utf-8", errors="ignore") as lf:
+                        lines = lf.readlines()
+                        # Find the actual error line
+                        err_lines = [l for l in lines if "error" in l.lower() or "fatal" in l.lower() or "not found" in l.lower()]
+                        log_tail = " | ".join(err_lines[-3:]).strip() if err_lines else "".join(lines[-5:]).strip()
+                except Exception:
+                    pass
+            detail = f"PDF build failed. {log_tail}" if log_tail else "PDF build failed. Check server logs."
+            raise HTTPException(500, detail)
+        
+        # Update app with assigned PDF
+        app["assigned_pdf"] = f"{pdf_name}.pdf"
+        app["updated_at"] = datetime.now().isoformat()
+        save_application(app)
+        
+        return {
+            "ok": True,
+            "pdf_name": f"{pdf_name}.pdf",
+            "message": f"PDF compiled successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Compile PDF error: {e}")
+        raise HTTPException(500, f"PDF compilation failed: {str(e)}")
