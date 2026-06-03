@@ -156,18 +156,125 @@ def trigger_r2_backup():
 
 @router.get("/list-files")
 def list_files():
-    if not DIST_DIR.exists():
-        return []
+    from src.core.firebase import get_all_applications
+    from src.core.config import load_resume_config
+
     r2_objects = list_r2_objects()
     files = []
-    for f in DIST_DIR.glob("*.pdf"):
-        local_hash = md5_of_file(f)
-        if f.name in r2_objects:
-            status = "synced" if r2_objects[f.name] == local_hash else "modified"
-        else:
-            status = "new"
-        files.append({"name": f.name, "sync_status": status})
+    local_names = set()
+    
+    # Identify base builds
+    config = load_resume_config()
+    name_raw = config.get("personal", {}).get("name", "Resume")
+    base_prefix = name_raw.upper().replace(' ', '_')
+    expected_base_builds = set()
+    for role_id, recipe in config.get("recipes", {}).items():
+        short = recipe.get("short_name", role_id)
+        display = f"{base_prefix}_{short}"
+        expected_base_builds.add(f"{display}.pdf")
+        expected_base_builds.add(f"{display}_X.pdf")
+    
+    # 1. Local files
+    if DIST_DIR.exists():
+        for f in DIST_DIR.glob("*.pdf"):
+            # Only include base builds in the file list
+            if f.name not in expected_base_builds:
+                continue
+                
+            local_hash = md5_of_file(f)
+            local_names.add(f.name)
+            if f.name in r2_objects:
+                status = "synced" if r2_objects[f.name] == local_hash else "modified"
+            else:
+                status = "new"
+            files.append({
+                "name": f.name,
+                "path": f.name,
+                "sync_status": status,
+                "type": "local"
+            })
+            
+    # 2. Cloud files (R2)
+    # Build a lookup map from r2_key -> {company, version_name}
+    key_to_meta = {}
+    try:
+        apps = get_all_applications()
+        apps_map = {app["id"]: app for app in apps if "id" in app}
+        
+        # Try fetching all versions using collection group query to avoid N+1 queries
+        from src.core.firebase import get_firebase_db
+        db = get_firebase_db()
+        versions_fetched = False
+        if db:
+            try:
+                # collection_group query retrieves all documents in the "versions" subcollection
+                version_docs = db.collection_group("versions").stream()
+                for doc in version_docs:
+                    v = doc.to_dict()
+                    pdf_key = v.get("pdf_r2_key")
+                    if pdf_key:
+                        try:
+                            # parent is collection 'versions', parent.parent is the application doc
+                            app_id = doc.reference.parent.parent.id
+                            app = apps_map.get(app_id)
+                            if app:
+                                company = app.get("company", "Unknown App")
+                                key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
+                        except Exception:
+                            pass
+                versions_fetched = True
+            except Exception as e:
+                print(f"Collection group query failed (possibly missing index), falling back: {e}")
+                
+        # Fallback if collection group query failed or Firebase is not available
+        if not versions_fetched:
+            for key in r2_objects:
+                parts = key.split("/")
+                if len(parts) == 3 and parts[0] == "resumes":
+                    app_id = parts[1]
+                    app = apps_map.get(app_id)
+                    if app:
+                        company = app.get("company", "Unknown App")
+                        role = app.get("role", "Custom Version")
+                        key_to_meta[key] = f"{company} - {role}"
+    except Exception as e:
+        print(f"Failed to load firebase apps for list-files: {e}")
+
+    for key in r2_objects:
+        if key.endswith(".pdf") and key not in local_names:
+            # Check if we should extract just the filename for display
+            display_name = key.split("/")[-1]
+            if key in key_to_meta:
+                display_name = f"{key_to_meta[key]}.pdf"
+            elif "/" in key:
+                parts = key.split("/")
+                if len(parts) >= 2:
+                    display_name = f"[{parts[0]}] {parts[-1]}"
+
+            files.append({
+                "name": display_name,
+                "path": key,
+                "sync_status": "cloud_only",
+                "type": "cloud"
+            })
+            
     return sorted(files, key=lambda x: x["name"])
+
+
+@router.get("/cloud-pdf/{key:path}")
+def view_cloud_pdf(key: str):
+    from src.core.upload import get_r2_client, BUCKET
+    from fastapi.responses import RedirectResponse
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(500, "R2 not configured")
+    try:
+        url = client.generate_presigned_url(
+            'get_object', Params={'Bucket': BUCKET, 'Key': key}, ExpiresIn=3600
+        )
+        return RedirectResponse(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 # ── Downloads ─────────────────────────────────────────────────────────────────
