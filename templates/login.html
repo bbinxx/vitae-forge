@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Studio - Locked</title>
+    <title>Resume Studio — Locked</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -14,25 +14,43 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #0f1115;
+            background: radial-gradient(circle at center, #1b2030 0%, #0f1115 100%);
             font-family: 'Inter', sans-serif;
             color: #fff;
         }
         .login-box {
-            background: #1a1d24;
+            background: rgba(26, 29, 36, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
             text-align: center;
-            width: 300px;
-            border: 1px solid #2d3139;
+            width: 320px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .logo-shield {
+            font-size: 32px;
+            margin-bottom: 15px;
+            display: inline-block;
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.4));
         }
         .login-box h1 {
-            font-size: 20px;
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 6px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #94a3b8;
             margin-top: 0;
             margin-bottom: 24px;
-            font-weight: 600;
-            color: #e2e8f0;
         }
         .passcode-container {
             display: flex;
@@ -43,46 +61,73 @@
             width: 100%;
             padding: 12px 16px;
             border-radius: 8px;
-            border: 1px solid #3b4252;
-            background: #0f1115;
+            border: 1.5px solid #2d3139;
+            background: rgba(15, 17, 21, 0.6);
             color: #fff;
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
             letter-spacing: 4px;
             box-sizing: border-box;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.2s ease;
         }
         input[type="password"]:focus {
             border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
-        
+        .btn-unlock {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+        .btn-unlock:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+            background: linear-gradient(135deg, #818cf8, #4f46e5);
+        }
+        .btn-unlock:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .btn-unlock:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .shake {
             animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
         }
-        
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
-        
         .error-msg {
             color: #ef4444;
             font-size: 12px;
             height: 15px;
             opacity: 0;
             transition: opacity 0.2s;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
     <div class="login-box" id="login-box">
-        <h1>Enter Passcode</h1>
+        <div class="logo-shield">🔒</div>
+        <h1>Resume Studio</h1>
+        <p class="subtitle">Enter passcode to unlock control center</p>
+        
         <div class="passcode-container">
             <input type="password" id="passcode" placeholder="••••••••" autofocus autocomplete="off">
+            <button id="btn-unlock" class="btn-unlock" onclick="handleSubmit()">Unlock Studio</button>
             <div class="error-msg" id="error-msg">Incorrect passcode</div>
         </div>
     </div>
@@ -91,26 +136,28 @@
         const input = document.getElementById('passcode');
         const box = document.getElementById('login-box');
         const errorMsg = document.getElementById('error-msg');
-        
-        let typingTimer;
+        const unlockBtn = document.getElementById('btn-unlock');
         
         input.addEventListener('keyup', (e) => {
-            clearTimeout(typingTimer);
             errorMsg.style.opacity = '0';
             box.classList.remove('shake');
             
             if (e.key === 'Enter') {
-                checkPasscode(input.value);
-            } else if (input.value.length > 0) {
-                // Auto check after 600ms of typing stop
-                typingTimer = setTimeout(() => {
-                    checkPasscode(input.value);
-                }, 600);
+                handleSubmit();
             }
         });
         
-        async function checkPasscode(passcode) {
+        async function handleSubmit() {
+            const passcode = input.value;
             if (!passcode) return;
+            
+            // Set loading state
+            input.disabled = true;
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = 'Verifying...';
+            errorMsg.style.opacity = '0';
+            box.classList.remove('shake');
+            
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
@@ -119,22 +166,34 @@
                 });
                 
                 if (res.ok) {
-                    window.location.reload();
+                    unlockBtn.textContent = 'Success! Loading...';
+                    unlockBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    unlockBtn.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.25)';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 200);
                 } else {
-                    triggerError();
+                    unlockBtn.disabled = false;
+                    unlockBtn.textContent = 'Unlock Studio';
+                    input.disabled = false;
+                    input.value = '';
+                    input.focus();
+                    triggerError('Incorrect passcode');
                 }
             } catch (e) {
-                triggerError();
+                unlockBtn.disabled = false;
+                unlockBtn.textContent = 'Unlock Studio';
+                input.disabled = false;
+                triggerError('Connection error');
             }
         }
         
-        function triggerError() {
+        function triggerError(msg) {
+            errorMsg.textContent = msg || 'Incorrect passcode';
             box.classList.remove('shake');
             void box.offsetWidth; // trigger reflow
             box.classList.add('shake');
             errorMsg.style.opacity = '1';
-            input.value = '';
-            input.focus();
         }
     </script>
 </body>
