@@ -89,33 +89,29 @@
   </div>
 </div>
 
-<!-- ═══════════════════ TRACKER ═══════════════════ -->
+<!-- ═══════════════════ APPLICATIONS ═══════════════════ -->
 <div id="tracker-view" class="view hidden">
 
-  <!-- Stats Bar -->
-  <div id="tracker-stats-bar" class="stats-bar"></div>
-
-  <div class="tracker-layout">
-
-    <!-- Left: Application List -->
-    <aside class="tracker-sidebar">
-      <div class="tracker-sidebar-header">
-        <input id="app-search" type="text" class="search-input" placeholder=" Search company, role...">
-        <button class="btn btn-primary" onclick="window.openNewAppModal()">+ New</button>
-      </div>
-      <div id="app-list" class="app-list"></div>
-    </aside>
-
-    <!-- Right: Detail Panel -->
-    <div id="app-detail-panel" class="app-detail-panel">
-      <div class="detail-empty">
-        <div class="detail-empty-icon"></div>
-        <p>Select an application to view details</p>
-        <button class="btn btn-primary" onclick="window.openNewAppModal()">+ New Application</button>
-      </div>
+  <!-- App Header -->
+  <div class="apps-header">
+    <div class="apps-header-left">
+      <h2 class="apps-title">My Applications</h2>
+      <span id="apps-count-badge" class="apps-count">0</span>
     </div>
-
+    <div class="apps-header-right">
+      <input id="app-search" type="text" class="apps-search-input" placeholder="Search applications…" style="max-width: 280px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);">
+      <span id="tracker-save-indicator" class="save-indicator"></span>
+      <button class="btn btn-primary btn-sm" onclick="window.openNewAppModal()">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">add</span> New Application
+      </button>
+    </div>
   </div>
+
+  <!-- Grid Layout -->
+  <div class="apps-layout">
+    <div id="apps-grid" class="apps-container"></div>
+  </div>
+
 </div>
 
 <!-- ═══════════════════ ROLE EDITOR ═══════════════════ -->
@@ -234,6 +230,19 @@
 <!-- Tracker Modal (injected by tracker.js) -->
 <div id="tracker-modal" class="modal-overlay hidden" onclick="this.style.display='none'"></div>
 
-<script type="module" src="/static/js/main.js"></script>
+<!-- Toast Notification Container -->
+<div id="toast-container"></div>
+<script>
+window.addEventListener('error', function(e) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'background:red;color:white;padding:10px;margin-bottom:5px;border-radius:4px;z-index:999999;position:relative;';
+    toast.textContent = 'JS Error: ' + e.message;
+    document.getElementById('toast-container').appendChild(toast);
+});
+</script>
+
+
+
+<script type="module" src="/static/js/main.js?v=2"></script>
 </body>
 </html>
