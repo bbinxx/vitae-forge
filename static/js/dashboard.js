@@ -1,26 +1,58 @@
 import { api } from './api.js';
 import { state } from './app.js';
 
+let dashboardFiles = [];
+
 export async function refreshSync() {
     try {
-        const files = await api.fetchFiles();
+        let files;
+        if (window.__PRELOADED_FILES__) {
+            files = window.__PRELOADED_FILES__;
+            // Don't clear it here because tracker.js also needs it
+        } else {
+            files = await api.fetchFiles();
+        }
         const list = document.getElementById('file-list');
         if (!list) return;
-        const filtered = files.filter(f => !f.name.includes('LIVE_PREVIEW_TEMP'));
-        if (filtered.length === 0) {
+        
+        dashboardFiles = files.filter(f => !f.name.includes('LIVE_PREVIEW_TEMP'));
+        
+        if (dashboardFiles.length === 0) {
             list.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px">No files built yet</div>';
             return;
         }
-        list.innerHTML = filtered.map(f => {
-            const syncClass = f.sync_status === 'synced' ? 'sync-synced'
-                           : f.sync_status === 'modified' ? 'sync-modified' : 'sync-new';
-            return `
-            <div class="file-item" onclick="window.dashPreview('${f.name}')">
-                <span class="sync-tag ${syncClass}">${f.sync_status}</span>
-                <span class="file-name">${f.name}</span>
-                <button class="btn btn-sm btn-outline" style="padding:2px 8px" onclick="event.stopPropagation();window.dashUpload('${f.name}')"></button>
-            </div>`;
-        }).join('');
+        
+        const localFiles = dashboardFiles.filter(f => f.type === 'local');
+        const cloudFiles = dashboardFiles.filter(f => f.type === 'cloud');
+        
+        let html = '';
+        
+        if (localFiles.length > 0) {
+            html += '<div style="font-size:10px;font-weight:600;color:var(--text-muted);margin:8px 0 4px 0;text-transform:uppercase;letter-spacing:0.05em">Base Builds (Local)</div>';
+            html += localFiles.map(f => {
+                const syncClass = f.sync_status === 'synced' ? 'sync-synced'
+                               : f.sync_status === 'modified' ? 'sync-modified' : 'sync-new';
+                return `
+                <div class="file-item" onclick="window.dashPreview('${f.path}')">
+                    <span class="sync-tag ${syncClass}">${f.sync_status}</span>
+                    <span class="file-name">${f.name}</span>
+                    <button class="btn btn-sm btn-outline" style="padding:2px 8px" onclick="event.stopPropagation();window.dashUpload('${f.path}')"></button>
+                </div>`;
+            }).join('');
+        }
+        
+        if (cloudFiles.length > 0) {
+            html += '<div style="font-size:10px;font-weight:600;color:var(--text-muted);margin:12px 0 4px 0;text-transform:uppercase;letter-spacing:0.05em">App Versions (Cloud)</div>';
+            html += cloudFiles.map(f => {
+                return `
+                <div class="file-item" onclick="window.dashPreview('${f.path}')">
+                    <span class="sync-tag" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)">☁ cloud</span>
+                    <span class="file-name" title="${f.name}">${f.name.length > 28 ? f.name.substring(0,25)+'...' : f.name}</span>
+                </div>`;
+            }).join('');
+        }
+        
+        list.innerHTML = html;
     } catch (e) { console.error('Server offline', e); }
 }
 
@@ -40,18 +72,34 @@ export async function runBuild(role) {
     refreshSync();
 }
 
-export function dashPreview(f) {
+export function dashPreview(path) {
+    const f = dashboardFiles.find(x => x.path === path);
+    if (!f) return;
+    
     state.selectedDashFile = f;
-    document.getElementById('current-filename').textContent = f;
+    document.getElementById('current-filename').textContent = f.name;
     document.getElementById('dash-actions').style.display = 'flex';
-    document.getElementById('viewer-container').innerHTML = `<iframe src="/pdf/${f}#toolbar=0" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
-    const isPhoto = f.includes('_X.pdf');
-    document.getElementById('btn-dash-bundle').style.display = isPhoto ? 'inline-flex' : 'none';
-    document.getElementById('btn-dash-tex').style.display = isPhoto ? 'none' : 'inline-flex';
+    
+    const isCloud = f.type === 'cloud';
+    const isPhoto = f.name.includes('_X.pdf');
+    
+    const url = isCloud ? `/cloud-pdf/${f.path}` : `/pdf/${f.path}`;
+    document.getElementById('viewer-container').innerHTML = `<iframe src="${url}#toolbar=0" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
+    
+    document.getElementById('btn-dash-bundle').style.display = (!isCloud && isPhoto) ? 'inline-flex' : 'none';
+    document.getElementById('btn-dash-tex').style.display = (!isCloud && !isPhoto) ? 'inline-flex' : 'none';
+    
+    // Cloud files cannot be "uploaded" (already there) or shared via local static route easily yet (though we could share the presigned URL).
+    // For now, let's keep upload hidden for cloud files.
+    const uploadBtn = document.querySelector('#dash-actions button[onclick="uploadCurrent()"]');
+    if (uploadBtn) uploadBtn.style.display = isCloud ? 'none' : 'inline-flex';
+    
+    const shareBtn = document.querySelector('#dash-actions button[onclick="shareCurrent()"]');
+    if (shareBtn) shareBtn.style.display = isCloud ? 'none' : 'inline-flex';
 }
 
-export async function dashUpload(f) {
-    try { await api.uploadPdfToCloud(f); refreshSync(); } catch(e) {}
+export async function dashUpload(path) {
+    try { await api.uploadPdfToCloud(path); refreshSync(); } catch(e) {}
 }
 
 export async function uploadPhoto(event) {
@@ -90,16 +138,24 @@ window.runBuild    = runBuild;
 window.uploadPhoto = uploadPhoto;
 window.refreshSync = refreshSync;
 window.uploadAll   = uploadAll;
-window.downloadCurrent       = () => { if (state.selectedDashFile) window.open(`/download/${state.selectedDashFile}`, '_blank'); };
-window.downloadCurrentBundle = () => { if (state.selectedDashFile) window.open(`/download-bundle/${state.selectedDashFile.replace('.pdf','.tex')}`, '_blank'); };
-window.downloadCurrentTex    = () => { if (state.selectedDashFile) window.open(`/download/${state.selectedDashFile.replace('.pdf','.tex')}`, '_blank'); };
-window.uploadCurrent         = () => { if (state.selectedDashFile) dashUpload(state.selectedDashFile); };
+window.downloadCurrent       = () => { 
+    if (state.selectedDashFile) {
+        if (state.selectedDashFile.type === 'cloud') {
+            window.open(`/cloud-pdf/${state.selectedDashFile.path}`, '_blank');
+        } else {
+            window.open(`/download/${state.selectedDashFile.path}`, '_blank');
+        }
+    } 
+};
+window.downloadCurrentBundle = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download-bundle/${state.selectedDashFile.path.replace('.pdf','.tex')}`, '_blank'); };
+window.downloadCurrentTex    = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download/${state.selectedDashFile.path.replace('.pdf','.tex')}`, '_blank'); };
+window.uploadCurrent         = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') dashUpload(state.selectedDashFile.path); };
 
 window.shareCurrent = async () => {
     if (!state.selectedDashFile) return;
     
     // Construct the elegant public URL
-    const publicUrl = window.location.origin + '/share/' + state.selectedDashFile;
+    const publicUrl = window.location.origin + '/share/' + state.selectedDashFile.path;
     
     try {
         await navigator.clipboard.writeText(publicUrl);
