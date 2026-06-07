@@ -5,6 +5,9 @@ import './library.js';
 import { loadCheckpoints } from './checkpoints.js';
 import { loadSettings } from './settings.js';
 import { loadTracker, initTracker } from './tracker.js';
+// version_editor.js is retained for future use
+// import { openVersionEditor } from './version_editor.js';
+// window.openVersionEditor = openVersionEditor;
 
 // Expose switchTab globally
 window.switchTab = (tabId) => {
