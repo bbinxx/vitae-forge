@@ -808,9 +808,15 @@ export async function openAppEditor(appId) {
             await trackerApi.update(appId, updates);
             Object.assign(app, updates);
             
-            // Check if there is valid JSON in the editor to compile and it has been manually edited
+            // Check if there is valid JSON in the editor to compile, and either it was edited OR the name was changed
             const jsonText = document.getElementById('config-json')?.value?.trim();
-            if (window._configIsDirty && jsonText && window.validateConfigJson(false)) { 
+            
+            let currentPdfName = document.getElementById('config-pdf-name')?.value?.trim() || '';
+            if (currentPdfName && !currentPdfName.endsWith('.pdf')) currentPdfName += '.pdf';
+            const originalPdfName = app.assigned_pdf || '';
+            const pdfNameChanged = currentPdfName && currentPdfName !== originalPdfName;
+
+            if ((window._configIsDirty || pdfNameChanged) && jsonText && window.validateConfigJson(false)) { 
                 const config = JSON.parse(jsonText);
                 let pdfName = document.getElementById('config-pdf-name')?.value?.trim();
                 if (!pdfName) {
