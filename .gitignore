@@ -17,6 +17,17 @@ dist/
 logs/
 *.temp.tex
 **/*.temp.tex
+*_temp.tex
+**/*_temp.tex
+
+# Test/Scratch scripts and backups
+temp*.mjs
+test*.mjs
+test*.js
+test*.json
+test*.pdf
+*_old.js
+*version_editor.js
 
 # Editor/System temp files
 *.swp
