@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: resume-studio
+    ports:
+      - "5050:5050"
+    volumes:
+      - .:/app
+      - /app/venv
+      - /app/dist
+    env_file:
+      - .env
+    environment:
+      - PORT=5050
+    restart: unless-stopped

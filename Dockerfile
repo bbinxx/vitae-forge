@@ -1,8 +1,8 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+ENV PORT=5050
 
 # Install TeX Live (LaTeX) and required system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port
-EXPOSE 8000
+EXPOSE 5050
 
 # Start FastAPI
 CMD uvicorn src.app:app --host 0.0.0.0 --port $PORT

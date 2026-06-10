@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+.env
+.git/
+.github/
+dist/
+*.tex
+*.pdf
+*.log
+*.aux
+*.fls
+*.fdb_latexmk
+*.out
+*.synctex.gz
