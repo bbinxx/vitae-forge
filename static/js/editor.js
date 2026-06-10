@@ -40,6 +40,32 @@ export function addNewRole() {
     selectRole(newId);
 }
 
+export function addRoleFromApp() {
+    if(!state.trackerData || !state.trackerData.applications || state.trackerData.applications.length === 0) {
+        return alert("No applications found in Tracker.");
+    }
+    const apps = state.trackerData.applications;
+    let appList = apps.map((app, i) => `${i}: ${app.company} - ${app.role}`).join('\n');
+    const indexStr = prompt(`Enter the index of the application to clone:\n${appList}`);
+    if(!indexStr || isNaN(indexStr)) return;
+    
+    const appIndex = parseInt(indexStr);
+    if(appIndex < 0 || appIndex >= apps.length) return alert("Invalid index");
+    
+    const app = apps[appIndex];
+    if(!app.resume_template) return alert("This application does not have a resume template to clone.");
+    
+    const newId = prompt("Enter ID for the cloned role (e.g., " + app.company.toLowerCase() + "_role):");
+    if (!newId) return;
+    if (state.data.recipes[newId]) return alert("Role ID already exists");
+    
+    state.data.recipes[newId] = JSON.parse(JSON.stringify(app.resume_template));
+    state.data.recipes[newId].short_name = app.role;
+    
+    selectRole(newId);
+    state.notify();
+}
+
 export function duplicateCurrentRole() {
     if (!state.currentEditingRole) return;
     const newId = prompt("Enter ID for the duplicated role (e.g., " + state.currentEditingRole + "_v2):");
@@ -128,6 +154,7 @@ export function toggleRoleArrayItem(field, item) {
 // Bind globals for HTML inline listeners
 window.selectRole = selectRole;
 window.addNewRole = addNewRole;
+window.addRoleFromApp = addRoleFromApp;
 window.duplicateCurrentRole = duplicateCurrentRole;
 window.deleteCurrentRole = deleteCurrentRole;
 window.updateRoleField = updateRoleField;

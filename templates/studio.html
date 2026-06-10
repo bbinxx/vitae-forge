@@ -16,7 +16,6 @@
   <div class="header-brand">
     <span class="brand-icon"></span>
     <span class="brand-name">Resume Studio</span>
-    <span class="brand-tag">v7 · Ultimate</span>
   </div>
   <nav class="header-nav">
     <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
@@ -107,6 +106,9 @@
     </div>
   </div>
 
+  <!-- Apps Stats -->
+  <div id="apps-stats-container" style="display:flex; gap:16px; margin: 0 0 20px 0; padding: 0 24px; overflow-x: auto;"></div>
+
   <!-- Grid Layout -->
   <div class="apps-layout">
     <div id="apps-grid" class="apps-container"></div>
@@ -122,7 +124,8 @@
       <div class="sidebar-section">
         <div class="section-title">Recipes</div>
         <div id="roles-list" class="roles-list"></div>
-        <button class="btn btn-primary w-full mt-3" onclick="addNewRole()">+ New Role</button>
+        <button class="btn btn-primary w-full mt-3" onclick="addNewRole()">+ Create from Scratch</button>
+        <button class="btn btn-secondary w-full mt-2" onclick="addRoleFromApp()">+ Clone Application</button>
       </div>
     </aside>
 
@@ -243,6 +246,6 @@ window.addEventListener('error', function(e) {
 
 
 
-<script type="module" src="/static/js/main.js?v=2"></script>
+<script type="module" src="/static/js/main.js?v=3"></script>
 </body>
 </html>

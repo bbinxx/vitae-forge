@@ -18,7 +18,7 @@ export const state = {
 
     async saveConfig() {
         const ok = await api.saveConfig(this.data);
-        if (ok) { alert('✓ Configuration saved to file successfully'); this.notify(); }
+        if (ok) { alert('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Configuration saved to file successfully'); this.notify(); }
         else      alert(' Error saving configuration');
     }
 };

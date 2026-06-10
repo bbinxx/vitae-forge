@@ -61,6 +61,9 @@ function resolveFullContent(recipe) {
     if (recipe.professional_summary) {
         out.professional_summary = resolveTextValue('professional_summary', recipe.professional_summary);
     }
+    
+    // cover letter
+    out.cover_letter = recipe.cover_letter || "";
 
     // education — resolve string ID → full object
     if (recipe.education) {
@@ -99,26 +102,26 @@ function resolveFullContent(recipe) {
 }
 
 const STATUS_CONFIG = {
-    'Bookmarked': { color: '#7c3aed', bg: 'rgba(124,58,237,0.15)', icon: '🔖' },
-    'Applied':    { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', icon: '📤' },
-    'Screening':  { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', icon: '🔍' },
-    'Interview':  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', icon: '💬' },
-    'Offer':      { color: '#10b981', bg: 'rgba(16,185,129,0.15)', icon: '🎉' },
-    'Rejected':   { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', icon: '❌' },
-    'Withdrawn':  { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '↩️' },
+    'Bookmarked': { color: '#7c3aed', bg: 'rgba(124,58,237,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">bookmark</span>' },
+    'Applied':    { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">upload</span>' },
+    'Screening':  { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">search</span>' },
+    'Interview':  { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">chat</span>' },
+    'Offer':      { color: '#10b981', bg: 'rgba(16,185,129,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">celebration</span>' },
+    'Rejected':   { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span>' },
+    'Withdrawn':  { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">undo</span>' },
 };
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 export function toast(msg, type = 'success', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    const icons = { success: '✓', error: '✕', info: 'ℹ' };
+    const icons = { success: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span>', error: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span>', info: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">info</span>' };
     const t = document.createElement('div');
     t.className = `toast toast-${type}`;
     t.innerHTML = `
-        <span class="toast-icon">${icons[type] || '✓'}</span>
+        <span class="toast-icon">${icons[type] || '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span>'}</span>
         <span class="toast-msg">${msg}</span>
-        <button class="toast-dismiss" onclick="this.parentElement.remove()">✕</button>`;
+        <button class="toast-dismiss" onclick="this.parentElement.remove()"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span></button>`;
     container.appendChild(t);
     setTimeout(() => {
         t.classList.add('toast-out');
@@ -132,10 +135,10 @@ function setSaveIndicator(state) {
     if (!el) return;
     if (state === 'saving') {
         el.className = 'save-indicator saving';
-        el.textContent = '⏳ Saving…';
+        el.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Saving…';
     } else if (state === 'saved') {
         el.className = 'save-indicator saved';
-        el.textContent = '✓ Saved';
+        el.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Saved';
         setTimeout(() => { el.textContent = ''; el.className = 'save-indicator'; }, 2000);
     } else {
         el.className = 'save-indicator';
@@ -238,7 +241,7 @@ export async function loadTracker() {
     } catch (e) {
         console.error('Error loading tracker:', e);
         if (grid) {
-            grid.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted)">⚠️ Failed to load applications.</div>`;
+            grid.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Failed to load applications.</div>`;
         }
     }
 }
@@ -249,6 +252,35 @@ function renderGrid() {
     if (!grid) return;
 
     let filtered = [...applications];
+    
+    // --- Render Stats ---
+    const statsContainer = document.getElementById('apps-stats-container');
+    if (statsContainer) {
+        let total = applications.length;
+        let applied = applications.filter(a => a.status === 'Applied').length;
+        let interview = applications.filter(a => a.status === 'Interview').length;
+        let offer = applications.filter(a => a.status === 'Offer').length;
+        
+        statsContainer.innerHTML = `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Total</div>
+                <div style="font-size:24px;font-weight:700;color:var(--text-primary);margin-top:4px">${total}</div>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Applied</div>
+                <div style="font-size:24px;font-weight:700;color:var(--color-blue);margin-top:4px">${applied}</div>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Interview</div>
+                <div style="font-size:24px;font-weight:700;color:var(--color-purple);margin-top:4px">${interview}</div>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Offers</div>
+                <div style="font-size:24px;font-weight:700;color:var(--color-green);margin-top:4px">${offer}</div>
+            </div>
+        `;
+    }
+
     if (filterSearch) {
         const q = filterSearch.toLowerCase();
         filtered = filtered.filter(a =>
@@ -295,7 +327,12 @@ function renderGrid() {
             <div class="app-card-body">
                 ${app.location ? `
                     <div class="app-card-location">
-                        📍 ${esc(app.location)}
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">location_on</span> ${esc(app.location)}
+                    </div>
+                ` : ''}
+                ${app.platform ? `
+                    <div class="app-card-location" style="margin-top: 4px;">
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">business</span> ${esc(app.platform)}
                     </div>
                 ` : ''}
                 ${app.job_url ? `
@@ -315,8 +352,9 @@ function renderGrid() {
                     <span title="Last updated">${fmtRel(app.updated_at)}</span>
                 </div>
                 <div class="app-card-chips">
-                    ${hasResume ? `<div class="app-card-chip" title="${esc(app.assigned_pdf)}">📄 PDF</div>` : ''}
-                    ${hasTemplate ? `<div class="app-card-chip" title="Has custom template">✏️ Template</div>` : ''}
+                    ${hasResume ? `<div class="app-card-chip" title="${esc(app.assigned_pdf)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF</div>` : ''}
+                    ${app.assigned_cover_letter ? `<div class="app-card-chip" title="${esc(app.assigned_cover_letter)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter</div>` : ''}
+                    ${hasTemplate ? `<div class="app-card-chip" title="Has custom template"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Template</div>` : ''}
                     ${app.priority ? `<div class="app-card-chip" style="background: rgba(239,68,68,0.1); color: #dc2626; border-color: rgba(239,68,68,0.2);">${app.priority}</div>` : ''}
                 </div>
             </div>
@@ -362,7 +400,7 @@ export function showModal(title, bodyHtml, onConfirm, confirmLabel = 'Confirm', 
     <div class="modal-box" onclick="event.stopPropagation()">
         <div class="modal-header">
             <span class="modal-title">${title}</span>
-            <button class="modal-close" onclick="window.closeModal()">✕</button>
+            <button class="modal-close" onclick="window.closeModal()"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span></button>
         </div>
         ${tabsHtml}
         <div class="modal-body">${bodyWithTabs}</div>
@@ -411,7 +449,7 @@ export function closeModal() {
 // ── New Application Modal ─────────────────────────────────────────────────────
 export function openNewAppModal() {
     const statusOpts = Object.keys(STATUS_CONFIG).map(s =>
-        `<option value="${s}" ${s === 'Applied' ? 'selected' : ''}>${STATUS_CONFIG[s].icon} ${s}</option>`
+        `<option value="${s}" ${s === 'Applied' ? 'selected' : ''}>${s}</option>`
     ).join('');
 
     const pdfFiles = (distFiles || []).filter(f =>
@@ -463,9 +501,15 @@ export function openNewAppModal() {
                 <input type="url" id="new-job-url" class="input-field" placeholder="https://…">
             </div>
         </div>
-        <div class="field-group">
-            <label>Assign Resume (optional)</label>
-            <select id="new-resume" class="input-field">${resumeOpts}</select>
+        <div class="modal-grid-2">
+            <div class="field-group">
+                <label>Platform (e.g. Mail, Naukri, Instahyre…)</label>
+                <input type="text" id="new-platform" class="input-field" placeholder="LinkedIn, Cutshort…">
+            </div>
+            <div class="field-group">
+                <label>Assign Resume (optional)</label>
+                <select id="new-resume" class="input-field">${resumeOpts}</select>
+            </div>
         </div>
         <div class="field-group">
             <label>Notes</label>
@@ -495,6 +539,7 @@ export function openNewAppModal() {
             location:     document.getElementById('new-location').value.trim(),
             status:       document.getElementById('new-status').value,
             priority:     document.getElementById('new-priority').value,
+            platform:     document.getElementById('new-platform').value.trim(),
             job_url:      document.getElementById('new-job-url').value.trim(),
             assigned_pdf: document.getElementById('new-resume').value,
             notes:        document.getElementById('new-notes').value.trim(),
@@ -539,7 +584,7 @@ window.selectNewAppPreset = (key) => {
         const recipe = state.data?.recipes?.[window._selectedNewAppPreset];
         if (indicator) {
             indicator.style.display = 'block';
-            indicator.textContent = `✓ Using preset: "${recipe?.short_name || window._selectedNewAppPreset}"`;
+            indicator.innerHTML = `<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Using preset: "${recipe?.short_name || window._selectedNewAppPreset}"`;
         }
     } else {
         if (indicator) indicator.style.display = 'none';
@@ -553,7 +598,7 @@ export async function openAppEditor(appId) {
 
     const cfg = STATUS_CONFIG[app.status] || { color: '#6366f1', icon: '?' };
     const statusOptions = Object.keys(STATUS_CONFIG).map(s =>
-        `<option value="${s}" ${app.status === s ? 'selected' : ''}>${STATUS_CONFIG[s].icon} ${s}</option>`
+        `<option value="${s}" ${app.status === s ? 'selected' : ''}>${s}</option>`
     ).join('');
 
     const priorityOptions = ['High', 'Medium', 'Low'].map(p =>
@@ -594,9 +639,15 @@ export async function openAppEditor(appId) {
                 <select id="edit-priority" class="input-field">${priorityOptions}</select>
             </div>
         </div>
-        <div class="field-group">
-            <label>Location</label>
-            <input type="text" id="edit-location" class="input-field" placeholder="City / Remote…" value="${esc(app.location || '')}">
+        <div class="modal-grid-2">
+            <div class="field-group">
+                <label>Location</label>
+                <input type="text" id="edit-location" class="input-field" placeholder="City / Remote…" value="${esc(app.location || '')}">
+            </div>
+            <div class="field-group">
+                <label>Platform</label>
+                <input type="text" id="edit-platform" class="input-field" placeholder="LinkedIn, Naukri…" value="${esc(app.platform || '')}">
+            </div>
         </div>
         <div class="field-group">
             <label>Job URL</label>
@@ -613,7 +664,7 @@ export async function openAppEditor(appId) {
             </select>
         </div>
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
-            <button class="btn btn-danger" onclick="window.deleteApp('${app.id}'); window.closeModal();">🗑 Delete</button>
+            <button class="btn btn-danger" onclick="window.deleteApp('${app.id}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">delete</span> Delete</button>
         </div>
     `;
 
@@ -689,6 +740,16 @@ export async function openAppEditor(appId) {
                     <span>Resume Template</span>
                     <span id="config-origin-badge" class="template-origin-badge" style="display:none;font-size:9px"></span>
                 </label>
+                <div class="app-card-footer" style="margin-bottom: 6px; display: flex; gap: 8px;">
+                    ${app.assigned_pdf ? `
+                    <a href="/resumes/${app.assigned_pdf}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Resume
+                    </a>` : ''}
+                    ${app.assigned_cover_letter ? `
+                    <a href="/resumes/${app.assigned_cover_letter}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter
+                    </a>` : ''}
+                </div>
                 <select id="config-template-select" class="input-field" onchange="window.syncResumeSelection('pdf-config', this.value)" style="border-radius:6px">
                     <option value="">— Choose a template —</option>
                     ${pdfFiles.map(f => `
@@ -706,7 +767,17 @@ export async function openAppEditor(appId) {
         </div>
 
         <details class="field-group" style="margin-bottom: 12px;">
-            <summary style="font-size: 11px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none;">📝 Job Description (AI context)</summary>
+            <summary style="font-size: 11px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none;"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit_document</span> Job Description (AI context)</summary>
+            <div class="app-card-footer" style="margin-top: 6px; display: flex; gap: 8px;">
+                ${app.assigned_pdf ? `
+                <a href="/resumes/${app.assigned_pdf}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Resume
+                </a>` : ''}
+                ${app.assigned_cover_letter ? `
+                <a href="/resumes/${app.assigned_cover_letter}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
+                    <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter
+                </a>` : ''}
+            </div>
             <div style="margin-top: 6px;">
                 <textarea id="config-jd" class="input-field textarea" rows="2" placeholder="Paste job description…" style="border-radius:6px; min-height: 60px;">${esc(app.job_description || '')}</textarea>
             </div>
@@ -724,12 +795,12 @@ export async function openAppEditor(appId) {
                                 style="font-size:9px;padding:3px 8px;white-space:nowrap"
                                 onclick="window.copyForAI()"
                                 title="Copy JSON + JD to clipboard for AI">
-                                📋 Copy
+                                Copy
                             </button>
                         </div>
                     </div>
                     <div id="config-json-mode-note" style="display:none;font-size:10px;padding:4px 8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:6px;color:var(--accent)">
-                        ✅ Full content — edit and see live preview
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> Full content — edit and see live preview
                     </div>
                     <div id="config-json-error" style="display:none; color: #dc2626; font-size: 10px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 4px;"></div>
                     <textarea id="config-json" class="input-field textarea config-json-editor" spellcheck="false"
@@ -742,10 +813,14 @@ export async function openAppEditor(appId) {
                 <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
                         <label style="font-weight:600;font-size:12px">Live Preview</label>
+                        <div style="display:flex; gap: 4px; background: var(--bg-elevated); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+                            <button id="preview-type-resume" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px; background: var(--accent); color: white;" onclick="window.setPreviewType('resume')">Resume</button>
+                            <button id="preview-type-cover" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setPreviewType('cover_letter')">Cover Letter</button>
+                        </div>
                     </div>
                     <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
                         <div style="background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:6px 10px;font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
-                            <span id="live-preview-status">📄 PDF Preview</span>
+                            <span id="live-preview-status"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview</span>
                             <div style="display:flex; gap: 12px; align-items: center;">
                                 <a id="live-preview-download" href="#" download style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer">Download ↓</a>
                                 <a id="live-preview-open" href="#" target="_blank" style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer">Open ↗</a>
@@ -758,7 +833,7 @@ export async function openAppEditor(appId) {
 
             <!-- Save Guard Panel -->
             <div id="save-guard-panel" class="save-guard-panel">
-                <div class="save-guard-title">⚠️ System Preset Detected</div>
+                <div class="save-guard-title"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> System Preset Detected</div>
                 <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">
                     Cannot modify system templates. Save your changes as:
                 </div>
@@ -770,9 +845,12 @@ export async function openAppEditor(appId) {
 
             <!-- Action Buttons -->
             <div style="display:flex;gap:6px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)">
-                <button class="btn btn-secondary" onclick="window.validateConfigJson()" style="font-size:11px">✓ Validate</button>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-ghost" onclick="window.loadTemplateConfig()" style="font-size:11px">↻ Reload</button>
+                    <button class="btn btn-secondary" onclick="window.validateConfigJson()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Validate</button>
+                    <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">folder</span> Save to Folder</button>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-ghost" onclick="window.loadTemplateConfig()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">refresh</span> Reload</button>
                     <button class="btn btn-primary" onclick="window.handleConfigSave('${app.id}')" style="font-size:11px">💾 Save</button>
                 </div>
             </div>
@@ -786,6 +864,7 @@ export async function openAppEditor(appId) {
             status: document.getElementById('edit-status').value,
             priority: document.getElementById('edit-priority').value,
             location: document.getElementById('edit-location').value.trim(),
+            platform: document.getElementById('edit-platform').value.trim(),
             job_url: document.getElementById('edit-job-url').value.trim(),
             notes: document.getElementById('edit-notes').value.trim(),
             assigned_pdf: document.getElementById('edit-resume').value,
@@ -800,7 +879,7 @@ export async function openAppEditor(appId) {
         const confirmBtn = document.getElementById('modal-confirm-btn');
         if (confirmBtn) {
             confirmBtn.disabled = true;
-            confirmBtn.textContent = '⏳ Saving & Generating...';
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Saving & Generating...';
         }
 
         try {
@@ -844,10 +923,10 @@ export async function openAppEditor(appId) {
                         if (configSel) configSel.value = result.pdf_name;
                         refreshConfigPdfPreview(result.pdf_name);
                     }
-                    toast(`✅ Saved and PDF generated as: ${pdfName}.pdf`, 'success');
+                    toast(`<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> Saved and PDF generated as: ${pdfName}.pdf`, 'success');
                 } else {
                     const err = await response.json();
-                    toast(`❌ App details saved, but PDF compilation failed: ${err.detail || ''}`, 'error');
+                    toast(`<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span> App details saved, but PDF compilation failed: ${err.detail || ''}`, 'error');
                 }
             } else {
                 toast('Application updated', 'success');
@@ -869,8 +948,8 @@ export async function openAppEditor(appId) {
         return false;
     }, 'Save Changes', {
         tabs: [
-            { icon: '📋', label: 'Details', content: detailsTab },
-            { icon: '📄', label: 'PDF Config', content: pdfConfigTab }
+            { icon: '', label: 'Details', content: detailsTab },
+            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span>', label: 'PDF Config', content: pdfConfigTab }
         ]
     });
     
@@ -930,13 +1009,13 @@ function refreshConfigPdfPreview(filename) {
     
     if (!filename) {
         liveIframe.src = '';
-        if (liveStatus) liveStatus.textContent = '📄 Select a template';
+        if (liveStatus) liveStatus.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Select a template';
         return;
     }
     
     const url = `/pdf/${encodeURIComponent(filename)}`;
     liveIframe.src = url + '#toolbar=0&view=FitH';
-    if (liveStatus) liveStatus.textContent = '📄 PDF Preview';
+    if (liveStatus) liveStatus.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview';
     if (openLink) openLink.href = url;
     if (downloadLink) {
         downloadLink.href = url;
@@ -954,11 +1033,11 @@ function updateOriginBadge(recipeKey) {
     if (recipeKey) {
         badge.style.display = 'inline-flex';
         badge.className = 'template-origin-badge system';
-        badge.textContent = `📦 System: ${recipeKey}`;
+        badge.innerHTML = `<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">inventory_2</span> System: ${recipeKey}`;
     } else {
         badge.style.display = 'inline-flex';
         badge.className = 'template-origin-badge custom';
-        badge.textContent = '✏️ Custom Config';
+        badge.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Custom Config';
     }
 }
 
@@ -976,6 +1055,27 @@ export async function deleteApp(appId) {
 }
 
 // ── PDF Config Helpers ────────────────────────────────────────────────────────
+window._previewType = 'resume';
+
+window.setPreviewType = (type) => {
+    window._previewType = type;
+    const resBtn = document.getElementById('preview-type-resume');
+    const covBtn = document.getElementById('preview-type-cover');
+    if (resBtn && covBtn) {
+        if (type === 'resume') {
+            resBtn.style.background = 'var(--accent)';
+            resBtn.style.color = 'white';
+            covBtn.style.background = 'transparent';
+            covBtn.style.color = 'inherit';
+        } else {
+            covBtn.style.background = 'var(--accent)';
+            covBtn.style.color = 'white';
+            resBtn.style.background = 'transparent';
+            resBtn.style.color = 'inherit';
+        }
+    }
+    window._generateLivePreview();
+};
 
 // Called when JSON textarea changes
 window.onConfigJsonInput = (val) => {
@@ -1004,7 +1104,7 @@ window._previewDebounceTimer = null;
 window._generateLivePreview = () => {
     clearTimeout(window._previewDebounceTimer);
     const statusEl = document.getElementById('live-preview-status');
-    if (statusEl) statusEl.textContent = '⏳ Generating...';
+    if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Generating...';
     
     window._previewDebounceTimer = setTimeout(async () => {
         try {
@@ -1013,10 +1113,10 @@ window._generateLivePreview = () => {
             
             const config = JSON.parse(jsonText);
             const app = window._currentEditingApp;
-            const pdfName = document.getElementById('config-template-select')?.value;
+            const pdfName = document.getElementById('config-pdf-name')?.value?.trim() || 'preview.pdf';
             
-            if (!app || !pdfName) {
-                if (statusEl) statusEl.textContent = '📄 Select a template';
+            if (!app) {
+                if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> No application selected';
                 return;
             }
             
@@ -1027,7 +1127,8 @@ window._generateLivePreview = () => {
                 body: JSON.stringify({
                     app_id: app.id,
                     config: config,
-                    pdf_name: pdfName
+                    pdf_name: pdfName,
+                    type: window._previewType
                 })
             });
             
@@ -1037,7 +1138,7 @@ window._generateLivePreview = () => {
             const blobUrl = URL.createObjectURL(blob);
             const iframe = document.getElementById('live-preview-iframe');
             if (iframe) {
-                iframe.src = blobUrl;
+                iframe.src = blobUrl + '#toolbar=0&view=FitH';
                 const openLink = document.getElementById('live-preview-open');
                 if (openLink) openLink.href = blobUrl;
                 const downloadLink = document.getElementById('live-preview-download');
@@ -1045,13 +1146,18 @@ window._generateLivePreview = () => {
                     downloadLink.href = blobUrl;
                     let pdfName = document.getElementById('config-pdf-name')?.value?.trim();
                     if (pdfName && !pdfName.endsWith('.pdf')) pdfName += '.pdf';
+                    
+                    if (window._previewType === 'cover_letter') {
+                        pdfName = pdfName ? pdfName.replace('.pdf', '_Cover_Letter.pdf') : 'Cover_Letter.pdf';
+                    }
+                    
                     downloadLink.download = pdfName || 'preview.pdf';
                 }
             }
-            if (statusEl) statusEl.textContent = '✅ PDF Preview';
+            if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> PDF Preview';
         } catch (err) {
             console.error('Preview error:', err);
-            if (statusEl) statusEl.textContent = '⚠️ Preview failed';
+            if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Preview failed';
         }
     }, 800); // 800ms debounce
 };
@@ -1159,7 +1265,22 @@ window.copyForAI = async () => {
     const app = window._currentEditingApp;
     const appContext = app ? `Company: ${app.company}\nRole: ${app.role}` : '';
 
-    let prompt = `You are a resume editing assistant. I will give you my current resume content as JSON and a job description. Please tailor the resume content to match the job description — adjust bullet points, rephrase descriptions, reorder skills by relevance, and improve phrasing. Return ONLY valid JSON in the exact same format, with no extra explanation.\n\n`;
+    let prompt = `You are an expert career assistant. I will provide my current resume content as JSON and a job description.
+
+Please tailor the resume content to match the job description (adjust bullet points, rephrase, reorder skills, etc.).
+Important limits for JD customizations:
+- Summary: 2–3 lines only (max 40 words).
+- Skills: 6 categories maximum, 4 keywords per category.
+- Projects: 4 projects maximum, 3-4 bullets each (max 12 words per bullet). No descriptions longer than one line.
+- Certifications: 4 items maximum.
+- Achievements: 2-3 items maximum.
+- Additional Info: Max 2 items (Areas of interest, languages).
+- No extra sections. Keep ATS keywords concentrated in Skills and Projects.
+- Keep education as a single entry.
+
+Return ONLY valid JSON in the exact same format, with no extra explanation or markdown blocks.
+
+`;
 
     if (appContext) prompt += `--- Target Job ---\n${appContext}\n\n`;
     if (jd) prompt += `--- Job Description ---\n${jd}\n\n`;
@@ -1168,7 +1289,7 @@ window.copyForAI = async () => {
 
     try {
         await navigator.clipboard.writeText(prompt);
-        toast('📋 Copied! Paste into ChatGPT / Gemini / Claude, then paste the response back here', 'success', 5000);
+        toast('Copied! Paste into ChatGPT / Gemini / Claude, then paste the response back here', 'success', 5000);
     } catch (e) {
         // Fallback: select all text in textarea
         textarea.select();
@@ -1188,7 +1309,7 @@ window.validateConfigJson = (showToast = true) => {
     try {
         JSON.parse(jsonText);
         if (errorDiv) errorDiv.style.display = 'none';
-        if (showToast) toast('✓ JSON is valid', 'success');
+        if (showToast) toast('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> JSON is valid', 'success');
         return true;
     } catch (e) {
         if (errorDiv) { errorDiv.textContent = `JSON Error: ${e.message}`; errorDiv.style.display = 'block'; }
@@ -1364,6 +1485,35 @@ window.saveConfigTemplate = (appId) => window.handleConfigSave(appId);
 window.onResumeChange = () => {
     const val = document.getElementById('edit-resume')?.value || '';
     window.syncResumeSelection('details', val);
+};
+
+window.exportToLocalFolder = async function() {
+    const pdfNameEl = document.getElementById('config-pdf-name');
+    let pdfName = pdfNameEl ? pdfNameEl.value.trim() : '';
+    if (!pdfName) {
+        toast('PDF name is empty.', 'error');
+        return;
+    }
+    if (pdfName.endsWith('.pdf')) {
+        pdfName = pdfName.slice(0, -4);
+    }
+    
+    toast('Exporting PDF to local folder...', 'info');
+    try {
+        const res = await fetch('/api/export-pdf-local', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdf_name: pdfName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            toast(`Saved to folder!`, 'success');
+        } else {
+            toast(`Export failed: ${data.detail || data.error}`, 'error');
+        }
+    } catch (e) {
+        toast(`Error: ${e.message}`, 'error');
+    }
 };
 
 // ── Search ────────────────────────────────────────────────────────────────────

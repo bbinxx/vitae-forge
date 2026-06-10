@@ -24,6 +24,7 @@ PROFILE_PHOTO    = ASSETS_DIR / "profile-photo.jpg"
 # ── LaTeX Templates ───────────────────────────────────────────────────────────
 TEMPLATE_PLAIN = TEX_DIR / "template.tex"
 TEMPLATE_PHOTO = TEX_DIR / "template_photo.tex"
+TEMPLATE_COVER_LETTER = TEX_DIR / "cover_letter.tex"
 
 # ── Config I/O ────────────────────────────────────────────────────────────────
 

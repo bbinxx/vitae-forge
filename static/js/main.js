@@ -1,10 +1,10 @@
 import { ui, state } from './app.js';
-import './dashboard.js';
-import './editor.js';
-import './library.js';
+import './dashboard.js?v=2';
+import './editor.js?v=2';
+import './library.js?v=2';
 import { loadCheckpoints } from './checkpoints.js';
 import { loadSettings } from './settings.js';
-import { loadTracker, initTracker } from './tracker.js';
+import { loadTracker, initTracker } from './tracker.js?v=3';
 // version_editor.js is retained for future use
 // import { openVersionEditor } from './version_editor.js';
 // window.openVersionEditor = openVersionEditor;
@@ -57,7 +57,7 @@ window.importJSON = function(event) {
     reader.onload = e => {
         try {
             state.data = JSON.parse(e.target.result);
-            alert('✓ Configuration loaded locally (Click Save to Server to persist)');
+            alert('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Configuration loaded locally (Click Save to Server to persist)');
             state.notify();
         } catch(err) {
             alert('Invalid JSON file');

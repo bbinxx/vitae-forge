@@ -104,13 +104,14 @@ async def preview_pdf(request: Request):
         body = await request.json()
         config = body.get("config", {})
         pdf_name = body.get("pdf_name", "preview.pdf")
+        preview_type = body.get("type", "resume")
         
         if not config:
             raise HTTPException(400, "Missing 'config' in request body")
         
         # Import build functions
         from src.core.build import build_variant
-        from src.core.config import TEMPLATE_PHOTO, TEMPLATE_PLAIN, PROFILE_PHOTO
+        from src.core.config import TEMPLATE_PHOTO, TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
         import tempfile
         
         # Load main config to merge personal/library
@@ -148,7 +149,10 @@ async def preview_pdf(request: Request):
             from pathlib import Path
             import subprocess
             
-            template = TEMPLATE_PLAIN
+            if preview_type == "cover_letter":
+                template = TEMPLATE_COVER_LETTER
+            else:
+                template = TEMPLATE_PLAIN
             
             # Generate TeX from config
             from src.core.generate import generate_resume

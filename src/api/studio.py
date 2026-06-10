@@ -126,6 +126,38 @@ async def save_settings_route(request: Request):
     save_settings(data)
     return {"ok": True}
 
+@router.post("/api/export-pdf-local")
+async def export_pdf_local_route(request: Request):
+    data = await request.json()
+    pdf_name = data.get("pdf_name")
+    if not pdf_name:
+        raise HTTPException(400, "Missing pdf_name")
+        
+    from src.core.firebase import get_settings
+    settings = get_settings()
+    export_folder = settings.get("export_folder")
+    
+    if not export_folder:
+        raise HTTPException(400, "No export folder specified in settings.")
+        
+    import shutil
+    import os
+    from src.core.config import DIST_DIR
+    from pathlib import Path
+    
+    source_pdf = DIST_DIR / "pdf" / f"{pdf_name}.pdf"
+    if not source_pdf.exists():
+        raise HTTPException(404, f"PDF {pdf_name}.pdf not found. Generate it first.")
+        
+    target_dir = Path(export_folder)
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / f"{pdf_name}.pdf"
+        shutil.copy2(source_pdf, target_path)
+        return {"ok": True, "path": str(target_path)}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
+
 @router.post("/api/r2-backup")
 def trigger_r2_backup():
     from src.core.upload import get_r2_client, BUCKET

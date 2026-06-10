@@ -178,6 +178,12 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
         photo_to_use = custom_photo_path if (include_photo and custom_photo_path) else (PROFILE_PHOTO if include_photo else None)
         
         success = build_variant(tmp_path, display_name, template, suffix, photo_to_use)
+        
+        from src.core.config import TEMPLATE_COVER_LETTER
+        if full_config.get("cover_letter") and str(full_config.get("cover_letter")).strip():
+            print(f"  Building Cover Letter: {display_name}_Cover_Letter")
+            build_variant(tmp_path, display_name, TEMPLATE_COVER_LETTER, "_Cover_Letter", None)
+            
         return success
     finally:
         Path(tmp_path).unlink(missing_ok=True)

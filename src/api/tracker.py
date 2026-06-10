@@ -90,6 +90,7 @@ def _default_app(app_id: str, body: dict) -> dict:
         "priority":         body.get("priority", "Medium"),
         "job_type":         body.get("job_type", ""),
         "source":           body.get("source", ""),
+        "platform":         body.get("platform", ""),
         "tags":             body.get("tags", []),
         "assigned_resume":      body.get("assigned_resume", ""),
         "assigned_pdf":         body.get("assigned_pdf", ""),
@@ -110,7 +111,7 @@ def _default_app(app_id: str, body: dict) -> dict:
 
 _UPDATABLE_FIELDS = [
     "company", "role", "location", "job_url", "status",
-    "priority", "job_type", "source", "tags",
+    "priority", "job_type", "source", "platform", "tags",
     "assigned_resume", "assigned_pdf", "assigned_version_id", "archived_pdf",
     "resume_template",
     "notes", "job_description", "deadline",
@@ -635,12 +636,22 @@ async def compile_pdf(app_id: str, request: Request):
         
         # Update app with assigned PDF
         app["assigned_pdf"] = f"{pdf_name}.pdf"
+        
+        # Check if cover letter was generated
+        cover_letter_name = f"{pdf_name}_Cover_Letter.pdf"
+        cover_letter_path = DIST_DIR / cover_letter_name
+        if cover_letter_path.exists():
+            app["assigned_cover_letter"] = cover_letter_name
+        else:
+            app.pop("assigned_cover_letter", None)
+            
         app["updated_at"] = datetime.now().isoformat()
         save_application(app)
         
         return {
             "ok": True,
             "pdf_name": f"{pdf_name}.pdf",
+            "cover_letter": app.get("assigned_cover_letter"),
             "message": f"PDF compiled successfully"
         }
         
