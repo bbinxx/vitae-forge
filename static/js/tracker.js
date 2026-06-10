@@ -111,6 +111,12 @@ const STATUS_CONFIG = {
     'Withdrawn':  { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">undo</span>' },
 };
 
+const PLATFORMS = [
+    'Mail', 'Naukri', 'Unstop', 'Hirist', 'Cutshort', 
+    'LinkedIn', 'Internshala', 'Wellfound', 'Indeed', 
+    'Career Page', 'Referral', 'Other'
+];
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 export function toast(msg, type = 'success', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -459,6 +465,10 @@ export function openNewAppModal() {
         `<option value="${esc(f.name)}">${esc(f.name)}</option>`
     ).join('');
 
+    const platformOpts = `<option value="">— Select Platform —</option>` + PLATFORMS.map(p => 
+        `<option value="${p}">${p}</option>`
+    ).join('');
+
     // Build preset chips from system recipes
     const recipes = state.data?.recipes || {};
     const presetChips = Object.entries(recipes).map(([key, recipe]) => `
@@ -504,7 +514,7 @@ export function openNewAppModal() {
         <div class="modal-grid-2">
             <div class="field-group">
                 <label>Platform (e.g. Mail, Naukri, Instahyre…)</label>
-                <input type="text" id="new-platform" class="input-field" placeholder="LinkedIn, Cutshort…">
+                <select id="new-platform" class="input-field">${platformOpts}</select>
             </div>
             <div class="field-group">
                 <label>Assign Resume (optional)</label>
@@ -605,6 +615,12 @@ export async function openAppEditor(appId) {
         `<option value="${p}" ${(app.priority || 'Medium') === p ? 'selected' : ''}>${p}</option>`
     ).join('');
 
+    const currentPlatform = app.platform || '';
+    const allPlatforms = PLATFORMS.includes(currentPlatform) ? PLATFORMS : (currentPlatform ? [...PLATFORMS, currentPlatform] : PLATFORMS);
+    const platformOptions = `<option value="">— Select Platform —</option>` + allPlatforms.map(p =>
+        `<option value="${p}" ${p === currentPlatform ? 'selected' : ''}>${p}</option>`
+    ).join('');
+
     const pdfFiles = (distFiles || []).filter(f =>
         f.name && f.name.endsWith('.pdf') && !f.name.includes('LIVE_PREVIEW_TEMP')
     );
@@ -646,7 +662,7 @@ export async function openAppEditor(appId) {
             </div>
             <div class="field-group">
                 <label>Platform</label>
-                <input type="text" id="edit-platform" class="input-field" placeholder="LinkedIn, Naukri…" value="${esc(app.platform || '')}">
+                <select id="edit-platform" class="input-field">${platformOptions}</select>
             </div>
         </div>
         <div class="field-group">
@@ -669,7 +685,9 @@ export async function openAppEditor(appId) {
     `;
 
     // ── TAB 2: PDF Config/Template Editor ──────────────────────────────────────
-    const defaultPdfName = app.assigned_pdf || `${app.role.replace(/\s+/g, '_')}_${app.company.replace(/\s+/g, '_')}`.toLowerCase() + '.pdf';
+    const prefix = state.settings?.file_name_prefix !== undefined ? state.settings.file_name_prefix : 'YOUR_NAME-';
+    const slug = `${app.role.replace(/\s+/g, '_')}`.toLowerCase();
+    const defaultPdfName = app.assigned_pdf || `${prefix}${slug}.pdf`;
     const pdfConfigTab = `
         <style>
             .config-pdf-preview-wrap {

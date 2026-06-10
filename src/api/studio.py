@@ -126,6 +126,24 @@ async def save_settings_route(request: Request):
     save_settings(data)
     return {"ok": True}
 
+@router.get("/api/settings/pick-folder")
+def pick_folder_route():
+    import subprocess
+    try:
+        # Use zenity to open a directory selection dialog on the host (since run.sh is native Linux)
+        result = subprocess.run(
+            ["zenity", "--file-selection", "--directory", "--title=Select Export Folder"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            folder_path = result.stdout.strip()
+            return {"folder": folder_path}
+        else:
+            return {"folder": None}
+    except Exception as e:
+        print(f"Failed to open folder picker: {e}")
+        return {"folder": None}
+
 @router.post("/api/export-pdf-local")
 async def export_pdf_local_route(request: Request):
     data = await request.json()
