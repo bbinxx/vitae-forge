@@ -21,8 +21,16 @@ export async function loadSettings() {
             </div>
             <div class="field-group mb-4">
                 <label>Local Export Folder Path</label>
-                <input type="text" id="setting-export-folder" class="input-field" value="${settings.export_folder || ''}" placeholder="/path/to/local/folder">
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="setting-export-folder" class="input-field" value="${settings.export_folder || ''}" placeholder="/path/to/local/folder" style="flex: 1;">
+                    <button class="btn btn-secondary" onclick="window.pickExportFolder()" style="white-space: nowrap;">Browse...</button>
+                </div>
                 <p class="hint-text mt-1">Directory to save exported PDFs when clicking 'Save to Folder'.</p>
+            </div>
+            <div class="field-group mb-4">
+                <label>File Name Prefix</label>
+                <input type="text" id="setting-file-prefix" class="input-field" value="${settings.file_name_prefix || 'BIBIN_RAJU-'}" placeholder="e.g. BIBIN_RAJU-">
+                <p class="hint-text mt-1">Prefix added to automatically generated PDF and cover letter filenames.</p>
             </div>
             <button class="btn btn-success mt-4" onclick="saveSettings()">Save Settings</button>
             
@@ -40,12 +48,13 @@ window.saveSettings = async function() {
     const always_cloud_mode = document.getElementById('setting-cloud-mode').checked;
     const backup_frequency_hours = parseInt(document.getElementById('setting-backup-freq').value, 10);
     const export_folder = document.getElementById('setting-export-folder').value;
+    const file_name_prefix = document.getElementById('setting-file-prefix').value;
     
     try {
         const res = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ always_cloud_mode, backup_frequency_hours, export_folder })
+            body: JSON.stringify({ always_cloud_mode, backup_frequency_hours, export_folder, file_name_prefix })
         });
         if (res.ok) {
             alert('Settings saved to Firebase successfully!');
@@ -69,5 +78,17 @@ window.triggerManualR2Backup = async function() {
         }
     } catch (e) {
         alert('Error communicating with server for backup.');
+    }
+};
+
+window.pickExportFolder = async function() {
+    try {
+        const res = await fetch('/api/settings/pick-folder');
+        const data = await res.json();
+        if (data.folder) {
+            document.getElementById('setting-export-folder').value = data.folder;
+        }
+    } catch(e) {
+        console.error("Error picking folder", e);
     }
 };

@@ -68,14 +68,16 @@ def _sanitize_filename(value: str, fallback: str = "app") -> str:
 
 
 def _build_display_name(app: dict) -> str:
+    from src.core.firebase import get_settings
+    settings = get_settings()
+    prefix = settings.get('file_name_prefix', 'BIBIN_RAJU-') if isinstance(settings, dict) else 'BIBIN_RAJU-'
     if not app:
-        return 'app'
-    company = app.get('company', '')
+        return f"{prefix}app"
     role = app.get('role', '')
-    if company or role:
-        name = f"{company}_{role}".strip('_')
-        return _sanitize_filename(name, fallback='app')
-    return _sanitize_filename(app.get('id', ''), fallback='app')
+    if role:
+        name = role.strip('_')
+        return f"{prefix}{_sanitize_filename(name, fallback='app')}"
+    return f"{prefix}{_sanitize_filename(app.get('id', ''), fallback='app')}"
 
 
 def _default_app(app_id: str, body: dict) -> dict:
@@ -583,7 +585,12 @@ async def compile_pdf(app_id: str, request: Request):
     try:
         body = await request.json()
         config = body.get("config", {})
-        pdf_name = body.get("pdf_name", f"{app['role']}_{app['company']}").lower().replace(" ", "_")
+        from src.core.firebase import get_settings
+        settings = get_settings()
+        prefix = settings.get('file_name_prefix', 'BIBIN_RAJU-') if isinstance(settings, dict) else 'BIBIN_RAJU-'
+        
+        fallback_name = f"{prefix}{app['role']}".replace(" ", "_")
+        pdf_name = body.get("pdf_name", fallback_name)
         if pdf_name.endswith(".pdf"):
             pdf_name = pdf_name[:-4]
         

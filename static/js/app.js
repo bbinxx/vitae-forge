@@ -12,6 +12,12 @@ export const state = {
     async loadConfig() {
         try {
             this.data = await api.fetchConfig();
+            try {
+                const res = await fetch('/api/settings');
+                this.settings = await res.json();
+            } catch(se) {
+                this.settings = {};
+            }
             this.notify();
         } catch(e) { console.error('Server offline', e); }
     },
