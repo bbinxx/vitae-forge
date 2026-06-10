@@ -117,6 +117,18 @@ const PLATFORMS = [
     'Career Page', 'Referral', 'Other'
 ];
 
+const formatAppJsonWithComments = (payload) => {
+    let jsonStr = JSON.stringify(payload, null, 2);
+    jsonStr = jsonStr.replace(/"status":\s*"(.*?)"(,?)/, '"status": "$1"$2 // Options: ' + Object.keys(STATUS_CONFIG).join(', '));
+    jsonStr = jsonStr.replace(/"priority":\s*"(.*?)"(,?)/, '"priority": "$1"$2 // Options: High, Medium, Low');
+    jsonStr = jsonStr.replace(/"platform":\s*"(.*?)"(,?)/, '"platform": "$1"$2 // Options: ' + PLATFORMS.join(', '));
+    return jsonStr;
+};
+
+const parseCleanJson = (jsonStr) => {
+    return JSON.parse(jsonStr.replace(/\/\/.*$/gm, '').trim());
+};
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 export function toast(msg, type = 'success', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -423,6 +435,7 @@ export function showModal(title, bodyHtml, onConfirm, confirmLabel = 'Confirm', 
     };
     
     window._currentModalOnConfirm = onConfirm;
+    window._currentModalOnTabChange = options.onTabChange || null;
 }
 
 // ── Tab Switching ──────────────────────────────────────────────────────────────
@@ -430,12 +443,18 @@ window.switchModalTab = (index) => {
     const tabs = document.querySelectorAll('.modal-tab');
     const panes = document.querySelectorAll('.modal-tab-pane');
     
+    let oldIndex = 0;
     tabs.forEach((tab, i) => {
+        if (tab.classList.contains('active')) oldIndex = i;
         tab.classList.toggle('active', i === index);
     });
     panes.forEach((pane, i) => {
         pane.classList.toggle('active', i === index);
     });
+    
+    if (window._currentModalOnTabChange) {
+        window._currentModalOnTabChange(index, oldIndex);
+    }
     
     // When switching to PDF Config tab (index 1), refresh preview if a PDF is selected
     if (index === 1) {
@@ -478,7 +497,7 @@ export function openNewAppModal() {
         </div>
     `).join('');
 
-    showModal('New Application', `
+    const formHtml = `
         <div class="modal-grid-2">
             <div class="field-group">
                 <label>Company *</label>
@@ -538,22 +557,87 @@ export function openNewAppModal() {
             <div id="new-app-preset-indicator" style="display:none;margin-top:6px;font-size:11px;color:var(--accent)"></div>
         </div>
         ` : ''}
-    `, async () => {
-        const company = document.getElementById('new-company').value.trim();
-        const role    = document.getElementById('new-role').value.trim();
-        if (!company || !role) { toast('Company and Role are required', 'error'); return false; }
+    `;
+
+    const jsonHtml = `
+        <div class="field-group" style="height: 100%;">
+            <textarea id="new-app-json-editor" class="input-field textarea" style="font-family:monospace;height:400px;font-size:12px;white-space:pre;" placeholder="Paste JSON here..."></textarea>
+        </div>
+    `;
+
+    const onTabChange = (newIndex, oldIndex) => {
+        if (oldIndex === 0 && newIndex === 1) {
+            const payload = {
+                company: document.getElementById('new-company').value.trim(),
+                role:    document.getElementById('new-role').value.trim(),
+                location:     document.getElementById('new-location').value.trim(),
+                status:       document.getElementById('new-status').value,
+                priority:     document.getElementById('new-priority').value,
+                platform:     document.getElementById('new-platform').value.trim(),
+                job_url:      document.getElementById('new-job-url').value.trim(),
+                assigned_pdf: document.getElementById('new-resume').value,
+                notes:        document.getElementById('new-notes').value.trim(),
+                job_description: "",
+            };
+            document.getElementById('new-app-json-editor').value = formatAppJsonWithComments(payload);
+        } else if (oldIndex === 1 && newIndex === 0) {
+            try {
+                const payload = parseCleanJson(document.getElementById('new-app-json-editor').value);
+                if (payload.company) document.getElementById('new-company').value = payload.company;
+                if (payload.role) document.getElementById('new-role').value = payload.role;
+                if (payload.location !== undefined) document.getElementById('new-location').value = payload.location;
+                if (payload.status) document.getElementById('new-status').value = payload.status;
+                if (payload.priority) document.getElementById('new-priority').value = payload.priority;
+                
+                if (payload.platform) {
+                    const platEl = document.getElementById('new-platform');
+                    let exists = Array.from(platEl.options).some(o => o.value === payload.platform);
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = payload.platform;
+                        opt.textContent = payload.platform;
+                        platEl.appendChild(opt);
+                    }
+                    platEl.value = payload.platform;
+                }
+                
+                if (payload.job_url !== undefined) document.getElementById('new-job-url').value = payload.job_url;
+                if (payload.assigned_pdf !== undefined) document.getElementById('new-resume').value = payload.assigned_pdf;
+                if (payload.notes !== undefined) document.getElementById('new-notes').value = payload.notes;
+            } catch(e) {
+                console.warn('Invalid JSON in editor, could not sync to form.');
+            }
+        }
+    };
+
+    showModal('New Application', '', async () => {
+        let payload = {};
+        const tabs = document.querySelectorAll('.modal-tab');
+        let activeTabIndex = 0;
+        tabs.forEach((tab, i) => { if (tab.classList.contains('active')) activeTabIndex = i; });
         
-        // Build payload — include preset template if one was selected
-        const payload = {
-            company, role,
-            location:     document.getElementById('new-location').value.trim(),
-            status:       document.getElementById('new-status').value,
-            priority:     document.getElementById('new-priority').value,
-            platform:     document.getElementById('new-platform').value.trim(),
-            job_url:      document.getElementById('new-job-url').value.trim(),
-            assigned_pdf: document.getElementById('new-resume').value,
-            notes:        document.getElementById('new-notes').value.trim(),
-        };
+        if (activeTabIndex === 1) {
+            try {
+                payload = parseCleanJson(document.getElementById('new-app-json-editor').value);
+            } catch (e) {
+                toast('Invalid JSON format', 'error');
+                return false;
+            }
+        } else {
+            payload = {
+                company:      document.getElementById('new-company').value.trim(),
+                role:         document.getElementById('new-role').value.trim(),
+                location:     document.getElementById('new-location').value.trim(),
+                status:       document.getElementById('new-status').value,
+                priority:     document.getElementById('new-priority').value,
+                platform:     document.getElementById('new-platform').value.trim(),
+                job_url:      document.getElementById('new-job-url').value.trim(),
+                assigned_pdf: document.getElementById('new-resume').value,
+                notes:        document.getElementById('new-notes').value.trim(),
+            };
+        }
+
+        if (!payload.company || !payload.role) { toast('Company and Role are required', 'error'); return false; }
         
         if (window._selectedNewAppPreset) {
             const recipe = state.data?.recipes?.[window._selectedNewAppPreset];
@@ -563,11 +647,17 @@ export function openNewAppModal() {
         }
         
         const newApp = await trackerApi.create(payload);
-        toast(`Created: ${company} — ${role}`, 'success');
+        toast(`Created: ${payload.company} — ${payload.role}`, 'success');
         window._selectedNewAppPreset = null;
         await loadTracker();
         return true;
-    }, 'Create Application');
+    }, 'Create Application', {
+        tabs: [
+            { icon: '', label: 'Form', content: formHtml },
+            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">data_object</span>', label: 'JSON', content: jsonHtml }
+        ],
+        onTabChange
+    });
     
     // Reset preset selection each time modal opens
     window._selectedNewAppPreset = null;
@@ -784,8 +874,8 @@ export async function openAppEditor(appId) {
             </div>
         </div>
 
-        <details class="field-group" style="margin-bottom: 12px;">
-            <summary style="font-size: 11px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none;"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit_document</span> Job Description (AI context)</summary>
+        <details class="field-group" style="margin-bottom: 16px;" open>
+            <summary style="font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none; padding: 4px 0;"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit_document</span> Job Description (AI context)</summary>
             <div class="app-card-footer" style="margin-top: 6px; display: flex; gap: 8px;">
                 ${app.assigned_pdf ? `
                 <a href="/resumes/${app.assigned_pdf}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
@@ -796,14 +886,14 @@ export async function openAppEditor(appId) {
                     <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter
                 </a>` : ''}
             </div>
-            <div style="margin-top: 6px;">
-                <textarea id="config-jd" class="input-field textarea" rows="2" placeholder="Paste job description…" style="border-radius:6px; min-height: 60px;">${esc(app.job_description || '')}</textarea>
+            <div style="margin-top: 8px;">
+                <textarea id="config-jd" class="input-field textarea" rows="4" placeholder="Paste full job description here…" style="border-radius:6px; min-height: 120px; font-size: 12px; padding: 10px;">${esc(app.job_description || '')}</textarea>
             </div>
         </details>
 
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
             <!-- JSON Editor & Preview Layout -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;height:calc(90vh - 180px);min-height:400px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(90vh - 280px);min-height:450px">
                 <!-- Left: JSON Editor -->
                 <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
@@ -874,20 +964,92 @@ export async function openAppEditor(appId) {
             </div>
         </div>
     `;
+    const jsonTab = `
+        <div class="field-group" style="height: 100%;">
+            <textarea id="edit-app-json-editor" class="input-field textarea" style="font-family:monospace;height:400px;font-size:12px;white-space:pre;" placeholder="Paste JSON here..."></textarea>
+        </div>
+    `;
+
+    const onEditTabChange = (newIndex, oldIndex) => {
+        if (newIndex === 2 && oldIndex !== 2) {
+            const payload = {
+                company: document.getElementById('edit-company').value.trim(),
+                role: document.getElementById('edit-role').value.trim(),
+                status: document.getElementById('edit-status').value,
+                priority: document.getElementById('edit-priority').value,
+                location: document.getElementById('edit-location').value.trim(),
+                platform: document.getElementById('edit-platform').value.trim(),
+                job_url: document.getElementById('edit-job-url').value.trim(),
+                notes: document.getElementById('edit-notes').value.trim(),
+                assigned_pdf: document.getElementById('edit-resume').value,
+                job_description: document.getElementById('config-jd')?.value?.trim() || '',
+            };
+            document.getElementById('edit-app-json-editor').value = formatAppJsonWithComments(payload);
+        } else if (oldIndex === 2 && newIndex !== 2) {
+            try {
+                const payload = parseCleanJson(document.getElementById('edit-app-json-editor').value);
+                if (payload.company) document.getElementById('edit-company').value = payload.company;
+                if (payload.role) document.getElementById('edit-role').value = payload.role;
+                if (payload.location !== undefined) document.getElementById('edit-location').value = payload.location;
+                if (payload.status) document.getElementById('edit-status').value = payload.status;
+                if (payload.priority) document.getElementById('edit-priority').value = payload.priority;
+                
+                if (payload.platform) {
+                    const platEl = document.getElementById('edit-platform');
+                    let exists = Array.from(platEl.options).some(o => o.value === payload.platform);
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = payload.platform;
+                        opt.textContent = payload.platform;
+                        platEl.appendChild(opt);
+                    }
+                    platEl.value = payload.platform;
+                }
+                
+                if (payload.job_url !== undefined) document.getElementById('edit-job-url').value = payload.job_url;
+                if (payload.assigned_pdf !== undefined) document.getElementById('edit-resume').value = payload.assigned_pdf;
+                if (payload.notes !== undefined) document.getElementById('edit-notes').value = payload.notes;
+                if (payload.job_description !== undefined) {
+                    const jdEl = document.getElementById('config-jd');
+                    if (jdEl) jdEl.value = payload.job_description;
+                }
+            } catch(e) {
+                console.warn('Invalid JSON in editor, could not sync to form.');
+            }
+        }
+    };
 
     showModal(`${app.company} · ${app.role}`, '', async () => {
-        const updates = {
-            company: document.getElementById('edit-company').value.trim(),
-            role: document.getElementById('edit-role').value.trim(),
-            status: document.getElementById('edit-status').value,
-            priority: document.getElementById('edit-priority').value,
-            location: document.getElementById('edit-location').value.trim(),
-            platform: document.getElementById('edit-platform').value.trim(),
-            job_url: document.getElementById('edit-job-url').value.trim(),
-            notes: document.getElementById('edit-notes').value.trim(),
-            assigned_pdf: document.getElementById('edit-resume').value,
-            job_description: document.getElementById('config-jd')?.value?.trim() || '',
-        };
+        let updates = {};
+        const tabs = document.querySelectorAll('.modal-tab');
+        let activeTabIndex = 0;
+        tabs.forEach((tab, i) => { if (tab.classList.contains('active')) activeTabIndex = i; });
+        
+        if (activeTabIndex === 2) {
+            try {
+                updates = parseCleanJson(document.getElementById('edit-app-json-editor').value);
+                if (updates.job_description !== undefined) {
+                    const jdEl = document.getElementById('config-jd');
+                    if (jdEl) jdEl.value = updates.job_description;
+                }
+            } catch (e) {
+                toast('Invalid JSON format', 'error');
+                return false;
+            }
+        } else {
+            updates = {
+                company: document.getElementById('edit-company').value.trim(),
+                role: document.getElementById('edit-role').value.trim(),
+                status: document.getElementById('edit-status').value,
+                priority: document.getElementById('edit-priority').value,
+                location: document.getElementById('edit-location').value.trim(),
+                platform: document.getElementById('edit-platform').value.trim(),
+                job_url: document.getElementById('edit-job-url').value.trim(),
+                notes: document.getElementById('edit-notes').value.trim(),
+                assigned_pdf: document.getElementById('edit-resume').value,
+                job_description: document.getElementById('config-jd')?.value?.trim() || '',
+            };
+        }
         
         if (!updates.company || !updates.role) {
             toast('Company and Role are required', 'error');
@@ -967,8 +1129,10 @@ export async function openAppEditor(appId) {
     }, 'Save Changes', {
         tabs: [
             { icon: '', label: 'Details', content: detailsTab },
-            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span>', label: 'PDF Config', content: pdfConfigTab }
-        ]
+            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span>', label: 'PDF Config', content: pdfConfigTab },
+            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">data_object</span>', label: 'JSON', content: jsonTab }
+        ],
+        onTabChange: onEditTabChange
     });
     
     // Store app reference for config operations
