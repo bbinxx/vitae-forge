@@ -101,11 +101,35 @@ def generate_resume(
     # ── Simple replacements ───────────────────────────────────────────────────
     tmpl = tmpl.replace("<<NAME>>",       escape_latex(config.get("name", "")))
     tmpl = tmpl.replace("<<ROLE_TITLE>>", escape_latex(config.get("role_title", "")))
+    tmpl = tmpl.replace("<<COMPANY_NAME>>", escape_latex(config.get("company", config.get("company_name", ""))))
+    
+    import datetime
+    tmpl = tmpl.replace("<<DATE>>",       datetime.datetime.now().strftime("%B %d, %Y"))
+    
     tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(config.get("email", "")))
     tmpl = tmpl.replace("<<PHONE>>",      escape_latex(config.get("phone", "")))
     tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(config.get("linkedin", "")))
     tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(config.get("github", "")))
     tmpl = tmpl.replace("<<SUMMARY>>",    escape_latex(config.get("professional_summary", "")))
+    
+    projects = config.get("projects", [])
+    proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 else "Academic Projects"
+    proj2 = escape_latex(projects[1].get("name", "")) if len(projects) > 1 else "Personal Projects"
+    tmpl = tmpl.replace("<<PROJECT_1>>", proj1)
+    tmpl = tmpl.replace("<<PROJECT_2>>", proj2)
+    
+    skills = config.get("skills", [])
+    skill_words = []
+    for s in skills:
+        if s.get("keywords"):
+            skill_words.extend([k.strip() for k in s.get("keywords").split(',')])
+    relevant_skills = escape_latex(", ".join(skill_words[:5]) if skill_words else "various modern tools")
+    tmpl = tmpl.replace("<<RELEVANT_SKILLS>>", relevant_skills)
+    
+    cover_letter = escape_latex(config.get("cover_letter", ""))
+    # Convert newlines to LaTeX paragraph breaks
+    cover_letter = cover_letter.replace('\n', '\n\n')
+    tmpl = tmpl.replace("<<COVER_LETTER>>", cover_letter)
     edu = config.get("education", "")
     if isinstance(edu, dict):
         inst = escape_latex(edu.get("institution", ""))

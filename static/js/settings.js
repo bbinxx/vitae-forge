@@ -19,6 +19,11 @@ export async function loadSettings() {
                 <input type="number" id="setting-backup-freq" class="input-field" value="${settings.backup_frequency_hours || 24}" min="1" max="720">
                 <p class="hint-text mt-1">Zips and uploads your configs and templates to R2 automatically.</p>
             </div>
+            <div class="field-group mb-4">
+                <label>Local Export Folder Path</label>
+                <input type="text" id="setting-export-folder" class="input-field" value="${settings.export_folder || ''}" placeholder="/path/to/local/folder">
+                <p class="hint-text mt-1">Directory to save exported PDFs when clicking 'Save to Folder'.</p>
+            </div>
             <button class="btn btn-success mt-4" onclick="saveSettings()">Save Settings</button>
             
             <hr style="border:none;border-top:1px solid var(--border);margin:30px 0;">
@@ -34,12 +39,13 @@ export async function loadSettings() {
 window.saveSettings = async function() {
     const always_cloud_mode = document.getElementById('setting-cloud-mode').checked;
     const backup_frequency_hours = parseInt(document.getElementById('setting-backup-freq').value, 10);
+    const export_folder = document.getElementById('setting-export-folder').value;
     
     try {
         const res = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ always_cloud_mode, backup_frequency_hours })
+            body: JSON.stringify({ always_cloud_mode, backup_frequency_hours, export_folder })
         });
         if (res.ok) {
             alert('Settings saved to Firebase successfully!');

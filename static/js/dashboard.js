@@ -46,7 +46,7 @@ export async function refreshSync() {
             html += cloudFiles.map(f => {
                 return `
                 <div class="file-item" onclick="window.dashPreview('${f.path}')">
-                    <span class="sync-tag" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)">☁ cloud</span>
+                    <span class="sync-tag" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">cloud</span> cloud</span>
                     <span class="file-name" title="${f.name}">${f.name.length > 28 ? f.name.substring(0,25)+'...' : f.name}</span>
                 </div>`;
             }).join('');
