@@ -17,7 +17,6 @@ STATIC_DIR  = ROOT / "static"
 
 # ── Well-known Files ──────────────────────────────────────────────────────────
 RESUME_CONFIG    = CONFIGS_DIR / "resume_config.json"
-APPLICATIONS_DB  = CONFIGS_DIR / "applications.json"
 ENV_FILE         = ROOT / ".env"
 PROFILE_PHOTO    = ASSETS_DIR / "profile-photo.jpg"
 
@@ -35,16 +34,6 @@ def load_resume_config() -> dict:
 def save_resume_config(data: dict) -> None:
     """Persist the resume config JSON."""
     RESUME_CONFIG.write_text(json.dumps(data, indent=2))
-
-def load_applications() -> dict:
-    """Load the applications tracker JSON, creating it if missing."""
-    if not APPLICATIONS_DB.exists():
-        APPLICATIONS_DB.write_text(json.dumps({"applications": []}, indent=2))
-    return json.loads(APPLICATIONS_DB.read_text())
-
-def save_applications(data: dict) -> None:
-    """Persist the applications tracker JSON."""
-    APPLICATIONS_DB.write_text(json.dumps(data, indent=2))
 
 def get_recipes() -> list[str]:
     """Return list of recipe/role IDs from the resume config."""

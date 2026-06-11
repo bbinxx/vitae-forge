@@ -15,9 +15,9 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       "Extract and summarize the exact Job Description.",
       "Identify Company, Role, Location, Experience Required, Employment Type, Required Skills, Preferred Skills, ATS Keywords, Contact Email, Closing Date, and Platform.",
       "Recommend the most suitable resume PDF variant.",
-      "Generate the filled application JSON.",
+      "Generate the filled application JSON (including email.to from the extracted Contact Email).",
       "Generate the tailored resume customization JSON.",
-      "Generate the ready-to-send email.",
+      "Generate the ready-to-send email (to, subject, body).",
       "Generate the tailored cover letter.",
       "Validate that the final resume fits exactly one page.",
       "Automatically revise until all validation checks pass."
@@ -236,6 +236,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
     },
     "email_rules": {
       "required": true,
+      "to_rule": "Extract the contact/recruitment email from the JD (e.g. careers@company.com, hr@company.com). If found, use it as the recipient. If not found, leave blank.",
       "subject_format": "Application for [Role] \u2013 YOUR NAME",
       "greeting_rule": "Use 'Dear Hiring Team' by default. Use 'Dear Mr./Ms. [Surname]' only if the surname is explicitly provided in the JD.",
       "body_structure": [
@@ -252,6 +253,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
         "linkedin": "linkedin.com/in/your-linkedin"
       },
       "required_fields": [
+        "to",
         "subject",
         "body",
         "signature"
@@ -291,7 +293,8 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       "additional_info_items": 2,
       "areas_of_interest_keywords": 4,
       "cover_letter_generated": true,
-      "email_generated": true,
+      "email_to_filled": true,
+      "email_subject_body_generated": true,
       "auto_revise_until_valid": true,
       "max_revision_cycles": 5
     },
@@ -309,7 +312,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       "Projects contain 15\u201317 bullets total.",
       "Each bullet is at most 12 words.",
       "Certifications contain 4\u20135 items.",
-      "Email subject and body are generated.",
+      "Email to, subject, and body are generated.",
       "Cover letter is generated.",
       "ATS keyword coverage is at least 80%.",
       "Resume estimated utilization is between 96\u201399%.",
@@ -323,6 +326,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
     },
     "variant_resolution_rule": "Choose the most specialized variant. If multiple qualify equally, use YOUR_NAME_SD.pdf.",
     "ultimate_directive": "Generate the strongest ATS-optimized application package possible. Preserve schema integrity and ATS compliance first. Then optimize visual balance using renderer-estimated page utilization until the resume occupies 96\u201399% of one page with minimal whitespace, no overcrowding, and consistent section density. If constraints conflict, preserve schema and ATS relevance first, then adjust content dynamically until all validations pass.",
+    "output_format_rule": "Return ONLY the fully filled application JSON. No explanations, no markdown formatting, no code blocks, no introductory or closing text. Just the raw JSON object.",
     "required_keyword_coverage_percent": 80
   },
   "application_schema": {
@@ -430,6 +434,8 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       "cover_letter": ""
     },
     "email": {
+      "to": "",
+      "cc": "",
       "subject": "",
       "body": ""
     }

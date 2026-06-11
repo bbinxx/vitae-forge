@@ -1144,6 +1144,63 @@ select.input-field { cursor: pointer; }
   color: var(--text-secondary);
 }
 
+/* ── Stats Bar ──────────────────────────────────────────────────────────── */
+.apps-stats {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.apps-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 100px;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.apps-stat-card:hover { border-color: var(--accent); }
+.apps-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.apps-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+/* ── Card enhancements ──────────────────────────────────────────────────── */
+.app-card-priority-bar {
+  height: 3px;
+  flex-shrink: 0;
+}
+.app-card-priority-bar.high   { background: #ef4444; }
+.app-card-priority-bar.medium { background: #f59e0b; }
+.app-card-priority-bar.low    { background: #34d399; }
+
+.app-card-deadline {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.app-card-deadline.normal  { color: var(--text-muted); background: var(--bg-elevated); }
+.app-card-deadline.soon    { color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); }
+.app-card-deadline.urgent  { color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); }
+
 /* Old sidebar for compatibility */
 .apps-sidebar {
   width: 280px;

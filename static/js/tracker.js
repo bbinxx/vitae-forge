@@ -147,9 +147,9 @@ const MASTER_INSTRUCTION = {
             "Extract and summarize the exact Job Description.",
             "Identify Company, Role, Location, Experience Required, Employment Type, Required Skills, Preferred Skills, ATS Keywords, Contact Email, Closing Date, and Platform.",
             "Recommend the most suitable resume PDF variant.",
-            "Generate the filled application JSON.",
+            "Generate the filled application JSON (including email.to from the extracted Contact Email).",
             "Generate the tailored resume customization JSON.",
-            "Generate the ready-to-send email.",
+            "Generate the ready-to-send email (to, subject, body).",
             "Generate the tailored cover letter.",
             "Validate that the final resume fits exactly one page.",
             "Automatically revise until all validation checks pass."
@@ -368,6 +368,7 @@ const MASTER_INSTRUCTION = {
         },
         "email_rules": {
             "required": true,
+            "to_rule": "Extract the contact/recruitment email from the JD (e.g. careers@company.com, hr@company.com). If found, use it as the recipient. If not found, leave blank.",
             "subject_format": "Application for [Role] \u2013 YOUR NAME",
             "greeting_rule": "Use 'Dear Hiring Team' by default. Use 'Dear Mr./Ms. [Surname]' only if the surname is explicitly provided in the JD.",
             "body_structure": [
@@ -384,6 +385,7 @@ const MASTER_INSTRUCTION = {
                 "linkedin": "linkedin.com/in/your-linkedin"
             },
             "required_fields": [
+                "to",
                 "subject",
                 "body",
                 "signature"
@@ -423,7 +425,8 @@ const MASTER_INSTRUCTION = {
             "additional_info_items": 2,
             "areas_of_interest_keywords": 4,
             "cover_letter_generated": true,
-            "email_generated": true,
+            "email_to_filled": true,
+            "email_subject_body_generated": true,
             "auto_revise_until_valid": true,
             "max_revision_cycles": 5
         },
@@ -441,7 +444,7 @@ const MASTER_INSTRUCTION = {
             "Projects contain 15\u201317 bullets total.",
             "Each bullet is at most 12 words.",
             "Certifications contain 4\u20135 items.",
-            "Email subject and body are generated.",
+            "Email to, subject, and body are generated.",
             "Cover letter is generated.",
             "ATS keyword coverage is at least 80%.",
             "Resume estimated utilization is between 96\u201399%.",
@@ -455,6 +458,7 @@ const MASTER_INSTRUCTION = {
         },
         "variant_resolution_rule": "Choose the most specialized variant. If multiple qualify equally, use YOUR_NAME_SD.pdf.",
         "ultimate_directive": "Generate the strongest ATS-optimized application package possible. Preserve schema integrity and ATS compliance first. Then optimize visual balance using renderer-estimated page utilization until the resume occupies 96\u201399% of one page with minimal whitespace, no overcrowding, and consistent section density. If constraints conflict, preserve schema and ATS relevance first, then adjust content dynamically until all validations pass.",
+        "output_format_rule": "Return ONLY the fully filled application JSON. No explanations, no markdown formatting, no code blocks, no introductory or closing text. Just the raw JSON object.",
         "required_keyword_coverage_percent": 80
     }
 };
@@ -565,6 +569,8 @@ const APPLICATION_SCHEMA = {
         "cover_letter": ""
     },
     "email": {
+        "to": "",
+        "cc": "",
         "subject": "",
         "body": ""
     }
@@ -706,6 +712,18 @@ export async function loadTracker() {
 }
 
 // ── Grid View (Card-Based) ────────────────────────────────────────────────────
+function fmtDeadline(iso) {
+    if (!iso) return null;
+    const now = new Date();
+    const d = new Date(iso);
+    const diff = Math.ceil((d - now) / 86400000);
+    if (diff < 0) return { label: 'Overdue', cls: 'urgent' };
+    if (diff === 0) return { label: 'Today', cls: 'urgent' };
+    if (diff === 1) return { label: 'Tomorrow', cls: 'soon' };
+    if (diff <= 7) return { label: `${diff}d left`, cls: 'soon' };
+    return { label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), cls: 'normal' };
+}
+
 function renderGrid() {
     const grid = document.getElementById('apps-grid');
     if (!grid) return;
@@ -717,25 +735,35 @@ function renderGrid() {
     if (statsContainer) {
         let total = applications.length;
         let applied = applications.filter(a => a.status === 'Applied').length;
+        let screening = applications.filter(a => a.status === 'Screening').length;
         let interview = applications.filter(a => a.status === 'Interview').length;
         let offer = applications.filter(a => a.status === 'Offer').length;
+        let rejected = applications.filter(a => a.status === 'Rejected' || a.status === 'Withdrawn').length;
         
         statsContainer.innerHTML = `
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Total</div>
-                <div style="font-size:24px;font-weight:700;color:var(--text-primary);margin-top:4px">${total}</div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Total</div>
+                <div class="apps-stat-value">${total}</div>
             </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Applied</div>
-                <div style="font-size:24px;font-weight:700;color:var(--color-blue);margin-top:4px">${applied}</div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Applied</div>
+                <div class="apps-stat-value" style="color:var(--color-blue)">${applied}</div>
             </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Interview</div>
-                <div style="font-size:24px;font-weight:700;color:var(--color-purple);margin-top:4px">${interview}</div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Screening</div>
+                <div class="apps-stat-value" style="color:var(--color-amber)">${screening}</div>
             </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Offers</div>
-                <div style="font-size:24px;font-weight:700;color:var(--color-green);margin-top:4px">${offer}</div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Interview</div>
+                <div class="apps-stat-value" style="color:var(--color-purple)">${interview}</div>
+            </div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Offers</div>
+                <div class="apps-stat-value" style="color:var(--color-green)">${offer}</div>
+            </div>
+            <div class="apps-stat-card">
+                <div class="apps-stat-label">Closed</div>
+                <div class="apps-stat-value" style="color:var(--danger)">${rejected}</div>
             </div>
         `;
     }
@@ -769,9 +797,13 @@ function renderGrid() {
         const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG['Bookmarked'];
         const hasResume = !!app.assigned_pdf;
         const hasTemplate = app.resume_template && Object.keys(app.resume_template).length > 0;
+        const prio = (app.priority || '').toLowerCase();
+        const prioClass = prio === 'high' ? 'high' : prio === 'low' ? 'low' : 'medium';
+        const deadline = fmtDeadline(app.deadline);
         
         return `
         <div class="app-card" onclick="window.openAppEditor('${app.id}')">
+            <div class="app-card-priority-bar ${prioClass}"></div>
             <div class="app-card-header">
                 <div class="app-card-emoji">${cfg.icon}</div>
                 <div class="app-card-title-group">
@@ -794,14 +826,19 @@ function renderGrid() {
                         <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">business</span> ${esc(app.platform)}
                     </div>
                 ` : ''}
+                ${app.contact_email ? `
+                    <div class="app-card-location" style="margin-top: 4px;">
+                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">mail</span> ${esc(app.contact_email)}
+                    </div>
+                ` : ''}
                 ${app.job_url ? `
                     <div class="app-card-info-row">
                         <a href="${esc(app.job_url)}" target="_blank" onclick="event.stopPropagation()" style="color: #7c3aed; text-decoration: none; font-weight: 500;">View Job →</a>
                     </div>
                 ` : ''}
                 ${app.notes ? `
-                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px;">
-                        "${esc(app.notes.substring(0, 60))}${app.notes.length > 60 ? '...' : ''}"
+                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; padding-left: 2px; border-left: 2px solid var(--border); padding-left: 8px;">
+                        ${esc(app.notes.substring(0, 80))}${app.notes.length > 80 ? '...' : ''}
                     </div>
                 ` : ''}
             </div>
@@ -809,12 +846,12 @@ function renderGrid() {
             <div class="app-card-footer">
                 <div class="app-card-meta">
                     <span title="Last updated">${fmtRel(app.updated_at)}</span>
+                    ${deadline ? `<span class="app-card-deadline ${deadline.cls}"><span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">calendar_month</span> ${deadline.label}</span>` : ''}
                 </div>
                 <div class="app-card-chips">
                     ${hasResume ? `<div class="app-card-chip" title="${esc(app.assigned_pdf)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF</div>` : ''}
-                    ${app.assigned_cover_letter ? `<div class="app-card-chip" title="${esc(app.assigned_cover_letter)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter</div>` : ''}
-                    ${hasTemplate ? `<div class="app-card-chip" title="Has custom template"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Template</div>` : ''}
-                    ${app.priority ? `<div class="app-card-chip" style="background: rgba(239,68,68,0.1); color: #dc2626; border-color: rgba(239,68,68,0.2);">${app.priority}</div>` : ''}
+                    ${app.assigned_cover_letter ? `<div class="app-card-chip" title="${esc(app.assigned_cover_letter)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover</div>` : ''}
+                    ${hasTemplate ? `<div class="app-card-chip" title="Has custom template"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Custom</div>` : ''}
                 </div>
             </div>
         </div>`;
@@ -974,6 +1011,7 @@ export async function openAppStudio(appId = null) {
         </div>`;
 
     // ── Tab 1: Email ──────────────────────────────────────────────────────────
+    // Fetch signature from MASTER_INSTRUCTION for preview
     const emailPaneHtml = `
         <div id="email-tab-pane" style="padding:16px 24px;height:calc(90vh - 160px);min-height:460px;display:flex;flex-direction:column;gap:12px;overflow-y:auto">
 
@@ -1000,7 +1038,7 @@ export async function openAppStudio(appId = null) {
                     <button class="btn btn-sm btn-secondary" onclick="window.emailCopyBody()" title="Copy email body">
                         <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Body
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="window.emailCopyAll()" title="Copy full email">
+                    <button class="btn btn-sm btn-secondary" onclick="window.emailCopyAll()" title="Copy full email (with signature)">
                         <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Copy Email
                     </button>
                     <button id="email-gmail-btn" class="btn btn-sm btn-primary" onclick="window.emailOpenGmail()" title="Open in Gmail Compose">
@@ -1017,6 +1055,15 @@ export async function openAppStudio(appId = null) {
                     <label>To <span style="color:var(--text-muted);font-weight:400">(Recipient)</span></label>
                     <input id="email-to" type="email" class="input-field"
                         placeholder="e.g. careers@company.com"
+                        oninput="window.onEmailFieldChange()"
+                        style="font-size:12px" />
+                </div>
+
+                <!-- CC -->
+                <div class="field-group">
+                    <label>CC <span style="color:var(--text-muted);font-weight:400">(Optional)</span></label>
+                    <input id="email-cc" type="text" class="input-field"
+                        placeholder="e.g. hr@company.com"
                         oninput="window.onEmailFieldChange()"
                         style="font-size:12px" />
                 </div>
@@ -1042,9 +1089,89 @@ export async function openAppStudio(appId = null) {
 
             <!-- PREVIEW MODE -->
             <div id="email-preview-mode" style="display:none;flex:1;overflow-y:auto">
-                <div id="email-preview-box" style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:8px;padding:20px 24px;font-size:13px;line-height:1.8;color:var(--text-primary);white-space:pre-wrap;font-family:var(--font)"></div>
+                <div id="email-preview-box" style="background:#fff;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-primary);font-family:var(--font);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)"></div>
             </div>
 
+        </div>`;
+
+    // ── Tab 1: Details (Form fields for app metadata) ─────────────────────────
+    const detailsPaneHtml = `
+        <div style="padding:16px 24px;height:calc(90vh - 160px);min-height:460px;display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="field-group">
+                    <label>Company <span style="color:var(--danger)">*</span></label>
+                    <input id="dt-company" class="input-field" placeholder="e.g. Acme Corp" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Role <span style="color:var(--danger)">*</span></label>
+                    <input id="dt-role" class="input-field" placeholder="e.g. Software Engineer" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Status</label>
+                    <select id="dt-status" class="input-field" onchange="window.onDetailsFieldChange()" style="font-size:12px">
+                        ${STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Priority</label>
+                    <select id="dt-priority" class="input-field" onchange="window.onDetailsFieldChange()" style="font-size:12px">
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Location</label>
+                    <input id="dt-location" class="input-field" placeholder="e.g. San Francisco, CA" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Platform</label>
+                    <select id="dt-platform" class="input-field" onchange="window.onDetailsFieldChange()" style="font-size:12px">
+                        <option value="">— Select —</option>
+                        ${PLATFORMS.map(p => `<option value="${p}">${p}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Job Type</label>
+                    <input id="dt-job-type" class="input-field" placeholder="e.g. Full-time, Internship" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Source</label>
+                    <input id="dt-source" class="input-field" placeholder="e.g. LinkedIn, Naukri" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Deadline</label>
+                    <input id="dt-deadline" type="date" class="input-field" onchange="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Salary Range</label>
+                    <input id="dt-salary" class="input-field" placeholder="e.g. ₹7,000/month" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Contact Name</label>
+                    <input id="dt-contact-name" class="input-field" placeholder="Hiring manager name" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Contact Email</label>
+                    <input id="dt-contact-email" type="email" class="input-field" placeholder="careers@company.com" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Job URL</label>
+                    <input id="dt-job-url" class="input-field" placeholder="https://..." oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Assigned PDF</label>
+                    <input id="dt-assigned-pdf" class="input-field" placeholder="YOUR_NAME_SD.pdf" oninput="window.onDetailsFieldChange()" style="font-size:12px" />
+                </div>
+            </div>
+            <div class="field-group" style="grid-column:1/-1">
+                <label>Notes</label>
+                <textarea id="dt-notes" class="input-field textarea" placeholder="Application notes..." oninput="window.onDetailsFieldChange()" style="min-height:60px;font-size:12px"></textarea>
+            </div>
+            <div class="field-group" style="grid-column:1/-1">
+                <label>Job Description</label>
+                <textarea id="dt-jd" class="input-field textarea" placeholder="Paste job description here..." oninput="window.onDetailsFieldChange()" style="min-height:80px;font-size:12px;font-family:var(--mono)"></textarea>
+            </div>
         </div>`;
 
     window._currentEditingApp = app;
@@ -1086,10 +1213,12 @@ export async function openAppStudio(appId = null) {
         {
             tabs: [
                 { label: 'Application JSON', icon: '<span class="material-symbols-outlined" style="font-size:1em">description</span>', content: jsonPaneHtml },
+                { label: 'Details',          icon: '<span class="material-symbols-outlined" style="font-size:1em">list_alt</span>',  content: detailsPaneHtml },
                 { label: 'Email',            icon: '<span class="material-symbols-outlined" style="font-size:1em">mail</span>',        content: emailPaneHtml },
             ],
             onTabChange: (newIdx) => {
-                if (newIdx === 1) window.syncEmailTabFromJson();
+                if (newIdx === 1) window.syncDetailsTabFromJson();
+                if (newIdx === 2) window.syncEmailTabFromJson();
             }
         }
     );
@@ -1098,6 +1227,69 @@ export async function openAppStudio(appId = null) {
         window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
     }, 100);
 }
+
+// ── Details Tab Helpers ───────────────────────────────────────────────────────
+
+/** Pull data from JSON editor into the Details form fields */
+window.syncDetailsTabFromJson = function() {
+    const editor = document.getElementById('unified-json-editor');
+    if (!editor) return;
+    let payload;
+    try { payload = JSON.parse(editor.value); } catch { return; }
+    const f = (id) => document.getElementById(id);
+    const setVal = (id, val) => { const el = f(id); if (el) el.value = val ?? ''; };
+    setVal('dt-company',      payload.company);
+    setVal('dt-role',         payload.role);
+    setVal('dt-status',       payload.status);
+    setVal('dt-priority',     payload.priority);
+    setVal('dt-location',     payload.location);
+    setVal('dt-platform',     payload.platform);
+    setVal('dt-job-type',     payload.job_type);
+    setVal('dt-source',       payload.source);
+    setVal('dt-deadline',     payload.deadline || payload.deadline_date || '');
+    setVal('dt-salary',       payload.salary_range || payload.salary || '');
+    setVal('dt-contact-name', payload.contact_name || (payload.contact && payload.contact.name) || '');
+    setVal('dt-contact-email',payload.contact_email || (payload.contact && payload.contact.email) || '');
+    setVal('dt-job-url',      payload.job_url || payload.url || '');
+    setVal('dt-assigned-pdf', payload.assigned_pdf || payload.pdf || '');
+    setVal('dt-notes',        payload.notes || '');
+    setVal('dt-jd',           payload.job_description || payload.jd || '');
+    // Set the deadline input as a date value (YYYY-MM-DD) if present
+    const dl = f('dt-deadline');
+    if (dl && payload.deadline) {
+        try {
+            const d = new Date(payload.deadline);
+            if (!isNaN(d.getTime())) dl.value = d.toISOString().slice(0,10);
+        } catch {}
+    }
+};
+
+/** Push form field changes back into the JSON editor */
+window.onDetailsFieldChange = function() {
+    const editor = document.getElementById('unified-json-editor');
+    if (!editor) return;
+    let payload;
+    try { payload = JSON.parse(editor.value); } catch { payload = {}; }
+    const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    payload.company       = g('dt-company');
+    payload.role          = g('dt-role');
+    payload.status        = g('dt-status');
+    payload.priority      = g('dt-priority');
+    payload.location      = g('dt-location');
+    payload.platform      = g('dt-platform');
+    payload.job_type      = g('dt-job-type');
+    payload.source        = g('dt-source');
+    payload.deadline      = g('dt-deadline');
+    payload.salary_range  = g('dt-salary');
+    payload.contact_name  = g('dt-contact-name');
+    payload.contact_email = g('dt-contact-email');
+    payload.job_url       = g('dt-job-url');
+    payload.assigned_pdf  = g('dt-assigned-pdf');
+    payload.notes         = g('dt-notes');
+    payload.job_description = g('dt-jd');
+    editor.value = JSON.stringify(payload, null, 2);
+    window.onUnifiedJsonInput(editor.value);
+};
 
 // ── Email Tab Helpers ─────────────────────────────────────────────────────────
 
@@ -1120,15 +1312,17 @@ window.syncEmailTabFromJson = () => {
     try { payload = parseCleanJson(editorEl.value); } catch { return; }
 
     const email = payload.email || {};
-    const to    = extractRecipientEmail(payload);
+    const to    = email.to || extractRecipientEmail(payload);
 
     const toEl  = document.getElementById('email-to');
+    const ccEl  = document.getElementById('email-cc');
     const subEl = document.getElementById('email-subject');
     const bodEl = document.getElementById('email-body');
     const warnEl= document.getElementById('email-no-recipient-warning');
     const gmailBtn = document.getElementById('email-gmail-btn');
 
     if (toEl)  toEl.value  = to;
+    if (ccEl)  ccEl.value  = email.cc || '';
     if (subEl) subEl.value = email.subject || '';
     if (bodEl) bodEl.value = email.body    || '';
 
@@ -1147,8 +1341,11 @@ window.onEmailFieldChange = () => {
     const subEl = document.getElementById('email-subject');
     const bodEl = document.getElementById('email-body');
     const toEl  = document.getElementById('email-to');
+    const ccEl  = document.getElementById('email-cc');
 
     if (!payload.email) payload.email = {};
+    if (toEl)  payload.email.to      = toEl.value;
+    if (ccEl)  payload.email.cc      = ccEl.value;
     if (subEl) payload.email.subject = subEl.value;
     if (bodEl) payload.email.body    = bodEl.value;
     if (toEl && toEl.value) payload.contact_email = toEl.value;
@@ -1164,6 +1361,22 @@ window.onEmailFieldChange = () => {
     if (warnEl)   warnEl.style.display = hasEmail ? 'none' : 'flex';
 };
 
+/** Build a full email body with signature appended */
+function buildFullEmailBody(body) {
+    const sig = (MASTER_INSTRUCTION.master_instruction?.email_rules?.signature) || {};
+    const name = sig.name || 'YOUR NAME';
+    const phone = sig.phone || '+1 (555) 000-0000';
+    const email = sig.email || 'your.email@example.com';
+    const linkedin = sig.linkedin || 'linkedin.com/in/your-linkedin';
+    const bodyTrimmed = (body || '').trim();
+    const sigBlock = `\n\n${name}\n${phone}\n${email}\n${linkedin}`;
+    // Only append signature if not already present
+    if (bodyTrimmed && bodyTrimmed.includes(name) && bodyTrimmed.includes(phone)) {
+        return bodyTrimmed;
+    }
+    return bodyTrimmed + sigBlock;
+}
+
 /** Toggle edit / preview mode */
 window.setEmailMode = (mode) => {
     const editDiv    = document.getElementById('email-edit-mode');
@@ -1174,16 +1387,31 @@ window.setEmailMode = (mode) => {
 
     if (mode === 'preview') {
         // Build preview content
-        const to  = document.getElementById('email-to')?.value  || '(No recipient)';
-        const sub = document.getElementById('email-subject')?.value || '(No subject)';
+        const to  = document.getElementById('email-to')?.value  || '';
+        const cc  = document.getElementById('email-cc')?.value  || '';
+        const sub = document.getElementById('email-subject')?.value || '';
         const bod = document.getElementById('email-body')?.value    || '';
         const box = document.getElementById('email-preview-box');
         if (box) {
-            box.innerHTML = `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);padding-bottom:10px">
-                <div style="margin-bottom:4px"><strong style="color:var(--text-primary)">To:</strong>      ${esc(to)}</div>
-                <div><strong style="color:var(--text-primary)">Subject:</strong> ${esc(sub)}</div>
-            </div>
-            <div style="white-space:pre-wrap;font-size:13px;line-height:1.9">${esc(bod)}</div>`;
+            const sig = (MASTER_INSTRUCTION.master_instruction?.email_rules?.signature) || {};
+            const senderName  = sig.name || 'YOUR NAME';
+            const senderEmail = sig.email || 'your.email@example.com';
+            const fullBody = buildFullEmailBody(bod);
+            const ccLine = cc ? `<div style="color:#6b7280;white-space:nowrap">CC:</div><div style="color:#111827">${esc(cc)}</div>` : '';
+            box.innerHTML = `
+                <div style="border-bottom:1px solid #e5e7eb;padding:16px 24px;background:#f9fafb">
+                    <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px;line-height:1.7">
+                        <div style="color:#6b7280;white-space:nowrap">From:</div>
+                        <div style="color:#111827;font-weight:500">${esc(senderName)} &lt;${esc(senderEmail)}&gt;</div>
+                        <div style="color:#6b7280;white-space:nowrap">To:</div>
+                        <div style="color:#111827">${esc(to)}</div>
+                        ${ccLine}
+                        <div style="color:#6b7280;white-space:nowrap">Subject:</div>
+                        <div style="color:#111827;font-weight:600">${esc(sub)}</div>
+                    </div>
+                </div>
+                <div style="padding:20px 24px;white-space:pre-wrap;font-size:13px;line-height:1.9;color:#374151">${esc(fullBody)}</div>
+            `;
         }
         editDiv.style.display    = 'none';
         previewDiv.style.display = 'flex';
@@ -1200,13 +1428,16 @@ window.setEmailMode = (mode) => {
 /** Open Gmail compose with pre-filled fields */
 window.emailOpenGmail = () => {
     const to  = document.getElementById('email-to')?.value.trim()      || '';
+    const cc  = document.getElementById('email-cc')?.value.trim()      || '';
     const sub = document.getElementById('email-subject')?.value.trim() || '';
     const bod = document.getElementById('email-body')?.value            || '';
     if (!to) { toast('Please enter a recipient email address first.', 'error'); return; }
-    const url = `https://mail.google.com/mail/?view=cm&fs=1`
-              + `&to=${encodeURIComponent(to)}`
-              + `&su=${encodeURIComponent(sub)}`
-              + `&body=${encodeURIComponent(bod)}`;
+    const fullBody = buildFullEmailBody(bod);
+    let url = `https://mail.google.com/mail/?view=cm&fs=1`
+            + `&to=${encodeURIComponent(to)}`
+            + `&su=${encodeURIComponent(sub)}`
+            + `&body=${encodeURIComponent(fullBody)}`;
+    if (cc) url += `&cc=${encodeURIComponent(cc)}`;
     window.open(url, '_blank');
 };
 
@@ -1228,12 +1459,13 @@ window.emailCopyBody = () => {
         .catch(() => toast('Failed to copy body.', 'error'));
 };
 
-/** Copy the full email (subject + body) */
+/** Copy the full email (subject + body with signature) */
 window.emailCopyAll = () => {
     const sub = document.getElementById('email-subject')?.value || '';
     const bod = document.getElementById('email-body')?.value    || '';
     if (!sub && !bod) { toast('Email is empty.', 'error'); return; }
-    const full = `Subject: ${sub}\n\n${bod}`;
+    const fullBody = buildFullEmailBody(bod);
+    const full = `Subject: ${sub}\n\n${fullBody}`;
     navigator.clipboard.writeText(full)
         .then(() => toast('Full email copied!', 'success'))
         .catch(() => toast('Failed to copy email.', 'error'));
