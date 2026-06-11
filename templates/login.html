@@ -5,104 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Studio — Locked</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #1b2030 0%, #0f1115 100%);
-            font-family: 'Inter', sans-serif;
+            background: radial-gradient(ellipse at 50% 40%, #1a1f2e 0%, #0d0f14 100%);
+            font-family: 'Inter', -apple-system, sans-serif;
             color: #fff;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
         }
         .login-box {
-            background: rgba(26, 29, 36, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            background: rgba(22, 25, 32, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 40px 36px;
+            border-radius: 20px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
             text-align: center;
-            width: 320px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
+            max-width: 380px;
+            border: 1px solid rgba(255,255,255,0.06);
             transition: all 0.3s ease;
         }
         .logo-shield {
-            font-size: 32px;
-            margin-bottom: 15px;
-            display: inline-block;
-            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.4));
+            font-size: 2rem;
+            margin-bottom: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: rgba(109,40,217,0.15);
+            border: 1px solid rgba(109,40,217,0.25);
+            color: #a78bfa;
         }
         .login-box h1 {
-            font-size: 24px;
-            margin-top: 0;
+            font-size: 1.4rem;
             margin-bottom: 6px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+            font-weight: 800;
+            letter-spacing: -0.03em;
             background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .subtitle {
-            font-size: 13px;
+            font-size: 0.8667rem;
             color: #94a3b8;
-            margin-top: 0;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
+            line-height: 1.5;
         }
         .passcode-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 14px;
         }
         input[type="password"] {
             width: 100%;
             padding: 12px 16px;
-            border-radius: 8px;
+            border-radius: 12px;
             border: 1.5px solid #2d3139;
-            background: rgba(15, 17, 21, 0.6);
+            background: rgba(13, 15, 20, 0.6);
             color: #fff;
-            font-size: 18px;
+            font-size: 1.133rem;
             text-align: center;
             letter-spacing: 4px;
-            box-sizing: border-box;
             outline: none;
             transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
         }
         input[type="password"]:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            border-color: #6d28d9;
+            box-shadow: 0 0 0 3px rgba(109,40,217,0.15), 0 0 20px rgba(109,40,217,0.08);
+        }
+        input[type="password"]::placeholder {
+            letter-spacing: 2px;
+            color: #4a4f5a;
+            font-size: 0.933rem;
         }
         .btn-unlock {
-            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            background: linear-gradient(135deg, #6d28d9, #5b21b6);
             color: white;
             border: none;
             padding: 12px 16px;
-            font-size: 14px;
+            font-size: 0.8667rem;
             font-weight: 600;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+            box-shadow: 0 4px 16px rgba(109,40,217,0.25);
+            font-family: 'Inter', sans-serif;
         }
         .btn-unlock:hover:not(:disabled) {
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
-            background: linear-gradient(135deg, #818cf8, #4f46e5);
+            box-shadow: 0 6px 20px rgba(109,40,217,0.35);
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
         }
-        .btn-unlock:active:not(:disabled) {
-            transform: translateY(0);
-        }
-        .btn-unlock:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .shake {
-            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-        }
+        .btn-unlock:active:not(:disabled) { transform: translateY(0); }
+        .btn-unlock:disabled { opacity: 0.5; cursor: not-allowed; }
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -110,24 +117,39 @@
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
         .error-msg {
-            color: #ef4444;
-            font-size: 12px;
-            height: 15px;
+            color: #f87171;
+            font-size: 0.8rem;
+            height: 0;
             opacity: 0;
-            transition: opacity 0.2s;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+        .error-msg.show {
+            height: 24px;
+            opacity: 1;
             margin-top: 4px;
+        }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .login-box { padding: 32px 24px; border-radius: 16px; }
+            .login-box h1 { font-size: 1.2rem; }
+            .logo-shield { width: 48px; height: 48px; font-size: 1.6rem; }
+        }
+        @media (max-height: 600px) {
+            .login-box { padding: 24px 20px; }
+            .logo-shield { margin-bottom: 10px; width: 40px; height: 40px; font-size: 1.3rem; }
+            .subtitle { margin-bottom: 16px; font-size: 0.8rem; }
         }
     </style>
 </head>
 <body>
-
     <div class="login-box" id="login-box">
-        <div class="logo-shield"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">lock</span></div>
+        <div class="logo-shield"><span class="material-symbols-outlined" style="font-size: 1.2em; vertical-align: middle; line-height: 1;">lock</span></div>
         <h1>Resume Studio</h1>
-        <p class="subtitle">Enter passcode to unlock control center</p>
+        <p class="subtitle">Enter passcode to unlock the control center</p>
         
         <div class="passcode-container">
-            <input type="password" id="passcode" placeholder="••••••••" autofocus autocomplete="off">
+            <input type="password" id="passcode" placeholder="Passcode" autofocus autocomplete="off">
             <button id="btn-unlock" class="btn-unlock" onclick="handleSubmit()">Unlock Studio</button>
             <div class="error-msg" id="error-msg">Incorrect passcode</div>
         </div>
@@ -140,23 +162,19 @@
         const unlockBtn = document.getElementById('btn-unlock');
         
         input.addEventListener('keyup', (e) => {
-            errorMsg.style.opacity = '0';
+            errorMsg.classList.remove('show');
             box.classList.remove('shake');
-            
-            if (e.key === 'Enter') {
-                handleSubmit();
-            }
+            if (e.key === 'Enter') handleSubmit();
         });
         
         async function handleSubmit() {
             const passcode = input.value;
             if (!passcode) return;
             
-            // Set loading state
             input.disabled = true;
             unlockBtn.disabled = true;
             unlockBtn.textContent = 'Verifying...';
-            errorMsg.style.opacity = '0';
+            errorMsg.classList.remove('show');
             box.classList.remove('shake');
             
             try {
@@ -167,12 +185,10 @@
                 });
                 
                 if (res.ok) {
-                    unlockBtn.textContent = 'Success! Loading...';
-                    unlockBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                    unlockBtn.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.25)';
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 200);
+                    unlockBtn.textContent = 'Success!';
+                    unlockBtn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+                    unlockBtn.style.boxShadow = '0 4px 16px rgba(5,150,105,0.25)';
+                    setTimeout(() => { window.location.reload(); }, 200);
                 } else {
                     unlockBtn.disabled = false;
                     unlockBtn.textContent = 'Unlock Studio';
@@ -192,9 +208,9 @@
         function triggerError(msg) {
             errorMsg.textContent = msg || 'Incorrect passcode';
             box.classList.remove('shake');
-            void box.offsetWidth; // trigger reflow
+            void box.offsetWidth;
             box.classList.add('shake');
-            errorMsg.style.opacity = '1';
+            errorMsg.classList.add('show');
         }
     </script>
 </body>

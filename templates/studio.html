@@ -17,7 +17,10 @@
     <span class="brand-icon"></span>
     <span class="brand-name">Resume Studio</span>
   </div>
-  <nav class="header-nav">
+  <button class="hamburger" onclick="toggleHeaderNav()" aria-label="Toggle navigation">
+    <span class="material-symbols-outlined">menu</span>
+  </button>
+  <nav class="header-nav" id="header-nav">
     <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
     <button id="tab-tracker"   class="nav-btn"        onclick="window.switchTab('tracker')">Applications</button>
     <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
@@ -25,13 +28,14 @@
     <button id="tab-checkpoints" class="nav-btn"      onclick="window.switchTab('checkpoints')">Version Control</button>
     <button id="tab-settings"  class="nav-btn"        onclick="window.switchTab('settings')">Settings</button>
   </nav>
-  <div class="header-actions" style="display:flex;gap:4px">
+  <div class="header-actions" id="header-actions">
     <button class="btn btn-ghost btn-sm" onclick="createCheckpoint()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">history</span> Checkpoint</button>
     <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
     <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
   </div>
 </header>
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
 <main class="main-content">
 

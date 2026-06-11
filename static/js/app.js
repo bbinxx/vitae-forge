@@ -42,6 +42,12 @@ export const ui = {
 
         const btn = document.getElementById(`tab-${tabId}`);
         if (btn) btn.classList.add('active');
+
+        // Close mobile nav/sidebar on tab switch
+        document.querySelectorAll('.header-nav, #header-actions').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.sidebar, .tracker-sidebar').forEach(el => el.classList.remove('open'));
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (backdrop) backdrop.classList.remove('visible');
     }
 };
 

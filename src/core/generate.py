@@ -131,8 +131,20 @@ def generate_resume(
     tmpl = tmpl.replace("<<RELEVANT_SKILLS>>", relevant_skills)
     
     cover_letter = escape_latex(config.get("cover_letter", ""))
-    # Convert newlines to LaTeX paragraph breaks
+    # Normalize line endings and convert to LaTeX paragraph breaks
+    # Collapse 3+ newlines into one blank line, then ensure every \n becomes \n\n
+    cover_letter = re.sub(r'\r\n', '\n', cover_letter)
+    cover_letter = re.sub(r'\n{3,}', '\n\n', cover_letter)
     cover_letter = cover_letter.replace('\n', '\n\n')
+    # Strip trailing "Sincerely,\nYOUR NAME" (or similar) — template adds the signature block
+    cover_letter = re.sub(
+        r'\n*((Sincerely|Best regards|Yours sincerely|Yours faithfully|Regards|Thanks?)[,\s]*)?\n*\\n?YOUR_NAME\s*Raju\s*$',
+        '',
+        cover_letter,
+        flags=re.IGNORECASE
+    )
+    # Also strip trailing "Dear Hiring Team," / "Dear Hiring Manager," if it appears (duplicate with "Dear Hiring Manager," from AI is already gone since we removed \opening)
+    # But "Dear Hiring Team," might be the AI's greeting — keep it as part of the letter
     tmpl = tmpl.replace("<<COVER_LETTER>>", cover_letter)
     edu = config.get("education", "")
     if isinstance(edu, list):
