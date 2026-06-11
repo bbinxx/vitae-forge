@@ -105,6 +105,7 @@ def _default_app(app_id: str, body: dict) -> dict:
         "salary_range":     body.get("salary_range", ""),
         "contact_name":     body.get("contact_name", ""),
         "contact_email":    body.get("contact_email", ""),
+        "email":            body.get("email", {}),
         "interview_rounds": body.get("interview_rounds", []),
         "created_at":       datetime.now().isoformat(),
         "updated_at":       datetime.now().isoformat(),
@@ -118,6 +119,7 @@ _UPDATABLE_FIELDS = [
     "resume_template",
     "notes", "job_description", "deadline",
     "salary_range", "contact_name", "contact_email",
+    "email",
     "interview_rounds",
 ]
 

@@ -39,11 +39,6 @@ def get_config():
 async def save_config(request: Request):
     data = await request.json()
     save_resume_config(data)
-    
-    # Try pushing to Firebase as well
-    from src.core.firebase import push_config_to_firebase
-    push_config_to_firebase(data)
-    
     return {"ok": True}
 
 # ── Checkpoints (Version Control) ─────────────────────────────────────────────
@@ -79,7 +74,7 @@ def create_checkpoint(req: CheckpointRequest):
     import json
     (CHECKPOINTS_DIR / name).write_text(json.dumps(config, indent=4))
     
-    # Push to Firebase
+    # Push to Firebase as well
     from src.core.firebase import push_checkpoint_to_firebase
     push_checkpoint_to_firebase(name, config)
     
@@ -163,7 +158,7 @@ async def export_pdf_local_route(request: Request):
     from src.core.config import DIST_DIR
     from pathlib import Path
     
-    source_pdf = DIST_DIR / "pdf" / f"{pdf_name}.pdf"
+    source_pdf = DIST_DIR / f"{pdf_name}.pdf"
     if not source_pdf.exists():
         raise HTTPException(404, f"PDF {pdf_name}.pdf not found. Generate it first.")
         

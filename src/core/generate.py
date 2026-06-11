@@ -232,6 +232,11 @@ def generate_resume(
                 # Build ordered pair: Languages row first, then Areas of Interest
                 lang_val = items.get("languages", "")
                 aoi_val  = items.get("areas_of_interest", "")
+                # Handle AI filling these as arrays instead of strings
+                if isinstance(lang_val, list):
+                    lang_val = ", ".join(lang_val)
+                if isinstance(aoi_val, list):
+                    aoi_val = ", ".join(aoi_val)
                 normalised = []
                 if lang_val:
                     normalised.append({"name": "Languages",         "content": lang_val})
