@@ -1,10 +1,10 @@
 import { ui, state } from './app.js';
-import './dashboard.js?v=2';
-import './editor.js?v=2';
-import './library.js?v=2';
+import './dashboard.js?v=3';
+import './editor.js?v=3';
+import './library.js?v=3';
 import { loadCheckpoints } from './checkpoints.js';
 import { loadSettings } from './settings.js';
-import { loadTracker, initTracker } from './tracker.js?v=3';
+import { loadTracker, initTracker } from './tracker.js?v=4';
 // version_editor.js is retained for future use
 // import { openVersionEditor } from './version_editor.js';
 // window.openVersionEditor = openVersionEditor;

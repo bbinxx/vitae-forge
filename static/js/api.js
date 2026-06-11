@@ -40,5 +40,15 @@ export const api = {
             if (done) break;
             onLineReceived(decoder.decode(value));
         }
+    },
+    async scrapeJobUrl(url) {
+        const res = await fetch('/applications/scrape-job-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Scrape failed');
+        return data;
     }
 };
