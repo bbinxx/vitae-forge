@@ -17,16 +17,19 @@ if str(_project_root) not in sys.path:
 from src.core.config import RESUME_CONFIG
 
 
+_LATEX_ESCAPE = {
+    ord('&'): r'\&', ord('%'): r'\%', ord('$'): r'\$',
+    ord('#'): r'\#', ord('_'): r'\_',
+    ord('{'): r'\{', ord('}'): r'\}',
+    ord('~'): r'\textasciitilde{}', ord('^'): r'\textasciicircum{}',
+}
+
 def escape_latex(text) -> str:
     if text is None:
         return ""
     if not isinstance(text, str):
         text = str(text)
-    replacements = {
-        '&': r'\&', '%': r'\%', '$': r'\$', '#': r'\#', '_': r'\_',
-        '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}', '^': r'\textasciicircum{}',
-    }
-    return "".join(replacements.get(c, c) for c in text)
+    return text.translate(_LATEX_ESCAPE)
 
 
 def resolve_modular(val, section_key: str, full_library: dict):

@@ -100,6 +100,17 @@ def save_settings(settings: dict):
     except Exception:
         return False
 
+def get_application(app_id: str) -> dict | None:
+    """Fetch a single application by ID (avoids O(n) download of all apps)."""
+    db = get_firebase_db()
+    if not db: return None
+    try:
+        doc = db.collection("applications").document(app_id).get()
+        return doc.to_dict() if doc.exists else None
+    except Exception as e:
+        print(f"Firebase get_application error: {e}")
+        return None
+
 def get_all_applications():
     db = get_firebase_db()
     if not db: return []
