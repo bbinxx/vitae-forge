@@ -19,6 +19,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 
 from src.core.config import ROOT, DIST_DIR
 from src.core.firebase import (
@@ -669,3 +670,87 @@ async def compile_pdf(app_id: str, request: Request):
     except Exception as e:
         print(f"Compile PDF error: {e}")
         raise HTTPException(500, f"PDF compilation failed: {str(e)}")
+
+
+# ── Job URL Scraper ─────────────────────────────────────────────────────────
+
+class ScrapeRequest(BaseModel):
+    url: str
+
+@router.post("/scrape-job-url")
+def scrape_job_url(req: ScrapeRequest):
+    """
+    Fetch a job posting URL, extract visible text, and return it
+    along with a ready-to-copy AI prompt.
+    """
+    import re
+    import requests
+    from bs4 import BeautifulSoup
+
+    url = req.url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            )
+        })
+        resp.raise_for_status()
+    except Exception as e:
+        raise HTTPException(400, f"Failed to fetch URL: {e}")
+
+    soup = BeautifulSoup(resp.text, "lxml")
+
+    # Remove script/style tags
+    for tag in soup(["script", "style", "noscript", "iframe", "svg", "nav", "footer", "header"]):
+        tag.decompose()
+
+    text = soup.get_text(separator="\n")
+    # Collapse blank lines
+    lines = [re.sub(r'\s+', ' ', l).strip() for l in text.splitlines()]
+    lines = [l for l in lines if l]
+    visible_text = "\n".join(lines[:500])  # limit to first 500 lines
+
+    if len(visible_text) < 50:
+        raise HTTPException(400, "Could not extract meaningful text from that URL.")
+
+    prompt = (
+        "You are an AI assistant that extracts job application data from web page text.\n\n"
+        "Below is the scraped text from a job posting page.\n"
+        "Fill the following JSON with all information you can extract from it.\n"
+        "Return ONLY the raw JSON object — no explanations, no markdown, no code blocks.\n\n"
+        "--- SCRAPED TEXT ---\n"
+        f"{visible_text}\n"
+        "--- END SCRAPED TEXT ---\n\n"
+        "Use this schema:\n"
+        '{\n'
+        '  "company": "",\n'
+        '  "role": "",\n'
+        '  "location": "",\n'
+        '  "status": "Bookmarked",\n'
+        '  "priority": "Medium",\n'
+        '  "platform": "",\n'
+        '  "source": "",\n'
+        '  "job_type": "",\n'
+        '  "salary_range": "",\n'
+        '  "deadline": "",\n'
+        '  "contact_name": "",\n'
+        '  "contact_email": "",\n'
+        '  "job_url": "",\n'
+        '  "notes": "",\n'
+        '  "job_description": "",\n'
+        '  "assigned_pdf": "",\n'
+        '  "email": {"to": "", "cc": "", "subject": "", "body": ""}\n'
+        '}\n\n'
+        'Fill in every field you can. If not found, leave empty string.\n'
+        "Set status to 'Bookmarked' as default. Set priority based on how well the role matches a Java Developer profile."
+    )
+
+    return {
+        "text": visible_text,
+        "prompt": prompt,
+    }

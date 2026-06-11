@@ -36,3 +36,8 @@ firebase-admin>=7.0.0
 
 # Auth — 5.x has Python 3.14 wheels
 bcrypt>=5.0.0
+
+# Web scraping — for job URL scraper
+requests>=2.32.0
+beautifulsoup4>=4.14.0
+lxml>=5.0.0

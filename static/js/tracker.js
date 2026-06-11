@@ -3,7 +3,7 @@
  * Bidirectional sync, live PDF preview, JSON editing, preset selector, safe template guard.
  */
 
-import { api } from './api.js';
+import { api } from './api.js?v=4';
 import { state } from './app.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -111,6 +111,7 @@ const STATUS_CONFIG = {
     'Withdrawn':  { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">undo</span>' },
 };
 
+const STATUS_OPTIONS = Object.keys(STATUS_CONFIG);
 const PLATFORMS = [
     'Mail', 'Naukri', 'Unstop', 'Hirist', 'Cutshort', 
     'LinkedIn', 'Internshala', 'Wellfound', 'Indeed', 
@@ -898,6 +899,7 @@ export function showModal(title, bodyHtml, onConfirm, confirmLabel = 'Confirm', 
             <span class="modal-title">${title}</span>
             <button class="modal-close" onclick="window.closeModal()"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span></button>
         </div>
+        ${options.headerHtml || ''}
         ${tabsHtml}
         <div class="modal-body">${bodyWithTabs}</div>
         <div class="modal-footer">
@@ -1176,6 +1178,29 @@ export async function openAppStudio(appId = null) {
 
     window._currentEditingApp = app;
 
+    // ── Scrape header (new apps only) ──────────────────────────────────────────
+    let headerHtml = '';
+    if (!appId) {
+        headerHtml = `
+        <div style="margin:0 16px;padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="material-symbols-outlined" style="font-size:1.2em;color:var(--accent)">travel_explore</span>
+            <input id="scrape-url-input" type="url" class="input-field" placeholder="Paste job posting URL..." style="flex:1;min-width:200px;font-size:12px" />
+            <button id="scrape-btn" class="btn btn-sm btn-primary" onclick="window.scrapeJobUrlHandler()" style="font-size:11px;padding:5px 12px;white-space:nowrap">
+                <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">download</span> Scrape
+            </button>
+            <div id="scrape-status" style="font-size:11px;color:var(--text-muted);display:none"></div>
+        </div>
+        <div id="scrape-result" style="margin:0 16px;display:none;flex-direction:column;gap:8px;padding:10px 14px;background:var(--bg-card);border:1px solid var(--accent);border-radius:8px;max-height:200px;overflow-y:auto">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-size:11px;font-weight:600;color:var(--accent)">Scraped & Prompt Ready</span>
+                <button class="btn btn-sm btn-secondary" onclick="window.copyScrapedPrompt()" style="font-size:10px;padding:3px 8px;white-space:nowrap">
+                    <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Copy Prompt
+                </button>
+            </div>
+            <textarea id="scrape-prompt-output" readonly style="width:100%;min-height:80px;font-size:11px;font-family:var(--mono);background:var(--bg-main);border:1px solid var(--border);border-radius:4px;padding:8px;color:var(--text-primary);resize:vertical"></textarea>
+        </div>`;
+    }
+
     showModal(
         appId ? 'Edit Application' : 'New Application',
         '',   // body handled via tabs
@@ -1219,7 +1244,8 @@ export async function openAppStudio(appId = null) {
             onTabChange: (newIdx) => {
                 if (newIdx === 1) window.syncDetailsTabFromJson();
                 if (newIdx === 2) window.syncEmailTabFromJson();
-            }
+            },
+            headerHtml: headerHtml || undefined
         }
     );
 
@@ -1228,6 +1254,40 @@ export async function openAppStudio(appId = null) {
     }, 100);
 }
 
+// ── Scrape Job URL Handler ──────────────────────────────────────────────────
+
+window.scrapeJobUrlHandler = async function() {
+    const input = document.getElementById('scrape-url-input');
+    const status = document.getElementById('scrape-status');
+    const result = document.getElementById('scrape-result');
+    const output = document.getElementById('scrape-prompt-output');
+    const btn = document.getElementById('scrape-btn');
+    const url = input ? input.value.trim() : '';
+    if (!url) { toast('Please enter a job URL.', 'error'); return; }
+    if (btn) btn.disabled = true;
+    if (status) { status.style.display = 'inline'; status.textContent = 'Scraping...'; }
+    try {
+        const data = await api.scrapeJobUrl(url);
+        if (output) output.value = data.prompt;
+        if (result) result.style.display = 'flex';
+        if (status) { status.textContent = 'Done ✓'; status.style.color = 'var(--success)'; }
+        toast('Page scraped successfully! Copy the prompt and use with AI.', 'success');
+    } catch (e) {
+        toast('Scrape failed: ' + e.message, 'error');
+        if (status) { status.textContent = 'Failed'; status.style.color = 'var(--danger)'; }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+window.copyScrapedPrompt = function() {
+    const output = document.getElementById('scrape-prompt-output');
+    if (!output || !output.value) { toast('Nothing to copy.', 'error'); return; }
+    navigator.clipboard.writeText(output.value)
+        .then(() => toast('Prompt copied! Paste it to your AI.', 'success'))
+        .catch(() => toast('Failed to copy.', 'error'));
+};
+
 // ── Details Tab Helpers ───────────────────────────────────────────────────────
 
 /** Pull data from JSON editor into the Details form fields */
@@ -1235,7 +1295,7 @@ window.syncDetailsTabFromJson = function() {
     const editor = document.getElementById('unified-json-editor');
     if (!editor) return;
     let payload;
-    try { payload = JSON.parse(editor.value); } catch { return; }
+    try { payload = parseCleanJson(editor.value); } catch { return; }
     const f = (id) => document.getElementById(id);
     const setVal = (id, val) => { const el = f(id); if (el) el.value = val ?? ''; };
     setVal('dt-company',      payload.company);
@@ -1269,7 +1329,7 @@ window.onDetailsFieldChange = function() {
     const editor = document.getElementById('unified-json-editor');
     if (!editor) return;
     let payload;
-    try { payload = JSON.parse(editor.value); } catch { payload = {}; }
+    try { payload = parseCleanJson(editor.value); } catch { payload = {}; }
     const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
     payload.company       = g('dt-company');
     payload.role          = g('dt-role');
