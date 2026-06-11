@@ -46,3 +46,15 @@ def ensure_dirs() -> None:
     """Make sure all required output directories exist."""
     for d in (DIST_DIR, LOG_DIR, STATIC_DIR, CONFIGS_DIR, ASSETS_DIR):
         d.mkdir(parents=True, exist_ok=True)
+
+
+# ── LaTeX Compiler Discovery ──────────────────────────────────────────────────
+
+def find_pdflatex() -> str | None:
+    """Locate the pdflatex executable (system PATH or TinyTeX fallback)."""
+    import shutil, glob, os
+    cmd = shutil.which("pdflatex")
+    if cmd:
+        return cmd
+    tinytex = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
+    return tinytex[0] if tinytex else None

@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from src.core.config import ROOT, DIST_DIR
 from src.core.firebase import (
     get_all_applications,
+    get_application,
     save_application,
     delete_application as firebase_delete_application,
     get_app_versions,
@@ -44,13 +45,6 @@ STATUS_OPTIONS = [
 PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _get_app(app_id: str) -> dict | None:
-    apps = get_all_applications()
-    for app in apps:
-        if app["id"] == app_id:
-            return app
-    return None
 
 def _timeline_event(status: str, note: str = "") -> dict:
     return {
@@ -150,7 +144,7 @@ async def create_application(request: Request):
 @router.put("/{app_id}")
 async def update_application(app_id: str, request: Request):
     body = await request.json()
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app:
         raise HTTPException(404, "Application not found")
 
@@ -226,7 +220,7 @@ async def bulk_update(request: Request):
 @router.post("/{app_id}/timeline")
 async def add_timeline_event(app_id: str, request: Request):
     body = await request.json()
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app: raise HTTPException(404, "Not found")
     event = {
         "status": body.get("status", app.get("status", "")),
@@ -241,7 +235,7 @@ async def add_timeline_event(app_id: str, request: Request):
 @router.post("/{app_id}/interview-rounds")
 async def add_interview_round(app_id: str, request: Request):
     body = await request.json()
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app: raise HTTPException(404, "Not found")
     round_entry = {
         "id": str(uuid.uuid4()),
@@ -261,7 +255,7 @@ async def add_interview_round(app_id: str, request: Request):
 
 @router.delete("/{app_id}/interview-rounds/{round_id}")
 def delete_interview_round(app_id: str, round_id: str):
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app: raise HTTPException(404, "Not found")
     app["interview_rounds"] = [r for r in app.get("interview_rounds", []) if r.get("id") != round_id]
     app["updated_at"] = datetime.now().isoformat()
@@ -345,7 +339,7 @@ def list_versions(app_id: str):
 async def create_version(app_id: str, request: Request):
     """Save a custom resume configuration as a specific version for this app."""
     body = await request.json()
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app: raise HTTPException(404, "Application not found")
 
     default_name = f"{app.get('company','App')} — {app.get('role','Version')}"
@@ -367,7 +361,7 @@ async def create_version(app_id: str, request: Request):
 async def update_version(app_id: str, v_id: str, request: Request):
     """Update a custom resume configuration version and clear its built PDF key."""
     body = await request.json()
-    app = _get_app(app_id)
+    app = get_application(app_id)
     version = get_app_version(app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
@@ -413,21 +407,14 @@ def build_version(app_id: str, v_id: str):
     Build a PDF from the specified version configuration,
     upload it to R2, and assign it to the application.
     """
-    app = _get_app(app_id)
+    app = get_application(app_id)
     version = get_app_version(app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
 
     def stream():
-        import shutil
-        pdflatex_cmd = shutil.which("pdflatex")
-        if not pdflatex_cmd:
-            import glob
-            import os
-            tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
-            if tinytex_paths:
-                pdflatex_cmd = tinytex_paths[0]
-                
+        from src.core.config import find_pdflatex
+        pdflatex_cmd = find_pdflatex()
         if not pdflatex_cmd:
             yield "Error: LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or another LaTeX distribution on this system to compile PDFs.\n"
             return
@@ -509,7 +496,7 @@ def build_version(app_id: str, v_id: str):
 
 @router.get("/{app_id}/archived-resume")
 def download_archived_resume(app_id: str):
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app: raise HTTPException(404, "Application not found")
     r2_key = app.get("archived_pdf")
     if not r2_key: raise HTTPException(404, "No archived resume")
@@ -537,7 +524,7 @@ def delete_version(app_id: str, v_id: str):
 @router.post("/{app_id}/versions/{v_id}/assign")
 def assign_version(app_id: str, v_id: str):
     """Set a built version as the application's active assigned resume."""
-    app = _get_app(app_id)
+    app = get_application(app_id)
     version = get_app_version(app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
@@ -581,7 +568,7 @@ def download_version_pdf(app_id: str, v_id: str):
 @router.post("/{app_id}/compile-pdf")
 async def compile_pdf(app_id: str, request: Request):
     """Compile and save a PDF from JSON config with role_company naming."""
-    app = _get_app(app_id)
+    app = get_application(app_id)
     if not app:
         raise HTTPException(404, "Application not found")
     
@@ -606,16 +593,8 @@ async def compile_pdf(app_id: str, request: Request):
         save_application(app)
 
         # 2. Check if LaTeX compiler (pdflatex) is available
-        import shutil
-        import os
-        import glob
-        
-        pdflatex_cmd = shutil.which("pdflatex")
-        if not pdflatex_cmd:
-            tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
-            if tinytex_paths:
-                pdflatex_cmd = tinytex_paths[0]
-                
+        from src.core.config import find_pdflatex
+        pdflatex_cmd = find_pdflatex()
         if not pdflatex_cmd:
             raise HTTPException(
                 status_code=400,
@@ -628,9 +607,9 @@ async def compile_pdf(app_id: str, request: Request):
         
         if not success:
             # Read build log to surface actual error
-            import os, glob as _glob
-            log_pattern = str(ROOT / "logs" / f"{pdf_name}_build.log")
-            log_files = _glob.glob(log_pattern)
+            log_dir = ROOT / "logs"
+            log_pattern = f"{pdf_name}_build.log"
+            log_files = list(log_dir.glob(log_pattern)) if log_dir.exists() else []
             log_tail = ""
             if log_files:
                 try:

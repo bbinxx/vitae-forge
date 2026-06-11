@@ -71,6 +71,10 @@ window.saveConfigToServer = () => state.saveConfig();
 // Init tracker with shared state reference
 initTracker(state);
 
+// ── Material Icon Helper ──────────────────────────────────────────────────────
+window.icon = (name) =>
+  `<span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">${name}</span>`;
+
 // Responsive header nav toggle
 window.toggleHeaderNav = function() {
   const nav = document.getElementById('header-nav');

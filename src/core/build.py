@@ -17,6 +17,7 @@ if str(_project_root) not in sys.path:
 from src.core.config import (
     ROOT, RESUME_CONFIG, DIST_DIR, LOG_DIR,
     TEMPLATE_PLAIN, TEMPLATE_PHOTO, PROFILE_PHOTO,
+    load_resume_config, find_pdflatex,
 )
 
 # Ensure output dirs exist on import
@@ -66,14 +67,7 @@ def build_variant(
     log_file = LOG_DIR / f"{display_name}{suffix}_build.log"
     print("  → Compiling with pdflatex...")
     
-    import os
-    import glob
-    pdflatex_cmd = shutil.which("pdflatex")
-    if not pdflatex_cmd:
-        tinytex_paths = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
-        if tinytex_paths:
-            pdflatex_cmd = tinytex_paths[0]
-            
+    pdflatex_cmd = find_pdflatex()
     if not pdflatex_cmd:
         print("     Error: 'pdflatex' executable not found in PATH.")
         with open(log_file, "w") as lf:
@@ -123,7 +117,7 @@ def build_variant(
 
 def build_role(role_id: str) -> None:
     """Build both plain and photo variants for a single role."""
-    config   = json.loads(RESUME_CONFIG.read_text())
+    config   = load_resume_config()
     name_raw = config.get("personal", {}).get("name", "Resume")
     short    = config.get("recipes", {}).get(role_id, {}).get("short_name", role_id)
     display  = f"{name_raw.upper().replace(' ', '_')}_{short}"
@@ -143,7 +137,7 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     import tempfile
     
     # Merge with personal/library from main config to ensure complete data
-    main_config = json.loads(RESUME_CONFIG.read_text())
+    main_config = load_resume_config()
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
@@ -191,7 +185,7 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
 
 def build_all() -> None:
     """Build every role defined in the resume config."""
-    config = json.loads(RESUME_CONFIG.read_text())
+    config = load_resume_config()
     roles = list(config.get("recipes", {}).keys())
     
     from concurrent.futures import ThreadPoolExecutor
