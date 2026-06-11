@@ -18,8 +18,10 @@ from src.core.config import RESUME_CONFIG
 
 
 def escape_latex(text) -> str:
+    if text is None:
+        return ""
     if not isinstance(text, str):
-        return text
+        text = str(text)
     replacements = {
         '&': r'\&', '%': r'\%', '$': r'\$', '#': r'\#', '_': r'\_',
         '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}', '^': r'\textasciicircum{}',
@@ -110,18 +112,20 @@ def generate_resume(
     tmpl = tmpl.replace("<<PHONE>>",      escape_latex(config.get("phone", "")))
     tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(config.get("linkedin", "")))
     tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(config.get("github", "")))
-    tmpl = tmpl.replace("<<SUMMARY>>",    escape_latex(config.get("professional_summary", "")))
+    # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)
+    summary_text = config.get("professional_summary") or config.get("summary", "")
+    tmpl = tmpl.replace("<<SUMMARY>>", escape_latex(summary_text))
     
     projects = config.get("projects", [])
-    proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 else "Academic Projects"
-    proj2 = escape_latex(projects[1].get("name", "")) if len(projects) > 1 else "Personal Projects"
+    proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 and isinstance(projects[0], dict) else "Academic Projects"
+    proj2 = escape_latex(projects[1].get("name", "")) if len(projects) > 1 and isinstance(projects[1], dict) else "Personal Projects"
     tmpl = tmpl.replace("<<PROJECT_1>>", proj1)
     tmpl = tmpl.replace("<<PROJECT_2>>", proj2)
     
     skills = config.get("skills", [])
     skill_words = []
     for s in skills:
-        if s.get("keywords"):
+        if isinstance(s, dict) and s.get("keywords"):
             skill_words.extend([k.strip() for k in s.get("keywords").split(',')])
     relevant_skills = escape_latex(", ".join(skill_words[:5]) if skill_words else "various modern tools")
     tmpl = tmpl.replace("<<RELEVANT_SKILLS>>", relevant_skills)
@@ -131,22 +135,48 @@ def generate_resume(
     cover_letter = cover_letter.replace('\n', '\n\n')
     tmpl = tmpl.replace("<<COVER_LETTER>>", cover_letter)
     edu = config.get("education", "")
-    if isinstance(edu, dict):
+    if isinstance(edu, list):
+        edu_items = []
+        for e in edu:
+            if isinstance(e, dict):
+                inst = escape_latex(e.get("institution", ""))
+                deg = escape_latex(e.get("degree", ""))
+                dt = escape_latex(e.get("date") or e.get("year", ""))  # AI JSON uses 'year'
+                det = escape_latex(e.get("details", ""))
+                edu_str = f"\\textbf{{{deg}}} \\hfill \\textbf{{{dt}}}\\\\\n{inst}"
+                if det:
+                    edu_str += f" \\hfill {det}"
+                edu_items.append(edu_str)
+            elif isinstance(e, str):
+                edu_items.append(escape_latex(e))
+        edu = "\n\n\\vspace{4pt}\n\n".join(edu_items)
+    elif isinstance(edu, dict):
         inst = escape_latex(edu.get("institution", ""))
         deg = escape_latex(edu.get("degree", ""))
-        dt = escape_latex(edu.get("date", ""))
+        dt = escape_latex(edu.get("date") or edu.get("year", ""))  # AI JSON uses 'year'
         det = escape_latex(edu.get("details", ""))
         edu_str = f"\\textbf{{{deg}}} \\hfill \\textbf{{{dt}}}\\\\\n{inst}"
         if det:
             edu_str += f" \\hfill {det}"
         edu = edu_str
+    elif not isinstance(edu, str):
+        edu = str(edu)
+        
     tmpl = tmpl.replace("<<EDUCATION>>", edu)
 
 
 
     # ── Skills ────────────────────────────────────────────────────────────────
     skills_tex = ""
-    for cat in config.get("skills", []):
+    skills_list = config.get("skills", [])
+    if isinstance(skills_list, dict):
+        # AI format: {"Languages": ["Java", "Python"]} -> internal format
+        skills_list = [
+            {"name": k, "keywords": ", ".join(v) if isinstance(v, list) else str(v)}
+            for k, v in skills_list.items()
+        ]
+        
+    for cat in skills_list:
         if not isinstance(cat, dict) or cat.get("active") is False:
             continue
         skills_tex += (
@@ -164,14 +194,24 @@ def generate_resume(
             f" \\quad \\href{{{proj.get('link')}}}{{GitHub}}"
             if proj.get("link") else ""
         )
+        tech = proj.get("tech", proj.get("technologies", ""))
+        date = proj.get("date", "")
+        
+        date_str = f"\\quad {escape_latex(date)}" if date else ""
+        
         projects_tex += (
             f"\\textbf{{ {escape_latex(proj.get('name', ''))} }} "
-            f"\\hfill \\textit{{ {escape_latex(proj.get('tech', ''))} "
-            f"\\quad {escape_latex(proj.get('date', ''))} }} {link_tex}\n"
+            f"\\hfill \\textit{{ {escape_latex(tech)} "
+            f"{date_str} }} {link_tex}\n"
         )
         projects_tex += "\\begin{itemize}\n"
-        for pt in proj.get("points", []):
-            projects_tex += f"\\item {escape_latex(pt)}\n"
+        points = proj.get("points", proj.get("highlights", []))
+        if isinstance(points, list):
+            for pt in points:
+                projects_tex += f"\\item {escape_latex(pt)}\n"
+        elif isinstance(points, str) and points:
+            projects_tex += f"\\item {escape_latex(points)}\n"
+            
         projects_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
     tmpl = tmpl.replace("<<PROJECTS>>", projects_tex)
 
@@ -182,22 +222,49 @@ def generate_resume(
         ("additional_info", "<<ADDITIONAL>>"),
     ]:
         tex = ""
-        for item in config.get(key, []):
-            if not isinstance(item, dict) or item.get("active") is False:
-                continue
-            if key in ("certifications", "achievements"):
+        items = config.get(key, [])
+
+        if key == "additional_info":
+            # AI JSON format: {"areas_of_interest": "...", "languages": "..."}
+            # Library format: [{"name": "Languages", "content": "..."}, ...]
+            # Normalise both into a canonical list, then render Languages first.
+            if isinstance(items, dict):
+                # Build ordered pair: Languages row first, then Areas of Interest
+                lang_val = items.get("languages", "")
+                aoi_val  = items.get("areas_of_interest", "")
+                normalised = []
+                if lang_val:
+                    normalised.append({"name": "Languages",         "content": lang_val})
+                if aoi_val:
+                    normalised.append({"name": "Areas of Interest", "content": aoi_val})
+                items = normalised
+            elif isinstance(items, list):
+                # Library format — sort so Languages always comes first
+                lang_items = [i for i in items if isinstance(i, dict) and "language" in i.get("name","").lower()]
+                aoi_items  = [i for i in items if isinstance(i, dict) and "interest" in i.get("name","").lower()]
+                other      = [i for i in items if isinstance(i, dict)
+                              and "language" not in i.get("name","").lower()
+                              and "interest"  not in i.get("name","").lower()]
+                items = lang_items + aoi_items + other
+
+            for item in items:
+                if not isinstance(item, dict) or item.get("active") is False:
+                    continue
+                content_val = item.get("content", item.get("keywords", ""))
+                tex += (
+                    f"{escape_latex(item.get('name', ''))} & "
+                    f"{escape_latex(content_val)} \\\\\n"
+                )
+        else:
+            for item in items:
+                if not isinstance(item, dict) or item.get("active") is False:
+                    continue
                 tex += (
                     f"{escape_latex(item.get('name'))} & "
                     f"{escape_latex(item.get('issuer'))} & "
                     f"{escape_latex(item.get('year', ''))} \\\\\n"
                 )
-            else:
-                if item.get("name") == "Areas of Interest":
-                    continue
-                tex += (
-                    f"{escape_latex(item.get('name'))} & "
-                    f"{escape_latex(item.get('content'))} \\\\\n"
-                )
+
         tmpl = tmpl.replace(tag, tex)
 
     # ── Section toggling ──────────────────────────────────────────────────────

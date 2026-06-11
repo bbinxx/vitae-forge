@@ -129,6 +129,438 @@ const parseCleanJson = (jsonStr) => {
     return JSON.parse(jsonStr.replace(/\/\/.*$/gm, '').trim());
 };
 
+// ── Master Instruction for AI Job Application Processing ─────────────────────
+const MASTER_INSTRUCTION = {
+    "master_instruction": {
+        "role": "Expert ATS Resume Optimizer, Career Assistant, and Application Manager",
+        "objective": "Process any Job Description (JD) and generate a complete application package optimized for ATS, readability, and an exactly one-page resume.",
+        "workflow_order": [
+            "Extract and summarize the exact Job Description.",
+            "Identify Company, Role, Location, Experience Required, Employment Type, Required Skills, Preferred Skills, ATS Keywords, Contact Email, Closing Date, and Platform.",
+            "Recommend the most suitable resume PDF variant.",
+            "Generate the filled application JSON.",
+            "Generate the tailored resume customization JSON.",
+            "Generate the ready-to-send email.",
+            "Generate the tailored cover letter.",
+            "Validate that the final resume fits exactly one page.",
+            "Automatically revise until all validation checks pass."
+        ],
+        "resume_variant_selection": {
+            "YOUR_NAME_SD.pdf": [
+                "Software Engineer",
+                "Full Stack Developer",
+                "Java Developer",
+                "Python Developer",
+                "General Developer",
+                "Freshers",
+                "Internships"
+            ],
+            "YOUR_NAME_BC.pdf": [
+                "Backend Developer",
+                "Node.js Developer",
+                "Django Developer",
+                "Flask Developer",
+                "API Developer",
+                "Database-heavy roles"
+            ],
+            "YOUR_NAME_SYS.pdf": [
+                "System Engineer",
+                "DevOps Engineer",
+                "Cloud Engineer",
+                "Linux Administrator",
+                "SRE",
+                "Infrastructure roles"
+            ],
+            "YOUR_NAME_MOB.pdf": [
+                "Flutter Developer",
+                "Android Developer",
+                "Mobile Developer",
+                "Kotlin Developer"
+            ],
+            "experience_rule": "Use *_X variants only if the role requires 2+ years of experience, seniority, leadership, or management responsibilities.",
+            "default_resume_variant": "YOUR_NAME_SD.pdf"
+        },
+        "resume_generation_rules": {
+            "summary": {
+                "required": true,
+                "sentences": {
+                    "minimum": 2,
+                    "maximum": 3
+                },
+                "words": {
+                    "minimum": 35,
+                    "preferred_range": [
+                        38,
+                        45
+                    ],
+                    "maximum": 45
+                },
+                "focus": "Target role, strongest qualifications, measurable strengths, and ATS keywords."
+            },
+            "skills": {
+                "required": true,
+                "exact_categories": 6,
+                "keywords_per_category": 4,
+                "preferred_categories": [
+                    "Languages",
+                    "Web Development",
+                    "Frameworks",
+                    "Databases",
+                    "Developer Tools",
+                    "Deployment"
+                ],
+                "focus": "Concentrate ATS keywords here."
+            },
+            "projects": {
+                "required": true,
+                "exact_projects": 5,
+                "bullet_distribution": {
+                    "preferred": [
+                        4,
+                        4,
+                        3,
+                        3,
+                        3
+                    ]
+                },
+                "total_bullets": {
+                    "minimum": 15,
+                    "default": 17,
+                    "maximum": 17
+                },
+                "reduce_bullets_only_if_page_exceeds_target": true,
+                "max_words_per_bullet": 12,
+                "ordering": "Most relevant first.",
+                "expansion_priority": [
+                    "Add measurable outcomes.",
+                    "Add implementation details.",
+                    "Add optimization impact.",
+                    "Add collaboration details."
+                ],
+                "compression_priority": [
+                    "Remove generic wording.",
+                    "Remove least relevant detail.",
+                    "Remove secondary metrics.",
+                    "Never remove technologies."
+                ],
+                "rules": [
+                    "Use action verbs.",
+                    "Include measurable outcomes when possible.",
+                    "Mention technologies used.",
+                    "Avoid generic descriptions.",
+                    "Tailor highlights to JD keywords."
+                ]
+            },
+            "education": {
+                "required": true,
+                "exact_entries": 1,
+                "structure": {
+                    "degree": true,
+                    "institution": true,
+                    "year": true
+                }
+            },
+            "certifications": {
+                "required": true,
+                "minimum_items": 4,
+                "maximum_items": 5,
+                "use_maximum_only_if_below_fill_target": true,
+                "structure": {
+                    "name": true,
+                    "issuer": true,
+                    "year": true
+                },
+                "focus": "Prefer certifications matching the JD.",
+                "priority": [
+                    "Direct JD relevance",
+                    "Programming",
+                    "Cloud",
+                    "Database",
+                    "General technical"
+                ]
+            },
+            "achievements": {
+                "required": true,
+                "exact_items": 3,
+                "structure": {
+                    "name": true,
+                    "issuer": true,
+                    "year": true
+                },
+                "focus": "Short, recognizable, and concise."
+            },
+            "additional_info": {
+                "required": true,
+                "exact_items": 2,
+                "structure": {
+                    "areas_of_interest": true,
+                    "languages": true
+                },
+                "areas_of_interest": {
+                    "exact_keywords": 4,
+                    "focus": "Use exactly 4 role-specific keywords (e.g. Java Development, Backend Systems, Databases, Problem Solving)."
+                },
+                "languages": {
+                    "exact_value": "English, Malayalam"
+                }
+            },
+            "cover_letter": {
+                "required": true,
+                "max_paragraphs": 3,
+                "structure": [
+                    "Paragraph 1: Express interest in the company and role.",
+                    "Paragraph 2: Highlight relevant skills, projects, and qualifications.",
+                    "Paragraph 3: Appreciation and closing."
+                ],
+                "tone": "Professional, human, enthusiastic."
+            }
+        },
+        "layout_rules": {
+            "exactly_one_page": true,
+            "section_order": [
+                "Header",
+                "Professional Summary",
+                "Skills",
+                "Projects",
+                "Education",
+                "Certifications",
+                "Achievements",
+                "Languages"
+            ],
+            "page_fill_engine": {
+                "target_fill_percent": 98,
+                "acceptable_range": [
+                    96,
+                    99
+                ],
+                "auto_adjust": true,
+                "expand_order": [
+                    "ProjectHighlights",
+                    "Summary",
+                    "Certifications",
+                    "AreasOfInterest"
+                ],
+                "compress_order": [
+                    "Certifications",
+                    "AreasOfInterest",
+                    "Summary",
+                    "ProjectHighlights"
+                ],
+                "step_size": "one bullet or one item at a time",
+                "max_revision_cycles": 5
+            },
+            "visual_balance_rules": {
+                "avoid_large_empty_sections": true,
+                "maintain_similar_section_density": true,
+                "prefer_expanding_existing_sections_over_new_sections": true,
+                "maximum_unused_vertical_space_percent": 5,
+                "avoid_overcrowding": true
+            }
+        },
+        "email_rules": {
+            "required": true,
+            "subject_format": "Application for [Role] \u2013 YOUR NAME",
+            "greeting_rule": "Use 'Dear Hiring Team' by default. Use 'Dear Mr./Ms. [Surname]' only if the surname is explicitly provided in the JD.",
+            "body_structure": [
+                "Introduce interest in the role.",
+                "Mention degree and relevant skills.",
+                "Reference attached resume.",
+                "Express appreciation.",
+                "Professional sign-off."
+            ],
+            "signature": {
+                "name": "YOUR NAME",
+                "phone": "+1 (555) 000-0000",
+                "email": "your.email@example.com",
+                "linkedin": "linkedin.com/in/your-linkedin"
+            },
+            "required_fields": [
+                "subject",
+                "body",
+                "signature"
+            ]
+        },
+        "validation_checklist": {
+            "valid_json": true,
+            "schema_preserved": true,
+            "correct_assigned_pdf": true,
+            "exactly_one_page": true,
+            "ats_keyword_coverage_percent": 80,
+            "summary_word_range": [
+                35,
+                45
+            ],
+            "skill_categories": 6,
+            "keywords_per_skill_category": 4,
+            "project_count": 5,
+            "project_total_bullets_range": [
+                15,
+                17
+            ],
+            "project_bullet_distribution_preferred": [
+                4,
+                4,
+                3,
+                3,
+                3
+            ],
+            "project_bullet_word_limit": 12,
+            "certification_count_range": [
+                4,
+                5
+            ],
+            "achievement_count": 3,
+            "education_entries": 1,
+            "additional_info_items": 2,
+            "areas_of_interest_keywords": 4,
+            "cover_letter_generated": true,
+            "email_generated": true,
+            "auto_revise_until_valid": true,
+            "max_revision_cycles": 5
+        },
+        "hard_validation": [
+            "Return valid JSON only.",
+            "Schema preserved exactly \u2014 no extra fields, no missing fields.",
+            "Correct assigned PDF selected.",
+            "Exactly 6 skill categories.",
+            "Exactly 5 projects.",
+            "Exactly 3 achievements.",
+            "Exactly 1 education entry.",
+            "Additional Info contains only Areas of Interest and Languages.",
+            "Areas of Interest contains exactly 4 role-specific keywords.",
+            "Summary is 35\u201345 words.",
+            "Projects contain 15\u201317 bullets total.",
+            "Each bullet is at most 12 words.",
+            "Certifications contain 4\u20135 items.",
+            "Email subject and body are generated.",
+            "Cover letter is generated.",
+            "ATS keyword coverage is at least 80%.",
+            "Resume estimated utilization is between 96\u201399%.",
+            "Maximum revision cycles: 5."
+        ],
+        "ats_distribution": {
+            "skills": 50,
+            "projects": 35,
+            "summary": 10,
+            "cover_letter": 5
+        },
+        "variant_resolution_rule": "Choose the most specialized variant. If multiple qualify equally, use YOUR_NAME_SD.pdf.",
+        "ultimate_directive": "Generate the strongest ATS-optimized application package possible. Preserve schema integrity and ATS compliance first. Then optimize visual balance using renderer-estimated page utilization until the resume occupies 96\u201399% of one page with minimal whitespace, no overcrowding, and consistent section density. If constraints conflict, preserve schema and ATS relevance first, then adjust content dynamically until all validations pass.",
+        "required_keyword_coverage_percent": 80
+    }
+};
+
+// ── Application JSON Schema Template ─────────────────────────────────────────
+const APPLICATION_SCHEMA = {
+    "company": "",
+    "role": "",
+    "status": "Applied",
+    "priority": "Medium",
+    "location": "",
+    "platform": "",
+    "job_url": "",
+    "notes": "",
+    "assigned_pdf": "",
+    "job_description": "",
+    "resume_template": {
+        "role_title": "",
+        "summary": "",
+        "skills": {
+            "Languages": [],
+            "Web Development": [],
+            "Frameworks": [],
+            "Databases": [],
+            "Developer Tools": [],
+            "Deployment": []
+        },
+        "projects": [
+            {
+                "name": "",
+                "technologies": "",
+                "highlights": []
+            },
+            {
+                "name": "",
+                "technologies": "",
+                "highlights": []
+            },
+            {
+                "name": "",
+                "technologies": "",
+                "highlights": []
+            },
+            {
+                "name": "",
+                "technologies": "",
+                "highlights": []
+            },
+            {
+                "name": "",
+                "technologies": "",
+                "highlights": []
+            }
+        ],
+        "education": {
+            "degree": "",
+            "institution": "",
+            "year": ""
+        },
+        "certifications": [
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            }
+        ],
+        "achievements": [
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            },
+            {
+                "name": "",
+                "issuer": "",
+                "year": ""
+            }
+        ],
+        "additional_info": {
+            "areas_of_interest": "",
+            "languages": ""
+        },
+        "cover_letter": ""
+    },
+    "email": {
+        "subject": "",
+        "body": ""
+    }
+};
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 export function toast(msg, type = 'success', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -471,756 +903,114 @@ export function closeModal() {
     _loadedFromSystemTemplate = null;
 }
 
-// ── New Application Modal ─────────────────────────────────────────────────────
-export function openNewAppModal() {
-    const statusOpts = Object.keys(STATUS_CONFIG).map(s =>
-        `<option value="${s}" ${s === 'Applied' ? 'selected' : ''}>${s}</option>`
-    ).join('');
-
-    const pdfFiles = (distFiles || []).filter(f =>
-        f.name && f.name.endsWith('.pdf') && !f.name.includes('LIVE_PREVIEW_TEMP')
-    );
-    const resumeOpts = `<option value="">— None (assign later) —</option>` + pdfFiles.map(f =>
-        `<option value="${esc(f.name)}">${esc(f.name)}</option>`
-    ).join('');
-
-    const platformOpts = `<option value="">— Select Platform —</option>` + PLATFORMS.map(p => 
-        `<option value="${p}">${p}</option>`
-    ).join('');
-
-    // Build preset chips from system recipes
-    const recipes = state.data?.recipes || {};
-    const presetChips = Object.entries(recipes).map(([key, recipe]) => `
-        <div class="preset-chip" id="preset-chip-${key}" onclick="window.selectNewAppPreset('${key}')">
-            <div class="preset-chip-name">${esc(recipe.short_name || key)}</div>
-            <div class="preset-chip-key">${esc(key)}</div>
-        </div>
-    `).join('');
-
-    const formHtml = `
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Company *</label>
-                <input type="text" id="new-company" class="input-field" placeholder="Google, Amazon…" autofocus>
-            </div>
-            <div class="field-group">
-                <label>Role *</label>
-                <input type="text" id="new-role" class="input-field" placeholder="Software Engineer…">
-            </div>
-        </div>
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Status</label>
-                <select id="new-status" class="input-field">${statusOpts}</select>
-            </div>
-            <div class="field-group">
-                <label>Priority</label>
-                <select id="new-priority" class="input-field">
-                    <option>High</option><option selected>Medium</option><option>Low</option>
-                </select>
-            </div>
-        </div>
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Location</label>
-                <input type="text" id="new-location" class="input-field" placeholder="Bangalore, Remote…">
-            </div>
-            <div class="field-group">
-                <label>Job URL</label>
-                <input type="url" id="new-job-url" class="input-field" placeholder="https://…">
-            </div>
-        </div>
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Platform (e.g. Mail, Naukri, Instahyre…)</label>
-                <select id="new-platform" class="input-field">${platformOpts}</select>
-            </div>
-            <div class="field-group">
-                <label>Assign Resume (optional)</label>
-                <select id="new-resume" class="input-field">${resumeOpts}</select>
-            </div>
-        </div>
-        <div class="field-group">
-            <label>Notes</label>
-            <textarea id="new-notes" class="input-field textarea" rows="2" placeholder="Initial notes…"></textarea>
-        </div>
-
-        ${presetChips ? `
-        <div class="field-group" style="margin-top:8px">
-            <label style="display:flex;align-items:center;gap:8px">
-                Start from Preset Template
-                <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional — pre-fills PDF config)</span>
-            </label>
-            <div class="preset-chip-grid" id="new-app-preset-grid">
-                ${presetChips}
-            </div>
-            <div id="new-app-preset-indicator" style="display:none;margin-top:6px;font-size:11px;color:var(--accent)"></div>
-        </div>
-        ` : ''}
-    `;
-
-    const jsonHtml = `
-        <div class="field-group" style="height: 100%;">
-            <textarea id="new-app-json-editor" class="input-field textarea" style="font-family:monospace;height:400px;font-size:12px;white-space:pre;" placeholder="Paste JSON here..."></textarea>
-        </div>
-    `;
-
-    const onTabChange = (newIndex, oldIndex) => {
-        if (oldIndex === 0 && newIndex === 1) {
-            const payload = {
-                company: document.getElementById('new-company').value.trim(),
-                role:    document.getElementById('new-role').value.trim(),
-                location:     document.getElementById('new-location').value.trim(),
-                status:       document.getElementById('new-status').value,
-                priority:     document.getElementById('new-priority').value,
-                platform:     document.getElementById('new-platform').value.trim(),
-                job_url:      document.getElementById('new-job-url').value.trim(),
-                assigned_pdf: document.getElementById('new-resume').value,
-                notes:        document.getElementById('new-notes').value.trim(),
-                job_description: "",
-            };
-            document.getElementById('new-app-json-editor').value = formatAppJsonWithComments(payload);
-        } else if (oldIndex === 1 && newIndex === 0) {
-            try {
-                const payload = parseCleanJson(document.getElementById('new-app-json-editor').value);
-                if (payload.company) document.getElementById('new-company').value = payload.company;
-                if (payload.role) document.getElementById('new-role').value = payload.role;
-                if (payload.location !== undefined) document.getElementById('new-location').value = payload.location;
-                if (payload.status) document.getElementById('new-status').value = payload.status;
-                if (payload.priority) document.getElementById('new-priority').value = payload.priority;
-                
-                if (payload.platform) {
-                    const platEl = document.getElementById('new-platform');
-                    let exists = Array.from(platEl.options).some(o => o.value === payload.platform);
-                    if (!exists) {
-                        const opt = document.createElement('option');
-                        opt.value = payload.platform;
-                        opt.textContent = payload.platform;
-                        platEl.appendChild(opt);
-                    }
-                    platEl.value = payload.platform;
-                }
-                
-                if (payload.job_url !== undefined) document.getElementById('new-job-url').value = payload.job_url;
-                if (payload.assigned_pdf !== undefined) document.getElementById('new-resume').value = payload.assigned_pdf;
-                if (payload.notes !== undefined) document.getElementById('new-notes').value = payload.notes;
-            } catch(e) {
-                console.warn('Invalid JSON in editor, could not sync to form.');
-            }
-        }
-    };
-
-    showModal('New Application', '', async () => {
-        let payload = {};
-        const tabs = document.querySelectorAll('.modal-tab');
-        let activeTabIndex = 0;
-        tabs.forEach((tab, i) => { if (tab.classList.contains('active')) activeTabIndex = i; });
-        
-        if (activeTabIndex === 1) {
-            try {
-                payload = parseCleanJson(document.getElementById('new-app-json-editor').value);
-            } catch (e) {
-                toast('Invalid JSON format', 'error');
-                return false;
-            }
-        } else {
-            payload = {
-                company:      document.getElementById('new-company').value.trim(),
-                role:         document.getElementById('new-role').value.trim(),
-                location:     document.getElementById('new-location').value.trim(),
-                status:       document.getElementById('new-status').value,
-                priority:     document.getElementById('new-priority').value,
-                platform:     document.getElementById('new-platform').value.trim(),
-                job_url:      document.getElementById('new-job-url').value.trim(),
-                assigned_pdf: document.getElementById('new-resume').value,
-                notes:        document.getElementById('new-notes').value.trim(),
-            };
-        }
-
-        if (!payload.company || !payload.role) { toast('Company and Role are required', 'error'); return false; }
-        
-        if (window._selectedNewAppPreset) {
-            const recipe = state.data?.recipes?.[window._selectedNewAppPreset];
-            if (recipe) {
-                payload.resume_template = JSON.parse(JSON.stringify(recipe));
-            }
-        }
-        
-        const newApp = await trackerApi.create(payload);
-        toast(`Created: ${payload.company} — ${payload.role}`, 'success');
-        window._selectedNewAppPreset = null;
-        await loadTracker();
-        return true;
-    }, 'Create Application', {
-        tabs: [
-            { icon: '', label: 'Form', content: formHtml },
-            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">data_object</span>', label: 'JSON', content: jsonHtml }
-        ],
-        onTabChange
-    });
+// ── Unified Application Modal ──────────────────────────────────────────────────
+export async function openAppStudio(appId = null) {
+    let app = null;
+    let initialJson = "";
     
-    // Reset preset selection each time modal opens
-    window._selectedNewAppPreset = null;
-}
-
-// ── Preset Selector for New App ───────────────────────────────────────────────
-window.selectNewAppPreset = (key) => {
-    // Toggle selection
-    if (window._selectedNewAppPreset === key) {
-        window._selectedNewAppPreset = null;
+    if (appId) {
+        app = applications.find(a => a.id === appId);
+        if (!app) return;
+        initialJson = formatAppJsonWithComments(app);
     } else {
-        window._selectedNewAppPreset = key;
+        initialJson = formatAppJsonWithComments(APPLICATION_SCHEMA);
     }
     
-    // Update chip visuals
-    document.querySelectorAll('.preset-chip').forEach(chip => {
-        chip.classList.remove('selected');
-    });
-    
-    const indicator = document.getElementById('new-app-preset-indicator');
-    if (window._selectedNewAppPreset) {
-        const chip = document.getElementById(`preset-chip-${window._selectedNewAppPreset}`);
-        if (chip) chip.classList.add('selected');
-        const recipe = state.data?.recipes?.[window._selectedNewAppPreset];
-        if (indicator) {
-            indicator.style.display = 'block';
-            indicator.innerHTML = `<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Using preset: "${recipe?.short_name || window._selectedNewAppPreset}"`;
-        }
-    } else {
-        if (indicator) indicator.style.display = 'none';
-    }
-};
-
-// ── Edit Application Modal (with Tabs) ─────────────────────────────────────────
-export async function openAppEditor(appId) {
-    const app = applications.find(a => a.id === appId);
-    if (!app) return;
-
-    const cfg = STATUS_CONFIG[app.status] || { color: '#6366f1', icon: '?' };
-    const statusOptions = Object.keys(STATUS_CONFIG).map(s =>
-        `<option value="${s}" ${app.status === s ? 'selected' : ''}>${s}</option>`
-    ).join('');
-
-    const priorityOptions = ['High', 'Medium', 'Low'].map(p =>
-        `<option value="${p}" ${(app.priority || 'Medium') === p ? 'selected' : ''}>${p}</option>`
-    ).join('');
-
-    const currentPlatform = app.platform || '';
-    const allPlatforms = PLATFORMS.includes(currentPlatform) ? PLATFORMS : (currentPlatform ? [...PLATFORMS, currentPlatform] : PLATFORMS);
-    const platformOptions = `<option value="">— Select Platform —</option>` + allPlatforms.map(p =>
-        `<option value="${p}" ${p === currentPlatform ? 'selected' : ''}>${p}</option>`
-    ).join('');
-
-    const pdfFiles = (distFiles || []).filter(f =>
-        f.name && f.name.endsWith('.pdf') && !f.name.includes('LIVE_PREVIEW_TEMP')
-    );
-    
-    // Build resume options — shared between both tabs (same data, same selection)
-    const buildResumeOptions = (selectedPdf) =>
-        `<option value="">— None —</option>` + pdfFiles.map(f =>
-            `<option value="${esc(f.name)}" ${selectedPdf === f.name ? 'selected' : ''}>${esc(f.name)}</option>`
-        ).join('');
-
-    const templateJson = (app.resume_template && Object.keys(app.resume_template).length > 0)
-        ? JSON.stringify(app.resume_template, null, 2)
-        : '';
-
-    // ── TAB 1: Application Details ─────────────────────────────────────────────
-    const detailsTab = `
-        <div class="field-group">
-            <label>Company</label>
-            <input type="text" id="edit-company" class="input-field" value="${esc(app.company)}" placeholder="Company name">
-        </div>
-        <div class="field-group">
-            <label>Role / Position</label>
-            <input type="text" id="edit-role" class="input-field" value="${esc(app.role)}" placeholder="Job role">
-        </div>
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Status</label>
-                <select id="edit-status" class="input-field">${statusOptions}</select>
+    const bodyHtml = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(90vh - 120px);min-height:500px">
+            <!-- Left: JSON Editor -->
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                    <label style="font-weight:600;font-size:12px">Application JSON</label>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap">
+                        <button class="btn btn-sm btn-secondary" onclick="window.copyForAI()" title="Copy prompt for AI" style="font-size:10px;padding:3px 8px;">Copy AI Prompt</button>
+                    </div>
+                </div>
+                <div id="unified-json-error" style="display:none; color: #dc2626; font-size: 10px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 4px;"></div>
+                <textarea id="unified-json-editor" class="input-field textarea" spellcheck="false"
+                    oninput="window.onUnifiedJsonInput(this.value)"
+                    placeholder='Paste AI JSON output here...'
+                    style="flex:1;border:1.5px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;white-space:pre;">${esc(initialJson)}</textarea>
             </div>
-            <div class="field-group">
-                <label>Priority</label>
-                <select id="edit-priority" class="input-field">${priorityOptions}</select>
+
+            <!-- Right: Live PDF Preview -->
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                    <label style="font-weight:600;font-size:12px">Live Preview</label>
+                    <div style="display:flex; gap: 4px; background: var(--bg-elevated); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+                        <button id="preview-type-resume" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px; background: var(--accent); color: white;" onclick="window.setUnifiedPreviewType('resume')">Resume</button>
+                        <button id="preview-type-cover" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedPreviewType('cover_letter')">Cover Letter</button>
+                    </div>
+                </div>
+                <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
+                    <div style="background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:6px 10px;font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
+                        <span id="unified-preview-status"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview</span>
+                        <div style="display:flex; gap: 12px; align-items: center;">
+                            <a id="unified-preview-download" href="#" download style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer;display:none">Download ↓</a>
+                            <a id="unified-preview-open" href="#" target="_blank" style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer;display:none">Open ↗</a>
+                        </div>
+                    </div>
+                    <iframe id="unified-preview-iframe" src="" title="Live PDF Preview" style="flex:1;border:none;display:block"></iframe>
+                </div>
+                ${appId ? `
+                <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
+                    <button class="btn btn-danger" onclick="window.deleteApp('${appId}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">delete</span> Delete App</button>
+                    <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" title="Export PDF to local folder"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">folder</span> Save to Folder</button>
+                </div>` : ''}
             </div>
-        </div>
-        <div class="modal-grid-2">
-            <div class="field-group">
-                <label>Location</label>
-                <input type="text" id="edit-location" class="input-field" placeholder="City / Remote…" value="${esc(app.location || '')}">
-            </div>
-            <div class="field-group">
-                <label>Platform</label>
-                <select id="edit-platform" class="input-field">${platformOptions}</select>
-            </div>
-        </div>
-        <div class="field-group">
-            <label>Job URL</label>
-            <input type="url" id="edit-job-url" class="input-field" placeholder="https://…" value="${esc(app.job_url || '')}">
-        </div>
-        <div class="field-group">
-            <label>Notes</label>
-            <textarea id="edit-notes" class="input-field textarea" rows="3" placeholder="Notes, requirements, contacts…">${esc(app.notes || '')}</textarea>
-        </div>
-        <div class="field-group">
-            <label>Assigned Resume</label>
-            <select id="edit-resume" class="input-field" onchange="window.syncResumeSelection('details', this.value)">
-                ${buildResumeOptions(app.assigned_pdf)}
-            </select>
-        </div>
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
-            <button class="btn btn-danger" onclick="window.deleteApp('${app.id}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">delete</span> Delete</button>
         </div>
     `;
 
-    // ── TAB 2: PDF Config/Template Editor ──────────────────────────────────────
-    const prefix = state.settings?.file_name_prefix !== undefined ? state.settings.file_name_prefix : 'YOUR_NAME-';
-    const slug = `${app.role.replace(/\s+/g, '_')}`.toLowerCase();
-    const defaultPdfName = app.assigned_pdf || `${prefix}${slug}.pdf`;
-    const pdfConfigTab = `
-        <style>
-            .config-pdf-preview-wrap {
-                margin-top: 10px;
-                border: 1px solid var(--border);
-                border-radius: var(--radius);
-                overflow: hidden;
-                background: #fff;
-                display: none;
-            }
-            .config-pdf-preview-wrap.visible { display: block; }
-            .config-pdf-preview-wrap iframe {
-                width: 100%;
-                height: 380px;
-                border: none;
-                display: block;
-            }
-            .config-pdf-preview-bar {
-                background: var(--bg-card);
-                border-bottom: 1px solid var(--border);
-                padding: 6px 10px;
-                font-size: 11px;
-                color: var(--text-muted);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .template-origin-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                font-size: 10px;
-                padding: 3px 8px;
-                border-radius: 20px;
-                font-weight: 600;
-            }
-            .template-origin-badge.system {
-                background: rgba(245,158,11,0.15);
-                color: #d97706;
-                border: 1px solid rgba(245,158,11,0.3);
-            }
-            .template-origin-badge.custom {
-                background: rgba(16,185,129,0.12);
-                color: #059669;
-                border: 1px solid rgba(16,185,129,0.25);
-            }
-            .save-guard-panel {
-                display: none;
-                margin-top: 10px;
-                background: rgba(245,158,11,0.08);
-                border: 1px solid rgba(245,158,11,0.35);
-                border-radius: var(--radius);
-                padding: 12px;
-            }
-            .save-guard-panel.visible { display: block; }
-            .save-guard-title {
-                font-size: 12px;
-                font-weight: 600;
-                color: #d97706;
-                margin-bottom: 8px;
-            }
-            .save-guard-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-        </style>
+    window._currentEditingApp = app;
 
-        <div class="form-grid-2" style="margin-bottom: 8px;">
-            <div class="field-group">
-                <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span>Resume Template</span>
-                    <span id="config-origin-badge" class="template-origin-badge" style="display:none;font-size:9px"></span>
-                </label>
-                <div class="app-card-footer" style="margin-bottom: 6px; display: flex; gap: 8px;">
-                    ${app.assigned_pdf ? `
-                    <a href="/resumes/${app.assigned_pdf}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Resume
-                    </a>` : ''}
-                    ${app.assigned_cover_letter ? `
-                    <a href="/resumes/${app.assigned_cover_letter}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter
-                    </a>` : ''}
-                </div>
-                <select id="config-template-select" class="input-field" onchange="window.syncResumeSelection('pdf-config', this.value)" style="border-radius:6px">
-                    <option value="">— Choose a template —</option>
-                    ${pdfFiles.map(f => `
-                        <option value="${esc(f.name)}" ${app.assigned_pdf === f.name ? 'selected' : ''}>
-                            ${esc(f.name)}
-                        </option>
-                    `).join('')}
-                </select>
-            </div>
-            
-            <div class="field-group">
-                <label>Custom PDF Name</label>
-                <input type="text" id="config-pdf-name" class="input-field" style="border-radius:6px" placeholder="e.g. python_dev.pdf" value="${esc(defaultPdfName)}" oninput="window.updateDownloadName(this.value)">
-            </div>
-        </div>
-
-        <details class="field-group" style="margin-bottom: 16px;" open>
-            <summary style="font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none; padding: 4px 0;"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit_document</span> Job Description (AI context)</summary>
-            <div class="app-card-footer" style="margin-top: 6px; display: flex; gap: 8px;">
-                ${app.assigned_pdf ? `
-                <a href="/resumes/${app.assigned_pdf}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
-                    <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Resume
-                </a>` : ''}
-                ${app.assigned_cover_letter ? `
-                <a href="/resumes/${app.assigned_cover_letter}" class="btn btn-secondary" style="font-size: 11px; text-decoration: none;" target="_blank" onclick="event.stopPropagation()">
-                    <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover Letter
-                </a>` : ''}
-            </div>
-            <div style="margin-top: 8px;">
-                <textarea id="config-jd" class="input-field textarea" rows="4" placeholder="Paste full job description here…" style="border-radius:6px; min-height: 120px; font-size: 12px; padding: 10px;">${esc(app.job_description || '')}</textarea>
-            </div>
-        </details>
-
-        <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-            <!-- JSON Editor & Preview Layout -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(90vh - 280px);min-height:450px">
-                <!-- Left: JSON Editor -->
-                <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-                        <label style="font-weight:600;font-size:12px">Resume Configuration (JSON)</label>
-                        <div style="display:flex;gap:4px;flex-wrap:wrap">
-                            <button class="btn btn-sm btn-secondary" id="btn-copy-for-ai"
-                                style="font-size:9px;padding:3px 8px;white-space:nowrap"
-                                onclick="window.copyForAI()"
-                                title="Copy JSON + JD to clipboard for AI">
-                                Copy
-                            </button>
-                        </div>
-                    </div>
-                    <div id="config-json-mode-note" style="display:none;font-size:10px;padding:4px 8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:6px;color:var(--accent)">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> Full content — edit and see live preview
-                    </div>
-                    <div id="config-json-error" style="display:none; color: #dc2626; font-size: 10px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 4px;"></div>
-                    <textarea id="config-json" class="input-field textarea config-json-editor" spellcheck="false"
-                        oninput="window.onConfigJsonInput(this.value)"
-                        placeholder='{\n  "role_title": "...",\n  "skills": [...],\n  "projects": [...]\n}'
-                        style="flex:1;border:1.5px solid var(--border);border-radius:6px">${esc(templateJson)}</textarea>
-                </div>
-
-                <!-- Right: Live PDF Preview -->
-                <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-                        <label style="font-weight:600;font-size:12px">Live Preview</label>
-                        <div style="display:flex; gap: 4px; background: var(--bg-elevated); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
-                            <button id="preview-type-resume" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px; background: var(--accent); color: white;" onclick="window.setPreviewType('resume')">Resume</button>
-                            <button id="preview-type-cover" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setPreviewType('cover_letter')">Cover Letter</button>
-                        </div>
-                    </div>
-                    <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
-                        <div style="background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:6px 10px;font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
-                            <span id="live-preview-status"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview</span>
-                            <div style="display:flex; gap: 12px; align-items: center;">
-                                <a id="live-preview-download" href="#" download style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer">Download ↓</a>
-                                <a id="live-preview-open" href="#" target="_blank" style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer">Open ↗</a>
-                            </div>
-                        </div>
-                        <iframe id="live-preview-iframe" src="" title="Live PDF Preview" style="flex:1;border:none;display:block"></iframe>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Save Guard Panel -->
-            <div id="save-guard-panel" class="save-guard-panel">
-                <div class="save-guard-title"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> System Preset Detected</div>
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">
-                    Cannot modify system templates. Save your changes as:
-                </div>
-                <div class="save-guard-btns">
-                    <button class="btn btn-primary" onclick="window.saveConfigToApp('${app.id}')" style="flex:1">💾 App-Only Copy</button>
-                    <button class="btn btn-secondary" onclick="window.saveConfigAsNewPreset('${app.id}')" style="flex:1">✨ New Preset</button>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div style="display:flex;gap:6px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)">
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-secondary" onclick="window.validateConfigJson()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Validate</button>
-                    <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">folder</span> Save to Folder</button>
-                </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-ghost" onclick="window.loadTemplateConfig()" style="font-size:11px"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">refresh</span> Reload</button>
-                    <button class="btn btn-primary" onclick="window.handleConfigSave('${app.id}')" style="font-size:11px">💾 Save</button>
-                </div>
-            </div>
-        </div>
-    `;
-    const jsonTab = `
-        <div class="field-group" style="height: 100%;">
-            <textarea id="edit-app-json-editor" class="input-field textarea" style="font-family:monospace;height:400px;font-size:12px;white-space:pre;" placeholder="Paste JSON here..."></textarea>
-        </div>
-    `;
-
-    const onEditTabChange = (newIndex, oldIndex) => {
-        if (newIndex === 2 && oldIndex !== 2) {
-            const payload = {
-                company: document.getElementById('edit-company').value.trim(),
-                role: document.getElementById('edit-role').value.trim(),
-                status: document.getElementById('edit-status').value,
-                priority: document.getElementById('edit-priority').value,
-                location: document.getElementById('edit-location').value.trim(),
-                platform: document.getElementById('edit-platform').value.trim(),
-                job_url: document.getElementById('edit-job-url').value.trim(),
-                notes: document.getElementById('edit-notes').value.trim(),
-                assigned_pdf: document.getElementById('edit-resume').value,
-                job_description: document.getElementById('config-jd')?.value?.trim() || '',
-            };
-            document.getElementById('edit-app-json-editor').value = formatAppJsonWithComments(payload);
-        } else if (oldIndex === 2 && newIndex !== 2) {
-            try {
-                const payload = parseCleanJson(document.getElementById('edit-app-json-editor').value);
-                if (payload.company) document.getElementById('edit-company').value = payload.company;
-                if (payload.role) document.getElementById('edit-role').value = payload.role;
-                if (payload.location !== undefined) document.getElementById('edit-location').value = payload.location;
-                if (payload.status) document.getElementById('edit-status').value = payload.status;
-                if (payload.priority) document.getElementById('edit-priority').value = payload.priority;
-                
-                if (payload.platform) {
-                    const platEl = document.getElementById('edit-platform');
-                    let exists = Array.from(platEl.options).some(o => o.value === payload.platform);
-                    if (!exists) {
-                        const opt = document.createElement('option');
-                        opt.value = payload.platform;
-                        opt.textContent = payload.platform;
-                        platEl.appendChild(opt);
-                    }
-                    platEl.value = payload.platform;
-                }
-                
-                if (payload.job_url !== undefined) document.getElementById('edit-job-url').value = payload.job_url;
-                if (payload.assigned_pdf !== undefined) document.getElementById('edit-resume').value = payload.assigned_pdf;
-                if (payload.notes !== undefined) document.getElementById('edit-notes').value = payload.notes;
-                if (payload.job_description !== undefined) {
-                    const jdEl = document.getElementById('config-jd');
-                    if (jdEl) jdEl.value = payload.job_description;
-                }
-            } catch(e) {
-                console.warn('Invalid JSON in editor, could not sync to form.');
-            }
-        }
-    };
-
-    showModal(`${app.company} · ${app.role}`, '', async () => {
-        let updates = {};
-        const tabs = document.querySelectorAll('.modal-tab');
-        let activeTabIndex = 0;
-        tabs.forEach((tab, i) => { if (tab.classList.contains('active')) activeTabIndex = i; });
-        
-        if (activeTabIndex === 2) {
-            try {
-                updates = parseCleanJson(document.getElementById('edit-app-json-editor').value);
-                if (updates.job_description !== undefined) {
-                    const jdEl = document.getElementById('config-jd');
-                    if (jdEl) jdEl.value = updates.job_description;
-                }
-            } catch (e) {
-                toast('Invalid JSON format', 'error');
-                return false;
-            }
-        } else {
-            updates = {
-                company: document.getElementById('edit-company').value.trim(),
-                role: document.getElementById('edit-role').value.trim(),
-                status: document.getElementById('edit-status').value,
-                priority: document.getElementById('edit-priority').value,
-                location: document.getElementById('edit-location').value.trim(),
-                platform: document.getElementById('edit-platform').value.trim(),
-                job_url: document.getElementById('edit-job-url').value.trim(),
-                notes: document.getElementById('edit-notes').value.trim(),
-                assigned_pdf: document.getElementById('edit-resume').value,
-                job_description: document.getElementById('config-jd')?.value?.trim() || '',
-            };
-        }
-        
-        if (!updates.company || !updates.role) {
-            toast('Company and Role are required', 'error');
-            return false;
-        }
-
-        const confirmBtn = document.getElementById('modal-confirm-btn');
-        if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Saving & Generating...';
-        }
-
+    showModal(appId ? 'Edit Application' : 'New Application', bodyHtml, async () => {
         try {
-            setSaveIndicator('saving');
-            await trackerApi.update(appId, updates);
-            Object.assign(app, updates);
-            
-            // Check if there is valid JSON in the editor to compile, and either it was edited OR the name was changed
-            const jsonText = document.getElementById('config-json')?.value?.trim();
-            
-            let currentPdfName = document.getElementById('config-pdf-name')?.value?.trim() || '';
-            if (currentPdfName && !currentPdfName.endsWith('.pdf')) currentPdfName += '.pdf';
-            const originalPdfName = app.assigned_pdf || '';
-            const pdfNameChanged = currentPdfName && currentPdfName !== originalPdfName;
-
-            if ((window._configIsDirty || pdfNameChanged) && jsonText && window.validateConfigJson(false)) { 
-                const config = JSON.parse(jsonText);
-                let pdfName = document.getElementById('config-pdf-name')?.value?.trim();
-                if (!pdfName) {
-                    pdfName = `${updates.role.replace(/\s+/g, '_')}_${updates.company.replace(/\s+/g, '_')}`.toLowerCase();
-                }
-                if (!pdfName.endsWith('.pdf')) pdfName += '.pdf';
-                
-                const response = await fetch(`/applications/${appId}/compile-pdf`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        config: config,
-                        pdf_name: pdfName
-                    })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.pdf_name) {
-                        updates.assigned_pdf = result.pdf_name;
-                        app.assigned_pdf = result.pdf_name;
-                        const detailsSel = document.getElementById('edit-resume');
-                        const configSel = document.getElementById('config-template-select');
-                        if (detailsSel) detailsSel.value = result.pdf_name;
-                        if (configSel) configSel.value = result.pdf_name;
-                        refreshConfigPdfPreview(result.pdf_name);
-                    }
-                    toast(`<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> Saved and PDF generated as: ${pdfName}.pdf`, 'success');
-                } else {
-                    const err = await response.json();
-                    toast(`<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span> App details saved, but PDF compilation failed: ${err.detail || ''}`, 'error');
-                }
-            } else {
-                toast('Application updated', 'success');
+            const payload = parseCleanJson(document.getElementById('unified-json-editor').value);
+            if (!payload.company || !payload.role) {
+                toast('Company and Role are required in JSON', 'error');
+                return false;
             }
             
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Saving & Generating...';
+            }
+            
+            setSaveIndicator('saving');
+            if (appId) {
+                await trackerApi.update(appId, payload);
+                toast('Application updated and PDF built successfully.', 'success');
+            } else {
+                await trackerApi.create(payload);
+                toast('Application created and PDF built successfully.', 'success');
+            }
             setSaveIndicator('saved');
             await loadTracker();
-            
+            return true;
         } catch (e) {
-            toast(`Error: ${e.message}`, 'error');
-        } finally {
+            toast('Invalid JSON format or Save Error: ' + e.message, 'error');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.textContent = 'Save Changes';
+                confirmBtn.textContent = 'Save Application';
             }
+            return false;
         }
-        
-        // Return false to prevent the modal from closing automatically
-        return false;
-    }, 'Save Changes', {
-        tabs: [
-            { icon: '', label: 'Details', content: detailsTab },
-            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span>', label: 'PDF Config', content: pdfConfigTab },
-            { icon: '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">data_object</span>', label: 'JSON', content: jsonTab }
-        ],
-        onTabChange: onEditTabChange
-    });
+    }, 'Save Application');
     
-    // Store app reference for config operations
-    window._currentEditingApp = app;
-    _loadedFromSystemTemplate = null;
-    
-    // Init: if app already has an assigned PDF, seed the config tab immediately
-    if (app.assigned_pdf) {
-        setTimeout(() => {
-            const configSel = document.getElementById('config-template-select');
-            if (configSel) configSel.value = app.assigned_pdf;
-            refreshConfigPdfPreview(app.assigned_pdf);
-            window.loadTemplateConfig(app.assigned_pdf);
-        }, 80);
-    } else if (app.resume_template && Object.keys(app.resume_template).length > 0) {
-        setTimeout(() => {
-            const expanded = resolveFullContent(app.resume_template);
-            document.getElementById('config-json').value = JSON.stringify(expanded, null, 2);
-            showExpandedJsonNote();
-            updateOriginBadge(null);
-        }, 80);
-    }
+    setTimeout(() => {
+        window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
+    }, 100);
 }
 
-// ── Bidirectional Resume Sync ─────────────────────────────────────────────────
-window.syncResumeSelection = (source, value) => {
-    if (source === 'details') {
-        // Details tab changed → update PDF Config tab
-        const configSel = document.getElementById('config-template-select');
-        if (configSel) configSel.value = value;
-        if (value) {
-            window.loadTemplateConfig(value);
-        } else {
-            refreshConfigPdfPreview(null);
-        }
-    } else if (source === 'pdf-config') {
-        // PDF Config tab changed → update Details tab
-        const detailsSel = document.getElementById('edit-resume');
-        if (detailsSel) detailsSel.value = value;
-        if (value) {
-            window.loadTemplateConfig(value);
-        } else {
-            refreshConfigPdfPreview(null);
-        }
-    }
-};
-
-// ── Live PDF Preview ──────────────────────────────────────────────────────────
-function refreshConfigPdfPreview(filename) {
-    const liveIframe = document.getElementById('live-preview-iframe');
-    const liveStatus = document.getElementById('live-preview-status');
-    const openLink = document.getElementById('live-preview-open');
-    const downloadLink = document.getElementById('live-preview-download');
-    
-    if (!liveIframe) return;
-    
-    if (!filename) {
-        liveIframe.src = '';
-        if (liveStatus) liveStatus.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Select a template';
-        return;
-    }
-    
-    const url = `/pdf/${encodeURIComponent(filename)}`;
-    liveIframe.src = url + '#toolbar=0&view=FitH';
-    if (liveStatus) liveStatus.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview';
-    if (openLink) openLink.href = url;
-    if (downloadLink) {
-        downloadLink.href = url;
-        let pdfName = document.getElementById('config-pdf-name')?.value?.trim() || filename;
-        if (pdfName && !pdfName.endsWith('.pdf')) pdfName += '.pdf';
-        downloadLink.download = pdfName;
-    }
+// ── Aliases for legacy HTML calls ─────────────────────────────────────────────
+export function openNewAppModal() {
+    openAppStudio(null);
 }
 
-// ── Origin Badge ─────────────────────────────────────────────────────────────
-function updateOriginBadge(recipeKey) {
-    const badge = document.getElementById('config-origin-badge');
-    if (!badge) return;
-    
-    if (recipeKey) {
-        badge.style.display = 'inline-flex';
-        badge.className = 'template-origin-badge system';
-        badge.innerHTML = `<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">inventory_2</span> System: ${recipeKey}`;
-    } else {
-        badge.style.display = 'inline-flex';
-        badge.className = 'template-origin-badge custom';
-        badge.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Custom Config';
-    }
+export function openAppEditor(appId) {
+    openAppStudio(appId);
 }
 
 // ── Delete Application ────────────────────────────────────────────────────────
@@ -1236,10 +1026,10 @@ export async function deleteApp(appId) {
     renderGrid();
 }
 
-// ── PDF Config Helpers ────────────────────────────────────────────────────────
+// ── Live Preview & Helpers ────────────────────────────────────────────────────
 window._previewType = 'resume';
 
-window.setPreviewType = (type) => {
+window.setUnifiedPreviewType = (type) => {
     window._previewType = type;
     const resBtn = document.getElementById('preview-type-resume');
     const covBtn = document.getElementById('preview-type-cover');
@@ -1256,14 +1046,14 @@ window.setPreviewType = (type) => {
             resBtn.style.color = 'inherit';
         }
     }
-    window._generateLivePreview();
+    window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
 };
 
-// Called when JSON textarea changes
-window.onConfigJsonInput = (val) => {
-    const errorDiv = document.getElementById('config-json-error');
+window.onUnifiedJsonInput = (val) => {
+    const errorDiv = document.getElementById('unified-json-error');
+    let payload = null;
     try {
-        JSON.parse(val);
+        payload = JSON.parse(val);
         if (errorDiv) errorDiv.style.display = 'none';
     } catch (e) {
         if (errorDiv) {
@@ -1272,42 +1062,49 @@ window.onConfigJsonInput = (val) => {
         }
         return; // Don't generate preview if JSON is invalid
     }
-    // If it was from a system template, mark as dirty
-    window._configIsDirty = true;
-    if (_loadedFromSystemTemplate) {
-        updateOriginBadge(_loadedFromSystemTemplate);
-    }
-    // Generate live preview with debounce
-    window._generateLivePreview();
-};
-
-// Debounced live preview generator
-window._previewDebounceTimer = null;
-window._generateLivePreview = () => {
+    
+    // Debounced preview
     clearTimeout(window._previewDebounceTimer);
-    const statusEl = document.getElementById('live-preview-status');
+    const statusEl = document.getElementById('unified-preview-status');
     if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Generating...';
     
     window._previewDebounceTimer = setTimeout(async () => {
         try {
-            const jsonText = document.getElementById('config-json').value.trim();
-            if (!jsonText) return;
+            const config = payload.resume_template;
             
-            const config = JSON.parse(jsonText);
-            const app = window._currentEditingApp;
-            const pdfName = document.getElementById('config-pdf-name')?.value?.trim() || 'preview.pdf';
-            
-            if (!app) {
-                if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> No application selected';
+            if (!config || Object.keys(config).length === 0) {
+                if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> No resume template found in JSON';
+                
+                // If no template in json but app has an assigned_pdf already (legacy apps), we can preview that.
+                if (payload.assigned_pdf) {
+                     const blobUrl = `/pdf/${encodeURIComponent(payload.assigned_pdf)}`;
+                     const iframe = document.getElementById('unified-preview-iframe');
+                     if (iframe) iframe.src = blobUrl + '#toolbar=0&view=FitH';
+                     
+                     const openLink = document.getElementById('unified-preview-open');
+                     if (openLink) { openLink.href = blobUrl; openLink.style.display = 'inline'; }
+                     
+                     const downloadLink = document.getElementById('unified-preview-download');
+                     if (downloadLink) {
+                         downloadLink.href = blobUrl; 
+                         downloadLink.download = payload.assigned_pdf;
+                         downloadLink.style.display = 'inline'; 
+                     }
+                     if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Existing PDF Preview';
+                }
                 return;
             }
             
-            // Call backend preview endpoint
+            let pdfName = payload.assigned_pdf || 'preview.pdf';
+            if (!pdfName.endsWith('.pdf')) pdfName += '.pdf';
+            
+            const appId = window._currentEditingApp ? window._currentEditingApp.id : "preview";
+            
             const response = await fetch(`/api/preview-pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    app_id: app.id,
+                    app_id: appId,
                     config: config,
                     pdf_name: pdfName,
                     type: window._previewType
@@ -1318,368 +1115,64 @@ window._generateLivePreview = () => {
             
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
-            const iframe = document.getElementById('live-preview-iframe');
-            if (iframe) {
-                iframe.src = blobUrl + '#toolbar=0&view=FitH';
-                const openLink = document.getElementById('live-preview-open');
-                if (openLink) openLink.href = blobUrl;
-                const downloadLink = document.getElementById('live-preview-download');
-                if (downloadLink) {
-                    downloadLink.href = blobUrl;
-                    let pdfName = document.getElementById('config-pdf-name')?.value?.trim();
-                    if (pdfName && !pdfName.endsWith('.pdf')) pdfName += '.pdf';
-                    
-                    if (window._previewType === 'cover_letter') {
-                        pdfName = pdfName ? pdfName.replace('.pdf', '_Cover_Letter.pdf') : 'Cover_Letter.pdf';
-                    }
-                    
-                    downloadLink.download = pdfName || 'preview.pdf';
+            const iframe = document.getElementById('unified-preview-iframe');
+            if (iframe) iframe.src = blobUrl + '#toolbar=0&view=FitH';
+            
+            const openLink = document.getElementById('unified-preview-open');
+            if (openLink) { openLink.href = blobUrl; openLink.style.display = 'inline'; }
+            
+            const downloadLink = document.getElementById('unified-preview-download');
+            if (downloadLink) {
+                downloadLink.href = blobUrl;
+                if (window._previewType === 'cover_letter') {
+                    pdfName = pdfName.replace('.pdf', '_Cover_Letter.pdf');
                 }
+                downloadLink.download = pdfName;
+                downloadLink.style.display = 'inline';
             }
             if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> PDF Preview';
         } catch (err) {
             console.error('Preview error:', err);
             if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Preview failed';
         }
-    }, 800); // 800ms debounce
+    }, 800);
 };
 
-window.updateDownloadName = (val) => {
-    const downloadLink = document.getElementById('live-preview-download');
-    if (downloadLink) {
-        let name = (val || '').trim();
-        if (name && !name.endsWith('.pdf')) name += '.pdf';
-        downloadLink.download = name || 'preview.pdf';
-    }
-};
+window.copyForAI = () => {
+    const prompt = `You are an Expert ATS Resume Optimizer, Career Assistant, and Application Manager.
 
-window.loadTemplateConfig = async (overridePdf) => {
-    window._configIsDirty = false;
-    const templateSelect = document.getElementById('config-template-select');
-    const selectedPdf = overridePdf || (templateSelect && templateSelect.value);
-    if (!selectedPdf) return;
-    
-    // Update iframe preview
-    refreshConfigPdfPreview(selectedPdf);
-    
-    // Try to find a matching system recipe from the PDF filename
-    const recipes = state.data?.recipes || {};
-    const baseName = selectedPdf.replace(/\.pdf$/i, '');
-    const parts = baseName.split('_');
-    
-    let matchingRecipeKey = null;
-    const findRecipe = (key) => {
-        const lowerKey = key.toLowerCase();
-        if (recipes[key]) return key;
-        if (recipes[lowerKey]) return lowerKey;
-        for (const rKey of Object.keys(recipes)) {
-            const recipe = recipes[rKey];
-            if (recipe?.short_name?.toLowerCase() === lowerKey) return rKey;
-        }
-        return null;
-    };
-    
-    for (let i = parts.length - 1; i >= 0; i--) {
-        const potentialKey = parts.slice(i).join('_');
-        const found = findRecipe(potentialKey);
-        if (found) {
-            matchingRecipeKey = found;
-            break;
-        }
-    }
-    
-    const app = window._currentEditingApp;
+=== MASTER INSTRUCTION ===
+${JSON.stringify(MASTER_INSTRUCTION, null, 2)}
 
-    // If we're loading the app's own assigned resume and it already has a custom template, preserve that first.
-    if (app?.assigned_pdf === selectedPdf && app?.resume_template && Object.keys(app.resume_template).length > 0) {
-        const expanded = resolveFullContent(app.resume_template);
-        document.getElementById('config-json').value = JSON.stringify(expanded, null, 2);
-        showExpandedJsonNote();
-        _loadedFromSystemTemplate = null;
-        updateOriginBadge(null);
-        return;
-    }
+=== APPLICATION SCHEMA (fill this completely) ===
+${JSON.stringify(APPLICATION_SCHEMA, null, 2)}`;
 
-    if (matchingRecipeKey) {
-        const recipe = recipes[matchingRecipeKey];
-        if (recipe) {
-            const expanded = resolveFullContent(recipe);
-            document.getElementById('config-json').value = JSON.stringify(expanded, null, 2);
-            showExpandedJsonNote();
-            _loadedFromSystemTemplate = matchingRecipeKey;
-            updateOriginBadge(matchingRecipeKey);
-            toast(`Loaded system template: ${matchingRecipeKey}`, 'info');
-            return;
-        }
-    }
-
-    // No system recipe matched — show the app's own config if available
-    if (app?.resume_template && Object.keys(app.resume_template).length > 0) {
-        const expanded = resolveFullContent(app.resume_template);
-        document.getElementById('config-json').value = JSON.stringify(expanded, null, 2);
-            showExpandedJsonNote();
-    }
-    _loadedFromSystemTemplate = null;
-    updateOriginBadge(null);
-};
-
-// ── Expand to Full Content (AI-ready) ─────────────────────────────────────────
-function showExpandedJsonNote() {
-    const modeNote = document.getElementById('config-json-mode-note');
-    if (modeNote) {
-        modeNote.style.display = 'block';
-    }
-}
-
-// ── Copy for AI (JSON + JD context prompt) ────────────────────────────────────
-window.copyForAI = async () => {
-    const textarea = document.getElementById('config-json');
-    const jdTextarea = document.getElementById('config-jd');
-    if (!textarea) return;
-
-    const jsonContent = textarea.value.trim();
-    if (!jsonContent) {
-        toast('Nothing to copy — expand or paste a config first', 'error');
-        return;
-    }
-
-    const jd = jdTextarea?.value?.trim() || '';
-    const app = window._currentEditingApp;
-    const appContext = app ? `Company: ${app.company}\nRole: ${app.role}` : '';
-
-    let prompt = `You are an expert career assistant. I will provide my current resume content as JSON and a job description.
-
-Please tailor the resume content to match the job description (adjust bullet points, rephrase, reorder skills, etc.).
-Important limits for JD customizations:
-- Summary: 2–3 lines only (max 40 words).
-- Skills: 6 categories maximum, 4 keywords per category.
-- Projects: 4 projects maximum, 3-4 bullets each (max 12 words per bullet). No descriptions longer than one line.
-- Certifications: 4 items maximum.
-- Achievements: 2-3 items maximum.
-- Additional Info: Max 2 items (Areas of interest, languages).
-- No extra sections. Keep ATS keywords concentrated in Skills and Projects.
-- Keep education as a single entry.
-
-Return ONLY valid JSON in the exact same format, with no extra explanation or markdown blocks.
-
-`;
-
-    if (appContext) prompt += `--- Target Job ---\n${appContext}\n\n`;
-    if (jd) prompt += `--- Job Description ---\n${jd}\n\n`;
-
-    prompt += `--- Resume JSON (edit this) ---\n${jsonContent}`;
-
-    try {
-        await navigator.clipboard.writeText(prompt);
-        toast('Copied! Paste into ChatGPT / Gemini / Claude, then paste the response back here', 'success', 5000);
-    } catch (e) {
-        // Fallback: select all text in textarea
-        textarea.select();
-        toast('Clipboard blocked — text selected, press Ctrl+C', 'info', 4000);
-    }
-};
-
-window.validateConfigJson = (showToast = true) => {
-    const jsonText = document.getElementById('config-json').value.trim();
-    const errorDiv = document.getElementById('config-json-error');
-    
-    if (!jsonText) {
-        if (errorDiv) { errorDiv.textContent = 'JSON is empty'; errorDiv.style.display = 'block'; }
-        return false;
-    }
-    
-    try {
-        JSON.parse(jsonText);
-        if (errorDiv) errorDiv.style.display = 'none';
-        if (showToast) toast('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> JSON is valid', 'success');
-        return true;
-    } catch (e) {
-        if (errorDiv) { errorDiv.textContent = `JSON Error: ${e.message}`; errorDiv.style.display = 'block'; }
-        if (showToast) toast('Invalid JSON syntax', 'error');
-        return false;
-    }
-};
-
-// ── Save Guard — dispatch based on origin ─────────────────────────────────────
-window.handleConfigSave = (appId) => {
-    if (!window.validateConfigJson()) return;
-    
-    if (_loadedFromSystemTemplate) {
-        // Show the save guard panel instead of saving immediately
-        const panel = document.getElementById('save-guard-panel');
-        if (panel) {
-            panel.classList.add('visible');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    } else {
-        window.saveConfigToApp(appId);
-    }
-};
-
-// Save ONLY to the current application — never touches system recipes
-window.saveConfigToApp = async (appId) => {
-    const jsonText = document.getElementById('config-json').value.trim();
-    if (!window.validateConfigJson()) return;
-    
-    try {
-        const config = JSON.parse(jsonText);
-        
-        const app = applications.find(a => a.id === appId);
-        let pdfName = document.getElementById('config-pdf-name')?.value?.trim();
-        if (!pdfName) {
-            pdfName = app ? `${app.role.replace(/\s+/g, '_')}_${app.company.replace(/\s+/g, '_')}`.toLowerCase() : 'custom_resume';
-        }
-        if (!pdfName.endsWith('.pdf')) pdfName += '.pdf';
-        
-        setSaveIndicator('saving');
-        
-        const response = await fetch(`/applications/${appId}/compile-pdf`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                config: config,
-                pdf_name: pdfName
-            })
-        });
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || 'PDF compilation failed');
-        }
-        
-        const result = await response.json();
-        setSaveIndicator('saved');
-        toast(`Configuration saved and PDF generated as ${pdfName}.pdf`, 'success');
-        
-        if (app) {
-            app.resume_template = config;
-            app.assigned_pdf = result.pdf_name || app.assigned_pdf;
-        }
-        
-        const previewSelect = document.getElementById('config-template-select');
-        if (previewSelect && app?.assigned_pdf) {
-            previewSelect.value = app.assigned_pdf;
-            refreshConfigPdfPreview(app.assigned_pdf);
-        }
-        
-        // Hide guard panel
-        const panel = document.getElementById('save-guard-panel');
-        if (panel) panel.classList.remove('visible');
-        
-        // Clear system origin — now it's a custom config
-        _loadedFromSystemTemplate = null;
-        updateOriginBadge(null);
-        
-    } catch (e) {
-        toast(`Error saving config: ${e.message}`, 'error');
-        setSaveIndicator('saved');
-    }
-};
-
-// Save as a NEW preset in state.data.recipes (then sync to server) — NEVER overwrites existing
-window.saveConfigAsNewPreset = async (appId) => {
-    const jsonText = document.getElementById('config-json').value.trim();
-    if (!window.validateConfigJson()) return;
-    
-    const appObj = applications.find(a => a.id === appId);
-    const suggestedName = appObj
-        ? `${appObj.company.replace(/\s+/g, '_')}_${appObj.role.replace(/\s+/g, '_')}`.toLowerCase()
-        : 'new_preset';
-    
-    const newKey = prompt(
-        `Enter a unique key for this new preset:\n(e.g. ${suggestedName})`,
-        suggestedName
-    );
-    if (!newKey || !newKey.trim()) return;
-    
-    const key = newKey.trim().toLowerCase().replace(/\s+/g, '_');
-    if (state.data.recipes[key]) {
-        toast(`Preset key "${key}" already exists. Choose a different name.`, 'error');
-        return;
-    }
-    
-    try {
-        const config = JSON.parse(jsonText);
-        
-        // Add new recipe to state (not modifying existing)
-        state.data.recipes[key] = {
-            ...config,
-            short_name: config.short_name || newKey.trim(),
-        };
-        
-        // Save full config to server
-        const ok = await api.saveConfig(state.data);
-        if (!ok) { toast('Failed to save preset to server', 'error'); return; }
-        
-        // Also save to this app and generate PDF
-        setSaveIndicator('saving');
-        const pdfName = appObj ? `${appObj.role.replace(/\s+/g, '_')}_${appObj.company.replace(/\s+/g, '_')}`.toLowerCase() : 'custom_resume';
-        
-        const response = await fetch(`/applications/${appId}/compile-pdf`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                config: config,
-                pdf_name: pdfName
-            })
-        });
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || 'PDF compilation failed');
-        }
-        
-        const result = await response.json();
-        setSaveIndicator('saved');
-        
-        if (appObj) {
-            appObj.resume_template = config;
-            appObj.assigned_pdf = result.pdf_name || appObj.assigned_pdf;
-        }
-        
-        const previewSelect = document.getElementById('config-template-select');
-        if (previewSelect && appObj?.assigned_pdf) {
-            previewSelect.value = appObj.assigned_pdf;
-            refreshConfigPdfPreview(appObj.assigned_pdf);
-        }
-        
-        state.notify();
-        
-        toast(`New preset "${key}" saved and PDF generated!`, 'success');
-        
-        // Hide guard panel
-        const panel = document.getElementById('save-guard-panel');
-        if (panel) panel.classList.remove('visible');
-        
-        _loadedFromSystemTemplate = null;
-        updateOriginBadge(null);
-        
-    } catch (e) {
-        toast(`Error: ${e.message}`, 'error');
-    }
-};
-
-
-// ── Keep legacy alias for backward compatibility ───────────────────────────────
-window.saveConfigTemplate = (appId) => window.handleConfigSave(appId);
-
-// ── on Details resume change (legacy) ─────────────────────────────────────────
-window.onResumeChange = () => {
-    const val = document.getElementById('edit-resume')?.value || '';
-    window.syncResumeSelection('details', val);
+    navigator.clipboard.writeText(prompt).then(() => {
+        toast('Copied AI Prompt to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Could not copy', err);
+        toast('Failed to copy', 'error');
+    });
 };
 
 window.exportToLocalFolder = async function() {
-    const pdfNameEl = document.getElementById('config-pdf-name');
-    let pdfName = pdfNameEl ? pdfNameEl.value.trim() : '';
+    const payloadStr = document.getElementById('unified-json-editor')?.value;
+    if (!payloadStr) return;
+    
+    let pdfName = "";
+    try {
+        const payload = JSON.parse(payloadStr);
+        pdfName = payload.assigned_pdf;
+    } catch(e) {}
+    
     if (!pdfName) {
-        toast('PDF name is empty.', 'error');
+        toast('No assigned PDF found in JSON.', 'error');
         return;
     }
     if (pdfName.endsWith('.pdf')) {
         pdfName = pdfName.slice(0, -4);
     }
-    
+
     toast('Exporting PDF to local folder...', 'info');
     try {
         const res = await fetch('/api/export-pdf-local', {
@@ -1698,7 +1191,6 @@ window.exportToLocalFolder = async function() {
     }
 };
 
-// ── Search ────────────────────────────────────────────────────────────────────
 export function setupSearch() {
     const searchEl = document.getElementById('app-search');
     if (!searchEl) return;
