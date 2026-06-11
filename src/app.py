@@ -44,7 +44,7 @@ async def cookie_auth_middleware(request: Request, call_next):
         return await call_next(request)
         
     path = request.url.path
-    if path == "/api/login" or path.startswith("/static/") or path.startswith("/share/"):
+    if path == "/api/login" or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/"):
         return await call_next(request)
         
     auth_cookie = request.cookies.get("resume_auth")

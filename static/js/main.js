@@ -70,3 +70,43 @@ window.saveConfigToServer = () => state.saveConfig();
 
 // Init tracker with shared state reference
 initTracker(state);
+
+// Responsive header nav toggle
+window.toggleHeaderNav = function() {
+  const nav = document.getElementById('header-nav');
+  const actions = document.getElementById('header-actions');
+  nav.classList.toggle('open');
+  if (actions) actions.classList.toggle('open');
+};
+
+// Close sidebar on mobile
+window.closeSidebar = function() {
+  document.querySelectorAll('.sidebar, .tracker-sidebar').forEach(el => {
+    el.classList.remove('open');
+  });
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (backdrop) backdrop.classList.remove('visible');
+};
+
+// Open sidebar on mobile via slide-in overlay
+document.addEventListener('click', function(e) {
+  const sidebar = e.target.closest('.sidebar, .tracker-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const isMobile = window.innerWidth <= 480;
+  if (isMobile && sidebar && !sidebar.classList.contains('open')) {
+    sidebar.classList.add('open');
+    if (backdrop) backdrop.classList.add('visible');
+  }
+});
+
+// Close nav when clicking outside
+document.addEventListener('click', function(e) {
+  if (window.innerWidth > 768) return;
+  const nav = document.getElementById('header-nav');
+  const hamburger = e.target.closest('.hamburger');
+  if (!e.target.closest('.header-nav') && !hamburger && nav.classList.contains('open')) {
+    nav.classList.remove('open');
+    const actions = document.getElementById('header-actions');
+    if (actions) actions.classList.remove('open');
+  }
+});
