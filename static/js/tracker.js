@@ -126,7 +126,16 @@ const formatAppJsonWithComments = (payload) => {
 };
 
 const parseCleanJson = (jsonStr) => {
-    return JSON.parse(jsonStr.replace(/\/\/.*$/gm, '').trim());
+    let clean = jsonStr;
+    // 1. Strip comments safely (ignoring http:// or https://)
+    clean = clean.replace(/(^|[^:])\/\/.*$/gm, '$1');
+    
+    // 2. Fix literal newlines in strings (often caused by pasting AI output)
+    clean = clean.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/gs, function(match) {
+        return match.replace(/\n/g, '\\n').replace(/\r/g, '');
+    });
+    
+    return JSON.parse(clean.trim());
 };
 
 // ── Master Instruction for AI Job Application Processing ─────────────────────
@@ -895,6 +904,10 @@ window.switchModalTab = (index) => {
             if (sel && sel.value) refreshConfigPdfPreview(sel.value);
         }, 50);
     }
+    // When switching to Email tab, sync fields from JSON editor
+    if (index === 2) {
+        window.syncEmailTabFromJson();
+    }
 };
 
 export function closeModal() {
@@ -907,7 +920,7 @@ export function closeModal() {
 export async function openAppStudio(appId = null) {
     let app = null;
     let initialJson = "";
-    
+
     if (appId) {
         app = applications.find(a => a.id === appId);
         if (!app) return;
@@ -915,9 +928,10 @@ export async function openAppStudio(appId = null) {
     } else {
         initialJson = formatAppJsonWithComments(APPLICATION_SCHEMA);
     }
-    
-    const bodyHtml = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(90vh - 120px);min-height:500px">
+
+    // ── Tab 0: Application JSON + Live PDF Preview ──────────────────────────
+    const jsonPaneHtml = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(90vh - 160px);min-height:460px;padding:16px 24px">
             <!-- Left: JSON Editor -->
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
@@ -932,7 +946,6 @@ export async function openAppStudio(appId = null) {
                     placeholder='Paste AI JSON output here...'
                     style="flex:1;border:1.5px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;white-space:pre;">${esc(initialJson)}</textarea>
             </div>
-
             <!-- Right: Live PDF Preview -->
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
@@ -944,7 +957,7 @@ export async function openAppStudio(appId = null) {
                 </div>
                 <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
                     <div style="background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:6px 10px;font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
-                        <span id="unified-preview-status"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF Preview</span>
+                        <span id="unified-preview-status"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">description</span> PDF Preview</span>
                         <div style="display:flex; gap: 12px; align-items: center;">
                             <a id="unified-preview-download" href="#" download style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer;display:none">Download ↓</a>
                             <a id="unified-preview-open" href="#" target="_blank" style="color:var(--accent);font-size:9px;text-decoration:none;cursor:pointer;display:none">Open ↗</a>
@@ -954,55 +967,277 @@ export async function openAppStudio(appId = null) {
                 </div>
                 ${appId ? `
                 <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
-                    <button class="btn btn-danger" onclick="window.deleteApp('${appId}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">delete</span> Delete App</button>
-                    <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" title="Export PDF to local folder"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">folder</span> Save to Folder</button>
+                    <button class="btn btn-danger" onclick="window.deleteApp('${appId}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">delete</span> Delete App</button>
+                    <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" title="Export PDF to local folder"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">folder</span> Save to Folder</button>
                 </div>` : ''}
             </div>
-        </div>
-    `;
+        </div>`;
+
+    // ── Tab 1: Email ──────────────────────────────────────────────────────────
+    const emailPaneHtml = `
+        <div id="email-tab-pane" style="padding:16px 24px;height:calc(90vh - 160px);min-height:460px;display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+
+            <!-- Warning banner -->
+            <div id="email-no-recipient-warning" style="display:none;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.4);border-radius:6px;padding:8px 12px;font-size:11px;color:#b45309;display:flex;align-items:center;gap:6px">
+                <span class="material-symbols-outlined" style="font-size:1.1em">warning</span>
+                Recipient email not found. Please enter an email address to enable Gmail.
+            </div>
+
+            <!-- Top toolbar: Edit | Preview toggle + action buttons -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <div style="display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:2px">
+                    <button id="email-mode-edit" class="view-toggle-btn active" onclick="window.setEmailMode('edit')" style="font-size:11px;padding:4px 12px">
+                        <span class="material-symbols-outlined" style="font-size:1em">edit</span> Edit
+                    </button>
+                    <button id="email-mode-preview" class="view-toggle-btn" onclick="window.setEmailMode('preview')" style="font-size:11px;padding:4px 12px">
+                        <span class="material-symbols-outlined" style="font-size:1em">visibility</span> Preview
+                    </button>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-sm btn-secondary" onclick="window.emailCopySubject()" title="Copy subject line">
+                        <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Subject
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="window.emailCopyBody()" title="Copy email body">
+                        <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Body
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="window.emailCopyAll()" title="Copy full email">
+                        <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">content_copy</span> Copy Email
+                    </button>
+                    <button id="email-gmail-btn" class="btn btn-sm btn-primary" onclick="window.emailOpenGmail()" title="Open in Gmail Compose">
+                        <span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">open_in_new</span> Open in Gmail
+                    </button>
+                </div>
+            </div>
+
+            <!-- EDIT MODE -->
+            <div id="email-edit-mode" style="display:flex;flex-direction:column;gap:10px;flex:1">
+
+                <!-- Recipient -->
+                <div class="field-group">
+                    <label>To <span style="color:var(--text-muted);font-weight:400">(Recipient)</span></label>
+                    <input id="email-to" type="email" class="input-field"
+                        placeholder="e.g. careers@company.com"
+                        oninput="window.onEmailFieldChange()"
+                        style="font-size:12px" />
+                </div>
+
+                <!-- Subject -->
+                <div class="field-group">
+                    <label>Subject</label>
+                    <input id="email-subject" type="text" class="input-field"
+                        placeholder="e.g. Application for Java Intern – YOUR NAME"
+                        oninput="window.onEmailFieldChange()"
+                        style="font-size:12px" />
+                </div>
+
+                <!-- Body -->
+                <div class="field-group" style="flex:1;display:flex;flex-direction:column">
+                    <label>Email Body</label>
+                    <textarea id="email-body" class="input-field textarea"
+                        placeholder="Write your email body here..."
+                        oninput="window.onEmailFieldChange()"
+                        style="flex:1;min-height:320px;font-size:12px;line-height:1.7;font-family:var(--font)"></textarea>
+                </div>
+            </div>
+
+            <!-- PREVIEW MODE -->
+            <div id="email-preview-mode" style="display:none;flex:1;overflow-y:auto">
+                <div id="email-preview-box" style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:8px;padding:20px 24px;font-size:13px;line-height:1.8;color:var(--text-primary);white-space:pre-wrap;font-family:var(--font)"></div>
+            </div>
+
+        </div>`;
 
     window._currentEditingApp = app;
 
-    showModal(appId ? 'Edit Application' : 'New Application', bodyHtml, async () => {
-        try {
-            const payload = parseCleanJson(document.getElementById('unified-json-editor').value);
-            if (!payload.company || !payload.role) {
-                toast('Company and Role are required in JSON', 'error');
+    showModal(
+        appId ? 'Edit Application' : 'New Application',
+        '',   // body handled via tabs
+        async () => {
+            try {
+                const payload = parseCleanJson(document.getElementById('unified-json-editor').value);
+                if (!payload.company || !payload.role) {
+                    toast('Company and Role are required in JSON', 'error');
+                    return false;
+                }
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                if (confirmBtn) {
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">hourglass_empty</span> Saving & Generating...';
+                }
+                setSaveIndicator('saving');
+                if (appId) {
+                    await trackerApi.update(appId, payload);
+                    toast('Application updated and PDF built successfully.', 'success');
+                } else {
+                    await trackerApi.create(payload);
+                    toast('Application created and PDF built successfully.', 'success');
+                }
+                setSaveIndicator('saved');
+                await loadTracker();
+                return true;
+            } catch (e) {
+                toast('Invalid JSON format or Save Error: ' + e.message, 'error');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Save Application'; }
                 return false;
             }
-            
-            const confirmBtn = document.getElementById('modal-confirm-btn');
-            if (confirmBtn) {
-                confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Saving & Generating...';
+        },
+        'Save Application',
+        {
+            tabs: [
+                { label: 'Application JSON', icon: '<span class="material-symbols-outlined" style="font-size:1em">description</span>', content: jsonPaneHtml },
+                { label: 'Email',            icon: '<span class="material-symbols-outlined" style="font-size:1em">mail</span>',        content: emailPaneHtml },
+            ],
+            onTabChange: (newIdx) => {
+                if (newIdx === 1) window.syncEmailTabFromJson();
             }
-            
-            setSaveIndicator('saving');
-            if (appId) {
-                await trackerApi.update(appId, payload);
-                toast('Application updated and PDF built successfully.', 'success');
-            } else {
-                await trackerApi.create(payload);
-                toast('Application created and PDF built successfully.', 'success');
-            }
-            setSaveIndicator('saved');
-            await loadTracker();
-            return true;
-        } catch (e) {
-            toast('Invalid JSON format or Save Error: ' + e.message, 'error');
-            const confirmBtn = document.getElementById('modal-confirm-btn');
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = 'Save Application';
-            }
-            return false;
         }
-    }, 'Save Application');
-    
+    );
+
     setTimeout(() => {
         window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
     }, 100);
 }
+
+// ── Email Tab Helpers ─────────────────────────────────────────────────────────
+
+/** Extract recipient email from notes string or direct contact_email field */
+function extractRecipientEmail(payload) {
+    // Check notes string for an email pattern
+    if (payload.notes && typeof payload.notes === 'string') {
+        const m = payload.notes.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+        if (m) return m[0];
+    }
+    if (payload.contact_email) return payload.contact_email;
+    return '';
+}
+
+/** Sync email tab fields from the current JSON editor content */
+window.syncEmailTabFromJson = () => {
+    const editorEl = document.getElementById('unified-json-editor');
+    if (!editorEl) return;
+    let payload;
+    try { payload = parseCleanJson(editorEl.value); } catch { return; }
+
+    const email = payload.email || {};
+    const to    = extractRecipientEmail(payload);
+
+    const toEl  = document.getElementById('email-to');
+    const subEl = document.getElementById('email-subject');
+    const bodEl = document.getElementById('email-body');
+    const warnEl= document.getElementById('email-no-recipient-warning');
+    const gmailBtn = document.getElementById('email-gmail-btn');
+
+    if (toEl)  toEl.value  = to;
+    if (subEl) subEl.value = email.subject || '';
+    if (bodEl) bodEl.value = email.body    || '';
+
+    const hasRecipient = to.trim().length > 0;
+    if (warnEl)   warnEl.style.display   = hasRecipient ? 'none' : 'flex';
+    if (gmailBtn) gmailBtn.disabled       = !hasRecipient;
+};
+
+/** Push email field edits back into JSON editor */
+window.onEmailFieldChange = () => {
+    const editorEl = document.getElementById('unified-json-editor');
+    if (!editorEl) return;
+    let payload;
+    try { payload = parseCleanJson(editorEl.value); } catch { return; }
+
+    const subEl = document.getElementById('email-subject');
+    const bodEl = document.getElementById('email-body');
+    const toEl  = document.getElementById('email-to');
+
+    if (!payload.email) payload.email = {};
+    if (subEl) payload.email.subject = subEl.value;
+    if (bodEl) payload.email.body    = bodEl.value;
+    if (toEl && toEl.value) payload.contact_email = toEl.value;
+
+    editorEl.value = formatAppJsonWithComments(payload);
+    window.onUnifiedJsonInput(editorEl.value);
+
+    // Update Gmail button state
+    const gmailBtn = document.getElementById('email-gmail-btn');
+    const warnEl   = document.getElementById('email-no-recipient-warning');
+    const hasEmail = toEl && toEl.value.trim().length > 0;
+    if (gmailBtn) gmailBtn.disabled = !hasEmail;
+    if (warnEl)   warnEl.style.display = hasEmail ? 'none' : 'flex';
+};
+
+/** Toggle edit / preview mode */
+window.setEmailMode = (mode) => {
+    const editDiv    = document.getElementById('email-edit-mode');
+    const previewDiv = document.getElementById('email-preview-mode');
+    const editBtn    = document.getElementById('email-mode-edit');
+    const prevBtn    = document.getElementById('email-mode-preview');
+    if (!editDiv || !previewDiv) return;
+
+    if (mode === 'preview') {
+        // Build preview content
+        const to  = document.getElementById('email-to')?.value  || '(No recipient)';
+        const sub = document.getElementById('email-subject')?.value || '(No subject)';
+        const bod = document.getElementById('email-body')?.value    || '';
+        const box = document.getElementById('email-preview-box');
+        if (box) {
+            box.innerHTML = `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);padding-bottom:10px">
+                <div style="margin-bottom:4px"><strong style="color:var(--text-primary)">To:</strong>      ${esc(to)}</div>
+                <div><strong style="color:var(--text-primary)">Subject:</strong> ${esc(sub)}</div>
+            </div>
+            <div style="white-space:pre-wrap;font-size:13px;line-height:1.9">${esc(bod)}</div>`;
+        }
+        editDiv.style.display    = 'none';
+        previewDiv.style.display = 'flex';
+        if (editBtn) editBtn.classList.remove('active');
+        if (prevBtn) prevBtn.classList.add('active');
+    } else {
+        editDiv.style.display    = 'flex';
+        previewDiv.style.display = 'none';
+        if (editBtn) editBtn.classList.add('active');
+        if (prevBtn) prevBtn.classList.remove('active');
+    }
+};
+
+/** Open Gmail compose with pre-filled fields */
+window.emailOpenGmail = () => {
+    const to  = document.getElementById('email-to')?.value.trim()      || '';
+    const sub = document.getElementById('email-subject')?.value.trim() || '';
+    const bod = document.getElementById('email-body')?.value            || '';
+    if (!to) { toast('Please enter a recipient email address first.', 'error'); return; }
+    const url = `https://mail.google.com/mail/?view=cm&fs=1`
+              + `&to=${encodeURIComponent(to)}`
+              + `&su=${encodeURIComponent(sub)}`
+              + `&body=${encodeURIComponent(bod)}`;
+    window.open(url, '_blank');
+};
+
+/** Copy just the subject line */
+window.emailCopySubject = () => {
+    const sub = document.getElementById('email-subject')?.value || '';
+    if (!sub) { toast('Subject is empty.', 'error'); return; }
+    navigator.clipboard.writeText(sub)
+        .then(() => toast('Subject copied!', 'success'))
+        .catch(() => toast('Failed to copy subject.', 'error'));
+};
+
+/** Copy just the body */
+window.emailCopyBody = () => {
+    const bod = document.getElementById('email-body')?.value || '';
+    if (!bod) { toast('Email body is empty.', 'error'); return; }
+    navigator.clipboard.writeText(bod)
+        .then(() => toast('Email body copied!', 'success'))
+        .catch(() => toast('Failed to copy body.', 'error'));
+};
+
+/** Copy the full email (subject + body) */
+window.emailCopyAll = () => {
+    const sub = document.getElementById('email-subject')?.value || '';
+    const bod = document.getElementById('email-body')?.value    || '';
+    if (!sub && !bod) { toast('Email is empty.', 'error'); return; }
+    const full = `Subject: ${sub}\n\n${bod}`;
+    navigator.clipboard.writeText(full)
+        .then(() => toast('Full email copied!', 'success'))
+        .catch(() => toast('Failed to copy email.', 'error'));
+};
 
 // ── Aliases for legacy HTML calls ─────────────────────────────────────────────
 export function openNewAppModal() {
@@ -1053,7 +1288,7 @@ window.onUnifiedJsonInput = (val) => {
     const errorDiv = document.getElementById('unified-json-error');
     let payload = null;
     try {
-        payload = JSON.parse(val);
+        payload = parseCleanJson(val);
         if (errorDiv) errorDiv.style.display = 'none';
     } catch (e) {
         if (errorDiv) {
@@ -1161,7 +1396,7 @@ window.exportToLocalFolder = async function() {
     
     let pdfName = "";
     try {
-        const payload = JSON.parse(payloadStr);
+        const payload = parseCleanJson(payloadStr);
         pdfName = payload.assigned_pdf;
     } catch(e) {}
     
