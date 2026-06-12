@@ -42,67 +42,12 @@ STATUS_OPTIONS = [
 ]
 PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _timeline_event(status: str, note: str = "") -> dict:
-    return {
-        "status": status,
-        "date": datetime.now().isoformat(),
-        "note": note,
-    }
-
-
-def _sanitize_filename(value: str, fallback: str = "app") -> str:
-    if not value or not isinstance(value, str):
-        return fallback
-    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip().replace(' ', '_'))
-    cleaned = re.sub(r"_+", "_", cleaned).strip('_')
-    return cleaned or fallback
-
-
-def _build_display_name(user_id: str, app: dict) -> str:
-    settings = db.get_settings(user_id)
-    prefix = settings.get('file_name_prefix', 'BIBIN_RAJU-') if isinstance(settings, dict) else 'BIBIN_RAJU-'
-    if not app:
-        return f"{prefix}app"
-    role = app.get('role', '')
-    if role:
-        name = role.strip('_')
-        return f"{prefix}{_sanitize_filename(name, fallback='app')}"
-    return f"{prefix}{_sanitize_filename(app.get('id', ''), fallback='app')}"
-
-
-def _default_app(app_id: str, body: dict) -> dict:
-    status = body.get("status", "Bookmarked")
-    return {
-        "id":               app_id,
-        "company":          body.get("company", ""),
-        "role":             body.get("role", ""),
-        "location":         body.get("location", ""),
-        "job_url":          body.get("job_url", ""),
-        "status":           status,
-        "priority":         body.get("priority", "Medium"),
-        "job_type":         body.get("job_type", ""),
-        "source":           body.get("source", ""),
-        "platform":         body.get("platform", ""),
-        "tags":             body.get("tags", []),
-        "assigned_resume":      body.get("assigned_resume", ""),
-        "assigned_pdf":         body.get("assigned_pdf", ""),
-        "assigned_version_id":  body.get("assigned_version_id", ""),
-        "archived_pdf":         body.get("archived_pdf", ""), # R2 key or URL
-        "resume_template":      body.get("resume_template", {}),  # Per-app JSON resume template
-        "notes":            body.get("notes", ""),
-        "job_description":  body.get("job_description", ""),
-        "deadline":         body.get("deadline", ""),
-        "salary_range":     body.get("salary_range", ""),
-        "contact_name":     body.get("contact_name", ""),
-        "contact_email":    body.get("contact_email", ""),
-        "email":            body.get("email", {}),
-        "interview_rounds": body.get("interview_rounds", []),
-        "created_at":       datetime.now().isoformat(),
-        "updated_at":       datetime.now().isoformat(),
-        "timeline":         [_timeline_event(status, "Application created")],
-    }
+from src.services.tracker_service import (
+    timeline_event,
+    sanitize_filename,
+    build_display_name,
+    default_app
+)
 
 _UPDATABLE_FIELDS = [
     "company", "role", "location", "job_url", "status",
@@ -127,10 +72,10 @@ async def create_application(request: Request):
     user_id = get_user_id(request)
     body = await request.json()
     app_id = str(uuid.uuid4())
-    new_app = _default_app(app_id, body)
+    new_app = default_app(app_id, body)
     if new_app.get('resume_template'):
         try:
-            display_name = _build_display_name(user_id, new_app)
+            display_name = build_display_name(user_id, new_app)
             from src.core.build import build_custom_version
             success = build_custom_version(new_app['resume_template'], display_name, False, user_id=user_id)
             if success:
@@ -162,7 +107,7 @@ async def update_application(app_id: str, request: Request):
             assigned = app.get("assigned_pdf", "")
             if assigned and "_X" in assigned:
                 include_photo = True
-            display_name = _build_display_name(user_id, app)
+            display_name = build_display_name(user_id, app)
             from src.core.build import build_custom_version
             success = build_custom_version(app["resume_template"], display_name, include_photo, user_id=user_id)
             if success:
@@ -175,7 +120,7 @@ async def update_application(app_id: str, request: Request):
 
     if old_status != new_status:
         app.setdefault("timeline", []).append(
-            _timeline_event(new_status, body.get("timeline_note", f"Status → {new_status}"))
+            timeline_event(new_status, body.get("timeline_note", f"Status → {new_status}"))
         )
 
     db.save_application(user_id, app)
@@ -210,7 +155,7 @@ async def bulk_update(request: Request):
             app["updated_at"] = datetime.now().isoformat()
             if old_status != new_status:
                 app.setdefault("timeline", []).append(
-                    _timeline_event(new_status, f"Bulk update → {new_status}")
+                    timeline_event(new_status, f"Bulk update → {new_status}")
                 )
             db.save_application(user_id, app)
             count += 1
@@ -251,7 +196,7 @@ async def add_interview_round(app_id: str, request: Request):
     }
     app.setdefault("interview_rounds", []).append(round_entry)
     app.setdefault("timeline", []).append(
-        _timeline_event(app.get("status", "Interview"), f"Interview Round: {round_entry['name']}")
+        timeline_event(app.get("status", "Interview"), f"Interview Round: {round_entry['name']}")
     )
     app["updated_at"] = datetime.now().isoformat()
     db.save_application(user_id, app)
@@ -459,7 +404,7 @@ def build_version(app_id: str, v_id: str, request: Request):
                     client.download_fileobj(BUCKET, photo_r2_key, tmp)
                     custom_photo_path = Path(tmp.name)
         
-        display_name = _build_display_name(user_id, app)
+        display_name = build_display_name(user_id, app)
         success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
         
         if custom_photo_path:
@@ -499,7 +444,7 @@ def build_version(app_id: str, v_id: str, request: Request):
         app["archived_pdf"] = r2_key
         app["updated_at"] = datetime.now().isoformat()
         app.setdefault("timeline", []).append(
-            _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' built & assigned")
+            timeline_event(app.get("status", ""), f"Version '{version.get('name')}' built & assigned")
         )
         db.save_application(user_id, app)
         
@@ -555,7 +500,7 @@ def assign_version(app_id: str, v_id: str, request: Request):
     app["archived_pdf"] = r2_key
     app["updated_at"] = datetime.now().isoformat()
     app.setdefault("timeline", []).append(
-        _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' manually assigned")
+        timeline_event(app.get("status", ""), f"Version '{version.get('name')}' manually assigned")
     )
     db.save_application(user_id, app)
     return {"ok": True, "app": app}
