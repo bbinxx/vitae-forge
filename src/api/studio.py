@@ -96,80 +96,6 @@ async def save_settings_route(request: Request):
     db.save_settings(user_id, data)
     return {"ok": True}
 
-@router.get("/api/settings/pick-folder")
-def pick_folder_route():
-    import subprocess
-    try:
-        # Use zenity to open a directory selection dialog on the host (since run.sh is native Linux)
-        result = subprocess.run(
-            ["zenity", "--file-selection", "--directory", "--title=Select Export Folder"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            folder_path = result.stdout.strip()
-            return {"folder": folder_path}
-        else:
-            return {"folder": None}
-    except Exception as e:
-        print(f"Failed to open folder picker: {e}")
-        return {"folder": None}
-
-@router.post("/api/export-pdf-local")
-async def export_pdf_local_route(request: Request):
-    data = await request.json()
-    pdf_name = data.get("pdf_name")
-    if not pdf_name:
-        raise HTTPException(400, "Missing pdf_name")
-        
-    user_id = get_user_id(request)
-    settings = db.get_settings(user_id)
-    export_folder = settings.get("export_folder")
-    
-    if not export_folder:
-        raise HTTPException(400, "No export folder specified in settings.")
-        
-    import shutil
-    import os
-    from src.core.config import DIST_DIR
-    from pathlib import Path
-    
-    source_pdf = DIST_DIR / f"{pdf_name}.pdf"
-    if not source_pdf.exists():
-        raise HTTPException(404, f"PDF {pdf_name}.pdf not found. Generate it first.")
-        
-    target_dir = Path(export_folder)
-    try:
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / f"{pdf_name}.pdf"
-        shutil.copy2(source_pdf, target_path)
-        return {"ok": True, "path": str(target_path)}
-    except Exception as e:
-        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
-
-@router.post("/api/r2-backup")
-def trigger_r2_backup():
-    from src.core.upload import get_r2_client, BUCKET
-    client = get_r2_client()
-    if not client:
-        raise HTTPException(500, "R2 not configured")
-        
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"backups/resume_workspace_{timestamp}.zip"
-    
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED, False) as zf:
-        for f in (ROOT / "configs").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"configs/{f.name}")
-        for f in (ROOT / "templates").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"templates/{f.name}")
-    
-    zip_buf.seek(0)
-    try:
-        client.upload_fileobj(zip_buf, BUCKET, filename)
-        return {"ok": True, "filename": filename}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
 
 
 # ── File listing ──────────────────────────────────────────────────────────────
@@ -180,45 +106,12 @@ def list_files(request: Request):
     
     r2_objects = list_r2_objects()
     files = []
-    local_names = set()
     
-    # Identify base builds
-    config = get_full_config(user_id)
-    name_raw = config.get("personal", {}).get("name", "Resume")
-    base_prefix = name_raw.upper().replace(' ', '_')
-    expected_base_builds = set()
-    for role_id, recipe in config.get("recipes", {}).items():
-        short = recipe.get("short_name", role_id)
-        display = f"{base_prefix}_{short}"
-        expected_base_builds.add(f"{display}.pdf")
-        expected_base_builds.add(f"{display}_X.pdf")
-    
-    # 1. Local files
-    if DIST_DIR.exists():
-        for f in DIST_DIR.glob("*.pdf"):
-            # Only include base builds in the file list
-            if f.name not in expected_base_builds:
-                continue
-                
-            local_hash = md5_of_file(f)
-            local_names.add(f.name)
-            if f.name in r2_objects:
-                status = "synced" if r2_objects[f.name] == local_hash else "modified"
-            else:
-                status = "new"
-            files.append({
-                "name": f.name,
-                "path": f.name,
-                "sync_status": status,
-                "type": "local"
-            })
-            
-    # 2. Cloud files (R2)
+    # Cloud files (R2)
     # Build a lookup map from r2_key -> {company, version_name}
     key_to_meta = {}
     try:
         apps = db.get_all_applications(user_id)
-        apps_map = {app["id"]: app for app in apps if "id" in app}
         
         # We fetch all versions iteratively instead of collection group to stay db-agnostic
         for app in apps:
@@ -233,8 +126,7 @@ def list_files(request: Request):
         print(f"Failed to load apps for list-files: {e}")
 
     for key in r2_objects:
-        if key.endswith(".pdf") and key not in local_names:
-            # Check if we should extract just the filename for display
+        if key.endswith(".pdf"):
             display_name = key.split("/")[-1]
             if key in key_to_meta:
                 display_name = f"{key_to_meta[key]}.pdf"
@@ -246,7 +138,7 @@ def list_files(request: Request):
             files.append({
                 "name": display_name,
                 "path": key,
-                "sync_status": "cloud_only",
+                "sync_status": "synced",
                 "type": "cloud"
             })
             
@@ -271,93 +163,8 @@ def view_cloud_pdf(key: str):
 
 # ── Downloads ─────────────────────────────────────────────────────────────────
 
-@router.get("/download/{filename}")
-def download_file(filename: str):
-    file_path = DIST_DIR / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404)
-    return FileResponse(path=file_path, filename=filename)
 
 
-@router.get("/download-bundle/{filename}")
-def download_bundle(filename: str):
-    if not filename.endswith(".tex"):
-        filename += ".tex"
-    tex_path = DIST_DIR / filename
-    if not tex_path.exists():
-        raise HTTPException(status_code=404)
-
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        content = tex_path.read_text().replace(
-            "../assets/profile-photo.jpg", "profile.jpg"
-        )
-        zf.writestr("resume.tex", content)
-        if PROFILE_PHOTO.exists():
-            zf.write(str(PROFILE_PHOTO), "profile.jpg")
-        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
-
-    zip_buf.seek(0)
-    stem = filename.replace(".tex", "")
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": f'attachment; filename="resume_bundle_{stem}.zip"'},
-    )
-
-
-@router.get("/download-workspace-archive")
-def download_workspace_archive():
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        # Save configs
-        for f in (ROOT / "configs").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"configs/{f.name}")
-        # Save templates
-        for f in (ROOT / "templates").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"templates/{f.name}")
-        # Save assets
-        for f in (ROOT / "assets").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"assets/{f.name}")
-        # Save dist (compiled pdfs and tracker_db)
-        if DIST_DIR.exists():
-            for f in DIST_DIR.glob("*"):
-                if f.is_file(): zf.write(str(f), arcname=f"dist/{f.name}")
-    
-    zip_buf.seek(0)
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": 'attachment; filename="resume_workspace_backup.zip"'},
-    )
-
-
-@router.get("/download-all-pdfs")
-def download_all_pdfs():
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        if DIST_DIR.exists():
-            for f in DIST_DIR.glob("*.pdf"):
-                zf.write(str(f), arcname=f.name)
-                
-    zip_buf.seek(0)
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": 'attachment; filename="all_resumes.zip"'},
-    )
-
-
-def _bundle_instructions() -> str:
-    return (
-        "HOW TO COMPILE YOUR RESUME\n"
-        "---------------------------\n"
-        "1. Unzip this folder.\n"
-        "2. Ensure resume.tex and profile.jpg are in the same folder.\n"
-        "3. Open a terminal and run: pdflatex resume.tex\n"
-        "4. Done! Your PDF will be in the same folder.\n\n"
-        "Alternative: Upload both files to Overleaf.com and click Compile.\n"
-    )
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
@@ -459,40 +266,6 @@ def public_share_page(filename: str):
     except Exception as e:
         return HTMLResponse(f"<h1>Error loading document</h1><p>{str(e)}</p>", status_code=500)
 
-
-
-# ── Photo Manager ─────────────────────────────────────────────────────────────
-
-@router.post("/upload-photo")
-async def upload_photo(file: UploadFile = File(...)):
-    try:
-        content = await file.read()
-        try:
-            new_img = Image.open(io.BytesIO(content))
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid image format")
-
-        if PROFILE_PHOTO.exists():
-            with Image.open(PROFILE_PHOTO) as cur:
-                cur_ratio = cur.width / cur.height
-                new_ratio = new_img.width / new_img.height
-                if abs(cur_ratio - new_ratio) > 0.15:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Aspect ratio mismatch. Current: {cur_ratio:.2f}, "
-                            f"new: {new_ratio:.2f}. Please use a ~3:4 image."
-                        ),
-                    )
-
-        if new_img.mode != "RGB":
-            new_img = new_img.convert("RGB")
-        new_img.save(PROFILE_PHOTO, "JPEG", quality=90)
-        return {"ok": True, "message": "Photo updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Resume Snapshot (custom one-off recipe) ───────────────────────────────────
