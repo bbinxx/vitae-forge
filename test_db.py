@@ -3,17 +3,17 @@ import sys
 
 from src.db import db
 from src.services.user_service import create_user, authenticate_user
-from src.db.seed import seed_user_data
+from src.db.seed import seed_new_user
 
 print("Connecting to DB...")
 users = db.list_users()
 print(f"Current users: {len(users)}")
 
-print("Registering new user testuser...")
-user = create_user("testuser", "password123")
+print("Registering new user testuser2...")
+user = create_user("testuser2", "password123")
 if user:
-    print(f"Created user: {user['id']}")
-    seed_user_data(user['id'])
+    print(f"Seeding database for user {user['id']}...")
+    seed_new_user(user['id'], db)
     print("Seed complete.")
 else:
     print("User already exists, authenticating...")

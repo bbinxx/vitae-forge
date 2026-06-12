@@ -16,7 +16,7 @@ TEX_DIR     = TEMPLATES_DIR / "tex"
 STATIC_DIR  = ROOT / "static"
 
 # ── Well-known Files ──────────────────────────────────────────────────────────
-RESUME_CONFIG    = CONFIGS_DIR / "resume_config.json"
+RESUME_CONFIG    = CONFIGS_DIR / "resume_config.template.json"
 ENV_FILE         = ROOT / ".env"
 PROFILE_PHOTO    = ASSETS_DIR / "profile-photo.jpg"
 
