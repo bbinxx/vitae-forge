@@ -16,8 +16,11 @@ from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from jose import jwt, JWTError
 
-from src.core.config import DIST_DIR, STATIC_DIR, ROOT, ensure_dirs, load_resume_config, find_pdflatex
+from src.core.config import DIST_DIR, STATIC_DIR, ROOT, ensure_dirs, find_pdflatex
+from src.api.auth import SECRET_KEY, ALGORITHM
+from src.services.resume_service import get_full_config
 
 # Ensure required directories exist before mounting
 ensure_dirs()
@@ -34,55 +37,39 @@ app = FastAPI(
 
 @app.on_event("startup")
 def startup_event():
-    from src.core.firebase import get_firebase_db
-    db = get_firebase_db()
-    if db:
-        print("🔥 Firebase DB connected successfully! Cloud sync is ACTIVE.")
-    else:
-        print("⚠️  Firebase DB NOT connected. Operating in LOCAL ONLY mode.")
-
-SESSION_TOKEN = secrets.token_hex(16)
+    print("🚀 Resume Studio Starting Up...")
+    # Trigger DB initialization
+    from src.db import db
+    try:
+        # Just a ping to ensure initialization
+        db.list_users()
+        print("🔥 DB connected successfully! Cloud sync is ACTIVE.")
+    except Exception as e:
+        print(f"⚠️  DB connection error: {e}")
 
 @app.middleware("http")
-async def cookie_auth_middleware(request: Request, call_next):
-    passcode_hash = os.environ.get("PASSCODE_HASH")
-    if not passcode_hash:
-        return await call_next(request)
-        
+async def jwt_auth_middleware(request: Request, call_next):
     path = request.url.path
-    if path == "/api/login" or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/"):
+    if path.startswith("/api/auth/") or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/") or path == "/" or path == "/login":
         return await call_next(request)
         
-    auth_cookie = request.cookies.get("resume_auth")
-    if auth_cookie == SESSION_TOKEN:
-        return await call_next(request)
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    elif request.query_params.get("token"):
+        token = request.query_params.get("token")
         
-    # If not authenticated
-    if path != "/":
-        return Response(content="Unauthorized", status_code=401)
-        
-    # Serve login page for root
-    return HTMLResponse(_LOGIN_FILE.read_text())
-
-class LoginRequest(BaseModel):
-    passcode: str
-
-@app.post("/api/login")
-def login(req: LoginRequest, response: Response):
-    passcode_hash = os.environ.get("PASSCODE_HASH")
-    if not passcode_hash:
-        return {"ok": True}
-        
-    import bcrypt
-    try:
-        if bcrypt.checkpw(req.passcode.encode("utf-8"), passcode_hash.encode("utf-8")):
-            response.set_cookie(key="resume_auth", value=SESSION_TOKEN, httponly=True, max_age=86400)
-            return {"ok": True}
-    except Exception as e:
-        print(f"Auth check error: {e}")
-        pass
-        
-    raise HTTPException(status_code=401, detail="Invalid passcode")
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            request.state.user_id = payload.get("sub")
+            return await call_next(request)
+        except JWTError:
+            pass
+            
+    # For HTML requests, redirect to login might be handled by frontend
+    return Response(content="Unauthorized", status_code=401)
 
 # ── Static mounts ─────────────────────────────────────────────────────────────
 if DIST_DIR.exists():
@@ -90,12 +77,15 @@ if DIST_DIR.exists():
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# ── API Routers ───────────────────────────────────────────────────────────────
+from src.api.auth import router as auth_router
 from src.api.studio  import router as studio_router
 from src.api.tracker import router as tracker_router
+from src.api.library import router as library_router
 
+app.include_router(auth_router)
 app.include_router(studio_router)
 app.include_router(tracker_router)
+app.include_router(library_router)
 
 # ── Live PDF Preview Endpoint ──────────────────────────────────────────────────
 
@@ -111,9 +101,22 @@ async def preview_pdf(request: Request):
         if not config:
             raise HTTPException(400, "Missing 'config' in request body")
         
+        # Need user_id for preview, try to get from header
+        user_id = None
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                payload = jwt.decode(auth_header.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
+                user_id = payload.get("sub")
+            except JWTError:
+                pass
+                
+        if not user_id:
+            raise HTTPException(401, "Not authenticated")
+            
         from src.core.config import TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER
         
-        main_config = load_resume_config()
+        main_config = get_full_config(user_id)
         
         full_config = {
             "personal": main_config.get("personal", {}),
@@ -203,17 +206,15 @@ async def preview_pdf(request: Request):
 def index():
     html = _HTML_FILE.read_text()
     
-    # Preload data for instant render
+    # Preload data for instant render - disabled or handled via API
     try:
-        from src.core.firebase import get_all_applications
-        from src.api.studio import list_files
-        
-        apps = get_all_applications()
-        files = list_files()
-        
-        script = f"<script>window.__PRELOADED_APPS__ = {json.dumps(apps)}; window.__PRELOADED_FILES__ = {json.dumps(files)};</script>"
+        script = f"<script>window.__PRELOADED_APPS__ = []; window.__PRELOADED_FILES__ = [];</script>"
         html = html.replace("</head>", f"{script}\n</head>")
     except Exception as e:
         print(f"Preload error: {e}")
         
     return html
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    return _LOGIN_FILE.read_text()
