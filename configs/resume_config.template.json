@@ -1,64 +1,85 @@
 {
   "personal": {
-    "name": "Full Name",
-    "email": "email@example.com",
-    "phone": "+91 00000 00000",
-    "linkedin": "username",
-    "github": "username"
+    "name": "John Doe",
+    "email": "johndoe@example.com",
+    "phone": "+1 234 567 8900",
+    "linkedin": "johndoe",
+    "github": "johndoe"
   },
   "library": {
     "professional_summary": {
-      "role_id": "Summary here (250-400 chars). Focus on impact and key stack."
+      "generic_se": "Software Engineer with a passion for developing innovative programs that expedite the efficiency and effectiveness of organizational success. Well-versed in technology and writing code to create systems that are reliable and user-friendly."
     },
     "role_title": {
-      "role_id": "Official Job Title"
+      "generic_se": "Software Engineer"
     },
     "skills": {
-      "skill_id": {
-        "name": "Category Name",
-        "keywords": "Comma, Separated, List, Of, Skills (Max 10 per row)"
+      "languages": {
+        "name": "Languages",
+        "keywords": "Python, JavaScript, Java, C++"
+      },
+      "frameworks": {
+        "name": "Frameworks",
+        "keywords": "React.js, Node.js, Express, Django"
+      },
+      "tools": {
+        "name": "Tools",
+        "keywords": "Git, Docker, AWS, Postman"
       }
     },
     "projects": {
-      "proj_id": {
-        "name": "Project Name",
-        "tech": "Stack Used (Max 5)",
-        "date": "Month Year",
-        "link": "https://github.com/...",
+      "project_1": {
+        "name": "E-Commerce Platform",
+        "tech": "React, Node.js, MongoDB",
+        "date": "2024",
         "points": [
-          "Action Verb: Describe the specific task and the result (STAR method).",
-          "Metric: If possible, include percentages or performance numbers.",
-          "Tool: Mention the primary technical challenge solved."
+          "Developed a full-stack e-commerce application handling 10,000+ daily active users.",
+          "Implemented secure payment gateway integration using Stripe API.",
+          "Optimized database queries resulting in 30% faster page load times."
+        ]
+      },
+      "project_2": {
+        "name": "Task Management Dashboard",
+        "tech": "Vue.js, Firebase",
+        "date": "2023",
+        "points": [
+          "Created a real-time collaborative task manager for agile teams.",
+          "Built interactive drag-and-drop Kanban boards."
         ]
       }
     },
     "education": {
-      "id": "\\textbf{Degree Name} \\hfill \\textbf{Start -- End}\\\\ \n University/College Name \\hfill Location/Board"
+      "university": {
+        "institution": "University of Technology",
+        "degree": "B.S. in Computer Science",
+        "date": "2018 -- 2022",
+        "details": "Graduated with Honors"
+      }
     },
     "certifications": {
-      "cert_id": {
-        "name": "Certificate Title",
-        "issuer": "Issuing Authority",
-        "year": "YYYY"
+      "cert_1": {
+        "name": "Cloud Practitioner",
+        "issuer": "Amazon Web Services",
+        "year": "2023"
       }
     },
     "achievements": {
-      "ach_id": {
-        "name": "Award Title",
-        "issuer": "Organizer/Scale",
-        "year": "YYYY"
+      "award_1": {
+        "name": "Hackathon Winner",
+        "issuer": "Global Tech Hackathon",
+        "year": "2022"
       }
     },
     "additional_info": {
-      "info_id": {
-        "name": "Field Label (e.g., Languages)",
-        "content": "Values (e.g., English, Spanish)"
+      "interests": {
+        "name": "Areas of Interest",
+        "content": "Cloud Computing, Artificial Intelligence, Open Source Software"
       }
     }
   },
   "recipes": {
-    "role_key": {
-      "short_name": "ID_CODE",
+    "standard": {
+      "short_name": "SE",
       "sections": {
         "role_title": true,
         "photo": true,
@@ -68,16 +89,29 @@
         "education": true,
         "certifications": true,
         "achievements": true,
-        "languages": true
+        "languages": false
       },
-      "role_title": "role_id",
-      "professional_summary": "role_id",
-      "skills": ["skill_id_1", "skill_id_2"],
-      "projects": ["proj_id_1"],
-      "education": "id",
-      "certifications": ["cert_id_1"],
-      "achievements": ["ach_id_1"],
-      "additional_info": ["info_id_1"]
+      "role_title": "generic_se",
+      "professional_summary": "generic_se",
+      "skills": [
+        "languages",
+        "frameworks",
+        "tools"
+      ],
+      "projects": [
+        "project_1",
+        "project_2"
+      ],
+      "education": "university",
+      "certifications": [
+        "cert_1"
+      ],
+      "achievements": [
+        "award_1"
+      ],
+      "additional_info": [
+        "interests"
+      ]
     }
   }
 }

@@ -41,3 +41,5 @@ test*.pdf
 !templates/tex/*.tex
 !src/*.py
 !src/*.sh
+*.backup.json
+*.backup.py
