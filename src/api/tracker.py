@@ -22,16 +22,14 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from src.core.config import ROOT, DIST_DIR
-from src.core.firebase import (
-    get_all_applications,
-    get_application,
-    save_application,
-    delete_application as firebase_delete_application,
-    get_app_versions,
-    save_app_version,
-    get_app_version,
-    delete_app_version
-)
+from src.db import db
+from src.core.upload import upload_pdf, BUCKET
+
+def get_user_id(request: Request) -> str:
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user_id
 from src.core.upload import upload_pdf, BUCKET
 
 router = APIRouter(prefix="/applications", tags=["tracker"])
@@ -62,9 +60,8 @@ def _sanitize_filename(value: str, fallback: str = "app") -> str:
     return cleaned or fallback
 
 
-def _build_display_name(app: dict) -> str:
-    from src.core.firebase import get_settings
-    settings = get_settings()
+def _build_display_name(user_id: str, app: dict) -> str:
+    settings = db.get_settings(user_id)
     prefix = settings.get('file_name_prefix', 'YOUR_NAME-') if isinstance(settings, dict) else 'YOUR_NAME-'
     if not app:
         return f"{prefix}app"
@@ -121,30 +118,33 @@ _UPDATABLE_FIELDS = [
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 @router.get("")
-def list_applications():
-    return {"applications": get_all_applications()}
+def list_applications(request: Request):
+    user_id = get_user_id(request)
+    return {"applications": db.get_all_applications(user_id)}
 
 @router.post("")
 async def create_application(request: Request):
+    user_id = get_user_id(request)
     body = await request.json()
     app_id = str(uuid.uuid4())
     new_app = _default_app(app_id, body)
     if new_app.get('resume_template'):
         try:
-            display_name = _build_display_name(new_app)
+            display_name = _build_display_name(user_id, new_app)
             from src.core.build import build_custom_version
-            success = build_custom_version(new_app['resume_template'], display_name, False)
+            success = build_custom_version(new_app['resume_template'], display_name, False, user_id=user_id)
             if success:
                 new_app['assigned_pdf'] = f"{display_name}.pdf"
         except Exception as e:
             print(f"Error compiling new application resume for {app_id}: {e}")
-    save_application(new_app)
+    db.save_application(user_id, new_app)
     return new_app
 
 @router.put("/{app_id}")
 async def update_application(app_id: str, request: Request):
+    user_id = get_user_id(request)
     body = await request.json()
-    app = get_application(app_id)
+    app = db.get_application(user_id, app_id)
     if not app:
         raise HTTPException(404, "Application not found")
 
@@ -162,9 +162,9 @@ async def update_application(app_id: str, request: Request):
             assigned = app.get("assigned_pdf", "")
             if assigned and "_X" in assigned:
                 include_photo = True
-            display_name = _build_display_name(app)
+            display_name = _build_display_name(user_id, app)
             from src.core.build import build_custom_version
-            success = build_custom_version(app["resume_template"], display_name, include_photo)
+            success = build_custom_version(app["resume_template"], display_name, include_photo, user_id=user_id)
             if success:
                 suffix_str = "_X" if include_photo else ""
                 app["assigned_pdf"] = f"{display_name}{suffix_str}.pdf"
@@ -178,25 +178,27 @@ async def update_application(app_id: str, request: Request):
             _timeline_event(new_status, body.get("timeline_note", f"Status → {new_status}"))
         )
 
-    save_application(app)
+    db.save_application(user_id, app)
     return app
 
 @router.delete("/{app_id}")
-def delete_app(app_id: str):
-    firebase_delete_application(app_id)
+def delete_app(app_id: str, request: Request):
+    user_id = get_user_id(request)
+    db.delete_application(user_id, app_id)
     return {"ok": True}
 
 # ── Bulk Actions ──────────────────────────────────────────────────────────────
 
 @router.post("/bulk-update")
 async def bulk_update(request: Request):
+    user_id = get_user_id(request)
     body = await request.json()
     ids = body.get("ids", [])
     changes = body.get("changes", {})
     if not ids:
         raise HTTPException(400, "No application IDs provided")
 
-    apps = get_all_applications()
+    apps = db.get_all_applications(user_id)
     count = 0
     for app in apps:
         if app["id"] in ids:
@@ -210,7 +212,7 @@ async def bulk_update(request: Request):
                 app.setdefault("timeline", []).append(
                     _timeline_event(new_status, f"Bulk update → {new_status}")
                 )
-            save_application(app)
+            db.save_application(user_id, app)
             count += 1
 
     return {"ok": True, "updated": count}
@@ -219,8 +221,9 @@ async def bulk_update(request: Request):
 
 @router.post("/{app_id}/timeline")
 async def add_timeline_event(app_id: str, request: Request):
+    user_id = get_user_id(request)
     body = await request.json()
-    app = get_application(app_id)
+    app = db.get_application(user_id, app_id)
     if not app: raise HTTPException(404, "Not found")
     event = {
         "status": body.get("status", app.get("status", "")),
@@ -229,13 +232,14 @@ async def add_timeline_event(app_id: str, request: Request):
     }
     app.setdefault("timeline", []).append(event)
     app["updated_at"] = datetime.now().isoformat()
-    save_application(app)
+    db.save_application(user_id, app)
     return event
 
 @router.post("/{app_id}/interview-rounds")
 async def add_interview_round(app_id: str, request: Request):
+    user_id = get_user_id(request)
     body = await request.json()
-    app = get_application(app_id)
+    app = db.get_application(user_id, app_id)
     if not app: raise HTTPException(404, "Not found")
     round_entry = {
         "id": str(uuid.uuid4()),
@@ -250,21 +254,23 @@ async def add_interview_round(app_id: str, request: Request):
         _timeline_event(app.get("status", "Interview"), f"Interview Round: {round_entry['name']}")
     )
     app["updated_at"] = datetime.now().isoformat()
-    save_application(app)
+    db.save_application(user_id, app)
     return round_entry
 
 @router.delete("/{app_id}/interview-rounds/{round_id}")
-def delete_interview_round(app_id: str, round_id: str):
-    app = get_application(app_id)
+def delete_interview_round(app_id: str, round_id: str, request: Request):
+    user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
     if not app: raise HTTPException(404, "Not found")
     app["interview_rounds"] = [r for r in app.get("interview_rounds", []) if r.get("id") != round_id]
     app["updated_at"] = datetime.now().isoformat()
-    save_application(app)
+    db.save_application(user_id, app)
     return {"ok": True}
 
 @router.get("/stats/summary")
-def get_stats():
-    apps = get_all_applications()
+def get_stats(request: Request):
+    user_id = get_user_id(request)
+    apps = db.get_all_applications(user_id)
     by_status = {s: 0 for s in STATUS_OPTIONS}
     by_priority = {p: 0 for p in PRIORITY_OPTIONS}
     for app in apps:
@@ -282,8 +288,9 @@ def get_stats():
 # ── CSV Export ────────────────────────────────────────────────────────────────
 
 @router.get("/export-csv")
-def export_csv():
-    apps = get_all_applications()
+def export_csv(request: Request):
+    user_id = get_user_id(request)
+    apps = db.get_all_applications(user_id)
     fields = [
         "company", "role", "location", "status", "priority",
         "job_type", "source", "salary_range", "deadline",
@@ -309,8 +316,9 @@ def export_csv():
 # ── Cross-App Archived Resumes ────────────────────────────────────────────────
 
 @router.get("/all-archived-pdfs")
-def get_all_archived_pdfs():
-    apps = get_all_applications()
+def get_all_archived_pdfs(request: Request):
+    user_id = get_user_id(request)
+    apps = db.get_all_applications(user_id)
     result = []
     seen = set()
     for app in apps:
@@ -331,15 +339,17 @@ def get_all_archived_pdfs():
 # ── Versions & Custom Builds ──────────────────────────────────────────────────
 
 @router.get("/{app_id}/versions")
-def list_versions(app_id: str):
-    versions = get_app_versions(app_id)
+def list_versions(app_id: str, request: Request):
+    user_id = get_user_id(request)
+    versions = db.get_app_versions(user_id, app_id)
     return sorted(versions, key=lambda x: x.get("created_at", ""), reverse=True)
 
 @router.post("/{app_id}/versions")
 async def create_version(app_id: str, request: Request):
     """Save a custom resume configuration as a specific version for this app."""
+    user_id = get_user_id(request)
     body = await request.json()
-    app = get_application(app_id)
+    app = db.get_application(user_id, app_id)
     if not app: raise HTTPException(404, "Application not found")
 
     default_name = f"{app.get('company','App')} — {app.get('role','Version')}"
@@ -354,15 +364,16 @@ async def create_version(app_id: str, request: Request):
         "created_at": datetime.now().isoformat(),
         "pdf_r2_key": "",
     }
-    save_app_version(app_id, version_data)
+    db.save_app_version(user_id, app_id, version_data)
     return {"ok": True, "version": version_data}
 
 @router.put("/{app_id}/versions/{v_id}")
 async def update_version(app_id: str, v_id: str, request: Request):
     """Update a custom resume configuration version and clear its built PDF key."""
+    user_id = get_user_id(request)
     body = await request.json()
-    app = get_application(app_id)
-    version = get_app_version(app_id, v_id)
+    app = db.get_application(user_id, app_id)
+    version = db.get_app_version(user_id, app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
 
@@ -372,11 +383,12 @@ async def update_version(app_id: str, v_id: str, request: Request):
     version["pdf_r2_key"] = ""  # Needs rebuild
     version["updated_at"] = datetime.now().isoformat()
     
-    save_app_version(app_id, version)
+    db.save_app_version(user_id, app_id, version)
     return {"ok": True, "version": version}
 
 @router.post("/{app_id}/photo")
-async def upload_custom_photo(app_id: str, file: UploadFile = File(...)):
+async def upload_custom_photo(app_id: str, request: Request, file: UploadFile = File(...)):
+    user_id = get_user_id(request)
     """Upload a custom photo to R2 for an application version."""
     import tempfile
     try:
@@ -402,13 +414,14 @@ async def upload_custom_photo(app_id: str, file: UploadFile = File(...)):
         raise HTTPException(500, str(e))
 
 @router.get("/{app_id}/versions/{v_id}/build")
-def build_version(app_id: str, v_id: str):
+def build_version(app_id: str, v_id: str, request: Request):
     """
     Build a PDF from the specified version configuration,
     upload it to R2, and assign it to the application.
     """
-    app = get_application(app_id)
-    version = get_app_version(app_id, v_id)
+    user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
+    version = db.get_app_version(user_id, app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
 
@@ -423,8 +436,8 @@ def build_version(app_id: str, v_id: str):
         from src.core.build import build_custom_version
         
         # Merge base recipe with customizations
-        from src.core.config import load_resume_config
-        main_config = load_resume_config()
+        from src.services.resume_service import get_full_config
+        main_config = get_full_config(user_id)
         base_recipe_key = version.get("base_recipe")
         base_recipe = main_config.get("recipes", {}).get(base_recipe_key, {})
         
@@ -446,8 +459,8 @@ def build_version(app_id: str, v_id: str):
                     client.download_fileobj(BUCKET, photo_r2_key, tmp)
                     custom_photo_path = Path(tmp.name)
         
-        display_name = _build_display_name(app)
-        success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path)
+        display_name = _build_display_name(user_id, app)
+        success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
         
         if custom_photo_path:
             custom_photo_path.unlink(missing_ok=True)
@@ -478,7 +491,7 @@ def build_version(app_id: str, v_id: str):
         
         # Update version and app
         version["pdf_r2_key"] = r2_key
-        save_app_version(app_id, version)
+        db.save_app_version(user_id, app_id, version)
         
         app["assigned_resume"] = version.get("name")
         app["assigned_pdf"] = built_pdf_name
@@ -488,15 +501,16 @@ def build_version(app_id: str, v_id: str):
         app.setdefault("timeline", []).append(
             _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' built & assigned")
         )
-        save_application(app)
+        db.save_application(user_id, app)
         
         yield f"\nSuccessfully built, uploaded to R2 ({r2_key}), and assigned to application.\n"
 
     return StreamingResponse(stream(), media_type="text/plain")
 
 @router.get("/{app_id}/archived-resume")
-def download_archived_resume(app_id: str):
-    app = get_application(app_id)
+def download_archived_resume(app_id: str, request: Request):
+    user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
     if not app: raise HTTPException(404, "Application not found")
     r2_key = app.get("archived_pdf")
     if not r2_key: raise HTTPException(404, "No archived resume")
@@ -515,17 +529,19 @@ def download_archived_resume(app_id: str):
         raise HTTPException(500, str(e))
 
 @router.delete("/{app_id}/versions/{v_id}")
-def delete_version(app_id: str, v_id: str):
+def delete_version(app_id: str, v_id: str, request: Request):
     """Delete a custom resume version from an application."""
-    if delete_app_version(app_id, v_id):
+    user_id = get_user_id(request)
+    if db.delete_app_version(user_id, app_id, v_id):
         return {"ok": True}
     raise HTTPException(500, "Failed to delete version")
 
 @router.post("/{app_id}/versions/{v_id}/assign")
-def assign_version(app_id: str, v_id: str):
+def assign_version(app_id: str, v_id: str, request: Request):
     """Set a built version as the application's active assigned resume."""
-    app = get_application(app_id)
-    version = get_app_version(app_id, v_id)
+    user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
+    version = db.get_app_version(user_id, app_id, v_id)
     if not app or not version:
         raise HTTPException(404, "Application or version not found")
         
@@ -541,13 +557,14 @@ def assign_version(app_id: str, v_id: str):
     app.setdefault("timeline", []).append(
         _timeline_event(app.get("status", ""), f"Version '{version.get('name')}' manually assigned")
     )
-    save_application(app)
+    db.save_application(user_id, app)
     return {"ok": True, "app": app}
 
 @router.get("/{app_id}/versions/{v_id}/pdf")
-def download_version_pdf(app_id: str, v_id: str):
+def download_version_pdf(app_id: str, v_id: str, request: Request):
     """Redirect to the R2 presigned URL for a specific version's PDF."""
-    version = get_app_version(app_id, v_id)
+    user_id = get_user_id(request)
+    version = db.get_app_version(user_id, app_id, v_id)
     if not version: raise HTTPException(404, "Version not found")
     r2_key = version.get("pdf_r2_key")
     if not r2_key: raise HTTPException(404, "No PDF built for this version")
@@ -568,15 +585,15 @@ def download_version_pdf(app_id: str, v_id: str):
 @router.post("/{app_id}/compile-pdf")
 async def compile_pdf(app_id: str, request: Request):
     """Compile and save a PDF from JSON config with role_company naming."""
-    app = get_application(app_id)
+    user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
     if not app:
         raise HTTPException(404, "Application not found")
     
     try:
         body = await request.json()
         config = body.get("config", {})
-        from src.core.firebase import get_settings
-        settings = get_settings()
+        settings = db.get_settings(user_id)
         prefix = settings.get('file_name_prefix', 'YOUR_NAME-') if isinstance(settings, dict) else 'YOUR_NAME-'
         
         fallback_name = f"{prefix}{app['role']}".replace(" ", "_")
@@ -590,7 +607,7 @@ async def compile_pdf(app_id: str, request: Request):
         # 1. Save the JSON config to application first so edits are never lost
         app["resume_template"] = config
         app["updated_at"] = datetime.now().isoformat()
-        save_application(app)
+        db.save_application(user_id, app)
 
         # 2. Check if LaTeX compiler (pdflatex) is available
         from src.core.config import find_pdflatex
@@ -603,7 +620,7 @@ async def compile_pdf(app_id: str, request: Request):
 
         # 3. Build the custom PDF
         from src.core.build import build_custom_version
-        success = build_custom_version(config, pdf_name, include_photo=False)
+        success = build_custom_version(config, pdf_name, include_photo=False, user_id=user_id)
         
         if not success:
             # Read build log to surface actual error
@@ -635,7 +652,7 @@ async def compile_pdf(app_id: str, request: Request):
             app.pop("assigned_cover_letter", None)
             
         app["updated_at"] = datetime.now().isoformat()
-        save_application(app)
+        db.save_application(user_id, app)
         
         return {
             "ok": True,

@@ -18,10 +18,19 @@ from PIL import Image
 
 from src.core.config import (
     ROOT, DIST_DIR, ASSETS_DIR, PROFILE_PHOTO,
-    load_resume_config, save_resume_config,
 )
 from src.core.upload import md5_of_file, list_r2_objects, upload_pdf, BUCKET
 from src.core.build import build_role, build_all, clean
+
+from src.db import db
+from src.services.resume_service import get_full_config, save_full_config
+import src.services.checkpoint_service as cps
+
+def get_user_id(request: Request) -> str:
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user_id
 
 router = APIRouter()
 
@@ -31,94 +40,60 @@ BUILD_PY = ROOT / "src" / "core" / "build.py"
 # ── Config ────────────────────────────────────────────────────────────────────
 
 @router.get("/get-config")
-def get_config():
-    return load_resume_config()
+def get_config(request: Request):
+    user_id = get_user_id(request)
+    return get_full_config(user_id)
 
 
 @router.post("/save-config")
 async def save_config(request: Request):
+    user_id = get_user_id(request)
     data = await request.json()
-    save_resume_config(data)
+    save_full_config(user_id, data)
     return {"ok": True}
 
 # ── Checkpoints (Version Control) ─────────────────────────────────────────────
-CHECKPOINTS_DIR = ROOT / "configs" / "checkpoints"
-
 @router.get("/checkpoints")
-def list_checkpoints():
-    if not CHECKPOINTS_DIR.exists():
-        return []
-    cps = []
-    for f in CHECKPOINTS_DIR.glob("*.json"):
-        cps.append({
-            "name": f.name,
-            "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
-        })
-    return sorted(cps, key=lambda x: x["created"], reverse=True)
+def list_checkpoints(request: Request):
+    user_id = get_user_id(request)
+    return cps.list_checkpoints(user_id)
 
 class CheckpointRequest(BaseModel):
     custom_name: str = ""
 
 @router.post("/checkpoints")
-def create_checkpoint(req: CheckpointRequest):
-    CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-    config = load_resume_config()
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    
-    clean_name = req.custom_name.strip().replace(" ", "_").replace("/", "-")
-    if clean_name:
-        name = f"checkpoint_{clean_name}_{timestamp}.json"
-    else:
-        name = f"checkpoint_{timestamp}.json"
-        
-    import json
-    (CHECKPOINTS_DIR / name).write_text(json.dumps(config, indent=4))
-    
-    # Push to Firebase as well
-    from src.core.firebase import push_checkpoint_to_firebase
-    push_checkpoint_to_firebase(name, config)
-    
+def create_checkpoint(req: CheckpointRequest, request: Request):
+    user_id = get_user_id(request)
+    config = get_full_config(user_id)
+    name = cps.create_checkpoint(user_id, req.custom_name, config)
     return {"ok": True, "name": name}
 
 @router.post("/checkpoints/{name}/restore")
-def restore_checkpoint(name: str):
-    cp_file = CHECKPOINTS_DIR / name
-    import json
-    if not cp_file.exists():
-        # Try fetching from Firebase
-        from src.core.firebase import get_firebase_db
-        db = get_firebase_db()
-        if db:
-            doc = db.collection("checkpoints").document(name).get()
-            if doc.exists:
-                config = doc.to_dict()
-                save_resume_config(config)
-                return {"ok": True, "source": "firebase"}
-        raise HTTPException(404, "Checkpoint not found")
-        
-    config = json.loads(cp_file.read_text())
-    save_resume_config(config)
-    return {"ok": True, "source": "local"}
+def restore_checkpoint(name: str, request: Request):
+    user_id = get_user_id(request)
+    restored = cps.restore_checkpoint(user_id, name)
+    if restored:
+        return {"ok": True, "source": "db"}
+    raise HTTPException(404, "Checkpoint not found")
 
 @router.delete("/checkpoints/{name}")
-def delete_checkpoint(name: str):
-    cp_file = CHECKPOINTS_DIR / name
-    if cp_file.exists():
-        cp_file.unlink()
+def delete_checkpoint(name: str, request: Request):
+    user_id = get_user_id(request)
+    cps.delete_checkpoint(user_id, name)
     return {"ok": True}
 
 # ── Settings (Firebase) ───────────────────────────────────────────────────────
 
 @router.get("/api/settings")
-def get_settings_route():
-    from src.core.firebase import get_settings
-    return get_settings()
+def get_settings_route(request: Request):
+    user_id = get_user_id(request)
+    return db.get_settings(user_id)
 
 @router.post("/api/settings")
 async def save_settings_route(request: Request):
+    user_id = get_user_id(request)
     data = await request.json()
-    from src.core.firebase import save_settings
-    save_settings(data)
+    db.save_settings(user_id, data)
     return {"ok": True}
 
 @router.get("/api/settings/pick-folder")
@@ -146,8 +121,8 @@ async def export_pdf_local_route(request: Request):
     if not pdf_name:
         raise HTTPException(400, "Missing pdf_name")
         
-    from src.core.firebase import get_settings
-    settings = get_settings()
+    user_id = get_user_id(request)
+    settings = db.get_settings(user_id)
     export_folder = settings.get("export_folder")
     
     if not export_folder:
@@ -200,16 +175,15 @@ def trigger_r2_backup():
 # ── File listing ──────────────────────────────────────────────────────────────
 
 @router.get("/list-files")
-def list_files():
-    from src.core.firebase import get_all_applications
-    from src.core.config import load_resume_config
-
+def list_files(request: Request):
+    user_id = get_user_id(request)
+    
     r2_objects = list_r2_objects()
     files = []
     local_names = set()
     
     # Identify base builds
-    config = load_resume_config()
+    config = get_full_config(user_id)
     name_raw = config.get("personal", {}).get("name", "Resume")
     base_prefix = name_raw.upper().replace(' ', '_')
     expected_base_builds = set()
@@ -243,47 +217,20 @@ def list_files():
     # Build a lookup map from r2_key -> {company, version_name}
     key_to_meta = {}
     try:
-        apps = get_all_applications()
+        apps = db.get_all_applications(user_id)
         apps_map = {app["id"]: app for app in apps if "id" in app}
         
-        # Try fetching all versions using collection group query to avoid N+1 queries
-        from src.core.firebase import get_firebase_db
-        db = get_firebase_db()
-        versions_fetched = False
-        if db:
-            try:
-                # collection_group query retrieves all documents in the "versions" subcollection
-                version_docs = db.collection_group("versions").stream()
-                for doc in version_docs:
-                    v = doc.to_dict()
-                    pdf_key = v.get("pdf_r2_key")
-                    if pdf_key:
-                        try:
-                            # parent is collection 'versions', parent.parent is the application doc
-                            app_id = doc.reference.parent.parent.id
-                            app = apps_map.get(app_id)
-                            if app:
-                                company = app.get("company", "Unknown App")
-                                key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
-                        except Exception:
-                            pass
-                versions_fetched = True
-            except Exception as e:
-                print(f"Collection group query failed (possibly missing index), falling back: {e}")
-                
-        # Fallback if collection group query failed or Firebase is not available
-        if not versions_fetched:
-            for key in r2_objects:
-                parts = key.split("/")
-                if len(parts) == 3 and parts[0] == "resumes":
-                    app_id = parts[1]
-                    app = apps_map.get(app_id)
-                    if app:
-                        company = app.get("company", "Unknown App")
-                        role = app.get("role", "Custom Version")
-                        key_to_meta[key] = f"{company} - {role}"
+        # We fetch all versions iteratively instead of collection group to stay db-agnostic
+        for app in apps:
+            app_id = app["id"]
+            versions = db.get_app_versions(user_id, app_id)
+            for v in versions:
+                pdf_key = v.get("pdf_r2_key")
+                if pdf_key:
+                    company = app.get("company", "Unknown App")
+                    key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
     except Exception as e:
-        print(f"Failed to load firebase apps for list-files: {e}")
+        print(f"Failed to load apps for list-files: {e}")
 
     for key in r2_objects:
         if key.endswith(".pdf") and key not in local_names:
@@ -416,12 +363,13 @@ def _bundle_instructions() -> str:
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 @router.get("/build/{role}")
-def build_role_stream(role: str):
+def build_role_stream(role: str, request: Request):
+    user_id = get_user_id(request)
     def stream():
         cmd = (
-            [sys.executable, str(BUILD_PY)]
+            [sys.executable, str(BUILD_PY), "all", "--user", user_id]
             if role == "all"
-            else [sys.executable, str(BUILD_PY), role]
+            else [sys.executable, str(BUILD_PY), role, "--user", user_id]
         )
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -491,12 +439,10 @@ def public_share_page(filename: str):
             ExpiresIn=3600 * 24 * 7
         )
         
-        # Load user data
-        config = load_resume_config()
-        personal = config.get("personal", {})
-        user_name = personal.get("name", "Candidate")
-        user_email = personal.get("email", "contact@example.com")
-        user_initial = user_name[0].upper() if user_name else "C"
+        # Just default values for public share (user_id not easily available)
+        user_name = "Candidate"
+        user_email = ""
+        user_initial = "C"
         
         # Load the presentation template
         template_path = ROOT / "templates" / "share.html"
@@ -558,13 +504,14 @@ class SnapshotRequest(BaseModel):
 
 
 @router.post("/snapshot-resume")
-def create_snapshot(req: SnapshotRequest):
+def create_snapshot(req: SnapshotRequest, request: Request):
     """
     Merge `base_recipe` with `customizations` and save as a new recipe.
     The snapshot recipe can then be built like any other role.
     """
-    config = load_resume_config()
-    base = config.get("recipes", {}).get(req.base_recipe)
+    user_id = get_user_id(request)
+    recipes = db.get_recipes(user_id)
+    base = recipes.get(req.base_recipe)
     if not base:
         raise HTTPException(404, f"Base recipe '{req.base_recipe}' not found")
 
@@ -576,19 +523,20 @@ def create_snapshot(req: SnapshotRequest):
     merged["short_name"] = req.snapshot_name.upper()[:8]
 
     snap_key = f"snap_{req.snapshot_name.lower().replace(' ', '_')}"
-    config["recipes"][snap_key] = merged
-    save_resume_config(config)
+    recipes[snap_key] = merged
+    db.save_recipes(user_id, recipes)
     return {"ok": True, "recipe_key": snap_key, "recipe": merged}
 
 
 @router.delete("/snapshot-resume/{snap_key}")
-def delete_snapshot(snap_key: str):
-    config = load_resume_config()
-    recipe = config.get("recipes", {}).get(snap_key)
+def delete_snapshot(snap_key: str, request: Request):
+    user_id = get_user_id(request)
+    recipes = db.get_recipes(user_id)
+    recipe = recipes.get(snap_key)
     if not recipe:
         raise HTTPException(404, "Snapshot not found")
     if not recipe.get("_snapshot"):
         raise HTTPException(400, "Only snapshot recipes can be deleted via this route")
-    del config["recipes"][snap_key]
-    save_resume_config(config)
+    del recipes[snap_key]
+    db.save_recipes(user_id, recipes)
     return {"ok": True}
