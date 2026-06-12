@@ -43,3 +43,4 @@ test*.pdf
 !src/*.sh
 *.backup.json
 *.backup.py
+assets/profile-photo.jpg
