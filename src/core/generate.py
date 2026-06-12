@@ -59,6 +59,7 @@ def generate_resume(
     output_path: str,
     photo_path: str | None = None,
     role_id: str | None = None,
+    user_id: str | None = None,
 ) -> None:
     """
     Generate a .tex file by filling `template_path` with data from
@@ -72,15 +73,27 @@ def generate_resume(
         if "recipes" in data and "library" in data:
             master_config = data
             if not role_id:
-                role_id = list(data["recipes"].keys())[0]
-            recipe = data["recipes"].get(role_id, {})
+                # If no role specified but has recipes, use the first one if any exist
+                if data["recipes"]:
+                    role_id = list(data["recipes"].keys())[0]
+                else:
+                    role_id = None
+            recipe = data["recipes"].get(role_id, {}) if role_id else {}
+        else:
+            if user_id:
+                from src.services.resume_service import get_full_config
+                master_config = get_full_config(user_id)
+            else:
+                with open(config_file) as f:
+                    master_config = json.load(f)
+            recipe = data
+    else:
+        if user_id:
+            from src.services.resume_service import get_full_config
+            master_config = get_full_config(user_id)
         else:
             with open(config_file) as f:
                 master_config = json.load(f)
-            recipe = data
-    else:
-        with open(config_file) as f:
-            master_config = json.load(f)
         recipe = master_config.get("recipes", {}).get(source, {})
         if not recipe:
             raise ValueError(f"Role ID '{source}' not found in config.")
@@ -90,6 +103,16 @@ def generate_resume(
         personal.update(recipe["personal"])
         
     library  = master_config.get("library", {})
+    if "library" in recipe and isinstance(recipe["library"], dict):
+        # Merge recipe's library over master_config's library
+        merged_lib = {}
+        for k, v in library.items():
+            merged_lib[k] = dict(v)
+        for k, v in recipe["library"].items():
+            if k not in merged_lib:
+                merged_lib[k] = {}
+            merged_lib[k].update(v)
+        library = merged_lib
 
     config = {**personal, **recipe}
 
@@ -312,5 +335,6 @@ if __name__ == "__main__":
     parser.add_argument("output",   help="Output .tex path")
     parser.add_argument("--role",   help="Role ID when source is a full config file")
     parser.add_argument("--photo",  help="Profile photo path")
+    parser.add_argument("--user",   help="User ID")
     args = parser.parse_args()
-    generate_resume(args.source, args.template, args.output, args.photo, args.role)
+    generate_resume(args.source, args.template, args.output, args.photo, args.role, args.user)
