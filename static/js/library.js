@@ -113,7 +113,7 @@ export function renderLibraryContent() {
     // For library categories
     const items = state.data.library[currentCategory] || {};
     
-    let sidebarHtml = `<div style="width:200px;border-right:1px solid var(--border);padding-right:16px;flex-shrink:0;display:flex;flex-direction:column;gap:6px">
+    let sidebarHtml = `<div class="lib-sidebar-inner">
         <button class="btn btn-primary" style="margin-bottom:10px" onclick="window.addNewLibItem()">+ Add Item</button>
         <div style="display:flex;flex-direction:column;gap:3px;overflow-y:auto">
             ${Object.keys(items).map(k => `
@@ -122,7 +122,7 @@ export function renderLibraryContent() {
         </div>
     </div>`;
     
-    let formHtml = `<div style="flex:1;padding-left:20px">`;
+    let formHtml = `<div class="lib-form-inner">`;
     if (!currentItemId || !items[currentItemId]) {
         formHtml += `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px">Select an item</div></div>`;
     } else {
@@ -171,7 +171,7 @@ export function renderLibraryContent() {
         </div></div>`;
     }
     
-    container.innerHTML = `<div style="display:flex;height:100%">${sidebarHtml}${formHtml}</div>`;
+    container.innerHTML = `<div class="lib-layout">${sidebarHtml}${formHtml}</div>`;
 }
 
 export function updateLibField() {
