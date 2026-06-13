@@ -9,6 +9,8 @@ import { state } from './app.js';
 // ── State ─────────────────────────────────────────────────────────────────────
 let applications  = [];
 let filterSearch  = '';
+let filterStatus  = '';
+let sortBy        = 'updated_desc';
 let distFiles     = [];
 let saveDebounce  = null;
 
@@ -731,42 +733,31 @@ function renderGrid() {
 
     let filtered = [...applications];
     
-    // --- Render Stats ---
+    // --- Render Stats (clickable per-status filters) ---
     const statsContainer = document.getElementById('apps-stats-container');
     if (statsContainer) {
-        let total = applications.length;
-        let applied = applications.filter(a => a.status === 'Applied').length;
-        let screening = applications.filter(a => a.status === 'Screening').length;
-        let interview = applications.filter(a => a.status === 'Interview').length;
-        let offer = applications.filter(a => a.status === 'Offer').length;
-        let rejected = applications.filter(a => a.status === 'Rejected' || a.status === 'Withdrawn').length;
-        
-        statsContainer.innerHTML = `
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Total</div>
-                <div class="apps-stat-value">${total}</div>
-            </div>
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Applied</div>
-                <div class="apps-stat-value" style="color:var(--color-blue)">${applied}</div>
-            </div>
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Screening</div>
-                <div class="apps-stat-value" style="color:var(--color-amber)">${screening}</div>
-            </div>
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Interview</div>
-                <div class="apps-stat-value" style="color:var(--color-purple)">${interview}</div>
-            </div>
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Offers</div>
-                <div class="apps-stat-value" style="color:var(--color-green)">${offer}</div>
-            </div>
-            <div class="apps-stat-card">
-                <div class="apps-stat-label">Closed</div>
-                <div class="apps-stat-value" style="color:var(--danger)">${rejected}</div>
-            </div>
-        `;
+        const statusCounts = {};
+        STATUS_OPTIONS.forEach(s => { statusCounts[s] = 0; });
+        applications.forEach(a => { if (statusCounts[a.status] !== undefined) statusCounts[a.status]++; });
+
+        const stat = (label, count, color, statusKey) => {
+            const active = filterStatus === statusKey;
+            const style = active
+                ? `border-color:${color};background:${color}11;box-shadow:inset 0 -2px 0 ${color}`
+                : '';
+            const valStyle = active ? `color:${color}` : (color ? `color:${color}` : '');
+            return `<div class="apps-stat-card${active ? ' filter-active' : ''}" style="${style}" onclick="window.filterByStatus('${statusKey}')">
+                <div class="apps-stat-label">${label}</div>
+                <div class="apps-stat-value" style="${valStyle}">${count}</div>
+            </div>`;
+        };
+
+        statsContainer.innerHTML =
+            stat('Total', applications.length, '', '') +
+            STATUS_OPTIONS.map(s => {
+                const cfg = STATUS_CONFIG[s];
+                return stat(s, statusCounts[s], cfg.color, s);
+            }).join('');
     }
 
     if (filterSearch) {
@@ -777,18 +768,52 @@ function renderGrid() {
             a.location?.toLowerCase().includes(q)
         );
     }
-    filtered.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+
+    // Status filter
+    if (filterStatus) {
+        filtered = filtered.filter(a => a.status === filterStatus);
+    }
+
+    // Sort
+    const prioOrder = { high: 3, medium: 2, low: 1 };
+    switch (sortBy) {
+        case 'updated_asc':
+            filtered.sort((a, b) => new Date(a.updated_at || 0) - new Date(b.updated_at || 0));
+            break;
+        case 'company_asc':
+            filtered.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+            break;
+        case 'company_desc':
+            filtered.sort((a, b) => (b.company || '').localeCompare(a.company || ''));
+            break;
+        case 'status_asc':
+            filtered.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+            break;
+        case 'priority_desc':
+            filtered.sort((a, b) => (prioOrder[(a.priority || '').toLowerCase()] || 0) - (prioOrder[(b.priority || '').toLowerCase()] || 0));
+            break;
+        case 'priority_asc':
+            filtered.sort((a, b) => (prioOrder[(b.priority || '').toLowerCase()] || 0) - (prioOrder[(a.priority || '').toLowerCase()] || 0));
+            break;
+        default:
+            filtered.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+    }
 
     if (filtered.length === 0) {
         grid.className = 'apps-container empty';
+        const activeFilters = [];
+        if (filterSearch) activeFilters.push(`"${filterSearch}"`);
+        if (filterStatus) activeFilters.push(`status: ${filterStatus}`);
+        const filterMsg = activeFilters.length ? ` (filtered by ${activeFilters.join(', ')})` : '';
         grid.innerHTML = `
         <div class="apps-empty-state">
             <div class="apps-empty-icon">💼</div>
-            <div class="apps-empty-title">${filterSearch ? 'No matching applications' : 'No applications yet'}</div>
+            <div class="apps-empty-title">${filterSearch || filterStatus ? 'No matching applications' : 'No applications yet'}</div>
             <div class="apps-empty-text">
-                ${!filterSearch ? 'Start tracking your job applications here' : 'Try searching with different keywords'}
+                ${!filterSearch && !filterStatus ? 'Start tracking your job applications here' : `Try adjusting your filters${filterMsg}`}
             </div>
-            ${!filterSearch ? `<button class="btn btn-primary" style="margin-top:8px" onclick="window.openNewAppModal()">+ Create First Application</button>` : ''}
+            ${!filterSearch && !filterStatus ? `<button class="btn btn-primary" style="margin-top:8px" onclick="window.openNewAppModal()">+ Create First Application</button>` : ''}
+            ${filterStatus ? `<button class="btn btn-secondary" style="margin-top:8px" onclick="window.filterByStatus('')">Clear Status Filter</button>` : ''}
         </div>`;
         return;
     }
@@ -1720,13 +1745,26 @@ window.exportToLocalFolder = async function() {
 
 export function setupSearch() {
     const searchEl = document.getElementById('app-search');
-    if (!searchEl) return;
-    
-    searchEl.addEventListener('input', (e) => {
-        filterSearch = e.target.value;
-        renderGrid();
-    });
+    if (searchEl) {
+        searchEl.addEventListener('input', (e) => {
+            filterSearch = e.target.value;
+            renderGrid();
+        });
+    }
+
+    const sortEl = document.getElementById('app-sort');
+    if (sortEl) {
+        sortEl.addEventListener('change', (e) => {
+            sortBy = e.target.value;
+            renderGrid();
+        });
+    }
 }
+
+window.filterByStatus = function(status) {
+    filterStatus = filterStatus === status ? '' : status;
+    renderGrid();
+};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 export function initTracker(resumeState) {

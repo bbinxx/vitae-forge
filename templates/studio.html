@@ -103,6 +103,15 @@
     </div>
     <div class="apps-header-right">
       <input id="app-search" type="text" class="apps-search-input" placeholder="Search applications…" style="max-width: 280px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);">
+      <select id="app-sort" class="apps-search-input" style="max-width: 180px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.7333rem; cursor: pointer;">
+        <option value="updated_desc">Newest First</option>
+        <option value="updated_asc">Oldest First</option>
+        <option value="company_asc">Company A→Z</option>
+        <option value="company_desc">Company Z→A</option>
+        <option value="status_asc">Status A→Z</option>
+        <option value="priority_desc">Priority High→Low</option>
+        <option value="priority_asc">Priority Low→High</option>
+      </select>
       <span id="tracker-save-indicator" class="save-indicator"></span>
       <button class="btn btn-primary btn-sm" onclick="window.openNewAppModal()">
         <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">add</span> New Application
