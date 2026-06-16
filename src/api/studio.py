@@ -27,6 +27,105 @@ router = APIRouter()
 
 BUILD_PY = ROOT / "src" / "core" / "build.py"
 
+# ── Bookmarks (Saved Resumes) ─────────────────────────────────────────────────
+BOOKMARKS_FILE = ROOT / "configs" / "bookmarks.json"
+
+def _load_bookmarks():
+    import json
+    if BOOKMARKS_FILE.exists():
+        return json.loads(BOOKMARKS_FILE.read_text())
+    return []
+
+def _save_bookmarks(bookmarks):
+    import json
+    BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=4))
+
+@router.get("/bookmarks")
+def list_bookmarks():
+    return {"bookmarks": _load_bookmarks()}
+
+class BookmarkCreate(BaseModel):
+    name: str
+    data: dict
+    source_app_id: str = ""
+
+@router.post("/bookmarks")
+def create_bookmark(req: BookmarkCreate):
+    import uuid
+    bookmarks = _load_bookmarks()
+    new_bm = {
+        "id": str(uuid.uuid4()),
+        "name": req.name,
+        "data": req.data,
+        "source_app_id": req.source_app_id,
+        "created_at": datetime.now().isoformat(),
+    }
+    bookmarks.append(new_bm)
+    _save_bookmarks(bookmarks)
+    return {"ok": True, "bookmark": new_bm}
+
+@router.delete("/bookmarks/{bm_id}")
+def delete_bookmark(bm_id: str):
+    bookmarks = _load_bookmarks()
+    bookmarks = [b for b in bookmarks if b.get("id") != bm_id]
+    _save_bookmarks(bookmarks)
+    return {"ok": True}
+
+
+class DirectCompileRequest(BaseModel):
+    config: dict
+    name: str
+    include_photo: bool = False
+
+@router.post("/compile-direct")
+def compile_direct(req: DirectCompileRequest):
+    from src.core.build import build_custom_version
+    import re as _re
+    safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
+    suffix = "_X" if req.include_photo else ""
+    success = build_custom_version(req.config, safe_name, req.include_photo)
+    if not success:
+        raise HTTPException(500, "Failed to compile PDF")
+    return {"pdf": f"{safe_name}{suffix}.pdf"}
+
+@router.post("/download-latex-direct")
+def download_latex_direct(req: DirectCompileRequest):
+    from src.core.build import generate_latex_source
+    import re as _re
+    safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
+    suffix = "_X" if req.include_photo else ""
+    latex = generate_latex_source(req.config, safe_name, req.include_photo)
+    if not latex:
+        raise HTTPException(500, "Failed to generate LaTeX source")
+    return StreamingResponse(
+        io.BytesIO(latex.encode("utf-8")),
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}{suffix}.tex"'},
+    )
+
+@router.post("/download-zip-direct")
+def download_zip_direct(req: DirectCompileRequest):
+    from src.core.build import generate_latex_source
+    import re as _re
+    safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
+    latex = generate_latex_source(req.config, safe_name, include_photo=True)
+    if not latex:
+        raise HTTPException(500, "Failed to generate LaTeX source")
+    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
+        zf.writestr("resume.tex", latex)
+        if PROFILE_PHOTO.exists():
+            zf.write(str(PROFILE_PHOTO), "profile.jpg")
+        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
+    zip_buf.seek(0)
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.zip"'},
+    )
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -39,72 +138,6 @@ def get_config():
 async def save_config(request: Request):
     data = await request.json()
     save_resume_config(data)
-    return {"ok": True}
-
-# ── Checkpoints (Version Control) ─────────────────────────────────────────────
-CHECKPOINTS_DIR = ROOT / "configs" / "checkpoints"
-
-@router.get("/checkpoints")
-def list_checkpoints():
-    if not CHECKPOINTS_DIR.exists():
-        return []
-    cps = []
-    for f in CHECKPOINTS_DIR.glob("*.json"):
-        cps.append({
-            "name": f.name,
-            "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
-        })
-    return sorted(cps, key=lambda x: x["created"], reverse=True)
-
-class CheckpointRequest(BaseModel):
-    custom_name: str = ""
-
-@router.post("/checkpoints")
-def create_checkpoint(req: CheckpointRequest):
-    CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-    config = load_resume_config()
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    
-    clean_name = req.custom_name.strip().replace(" ", "_").replace("/", "-")
-    if clean_name:
-        name = f"checkpoint_{clean_name}_{timestamp}.json"
-    else:
-        name = f"checkpoint_{timestamp}.json"
-        
-    import json
-    (CHECKPOINTS_DIR / name).write_text(json.dumps(config, indent=4))
-    
-    # Push to Firebase as well
-    from src.core.firebase import push_checkpoint_to_firebase
-    push_checkpoint_to_firebase(name, config)
-    
-    return {"ok": True, "name": name}
-
-@router.post("/checkpoints/{name}/restore")
-def restore_checkpoint(name: str):
-    cp_file = CHECKPOINTS_DIR / name
-    import json
-    if not cp_file.exists():
-        # Try fetching from Firebase
-        from src.core.firebase import get_firebase_db
-        db = get_firebase_db()
-        if db:
-            doc = db.collection("checkpoints").document(name).get()
-            if doc.exists:
-                config = doc.to_dict()
-                save_resume_config(config)
-                return {"ok": True, "source": "firebase"}
-        raise HTTPException(404, "Checkpoint not found")
-        
-    config = json.loads(cp_file.read_text())
-    save_resume_config(config)
-    return {"ok": True, "source": "local"}
-
-@router.delete("/checkpoints/{name}")
-def delete_checkpoint(name: str):
-    cp_file = CHECKPOINTS_DIR / name
-    if cp_file.exists():
-        cp_file.unlink()
     return {"ok": True}
 
 # ── Settings (Firebase) ───────────────────────────────────────────────────────
@@ -170,6 +203,13 @@ async def export_pdf_local_route(request: Request):
         return {"ok": True, "path": str(target_path)}
     except Exception as e:
         raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
+
+@router.get("/api/template/{filename}")
+def get_template(filename: str):
+    tpl_path = ROOT / "templates" / "tex" / filename
+    if not tpl_path.exists() or not tpl_path.suffix == ".tex":
+        raise HTTPException(404, "Template not found")
+    return {"content": tpl_path.read_text(), "filename": filename}
 
 @router.post("/api/r2-backup")
 def trigger_r2_backup():
@@ -320,6 +360,82 @@ def view_cloud_pdf(key: str):
         return RedirectResponse(url)
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# ── Bookmark Compile / Download ────────────────────────────────────────────────
+
+@router.post("/bookmarks/{bm_id}/compile-pdf")
+def compile_bookmark_pdf(bm_id: str, include_photo: bool = False):
+    from src.core.build import build_custom_version
+    import re as _re
+    bookmarks = _load_bookmarks()
+    bm = next((b for b in bookmarks if b["id"] == bm_id), None)
+    if not bm:
+        raise HTTPException(404, "Bookmark not found")
+
+    safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
+    pdf_name = f"bm_{safe_name}"
+    suffix = "_X" if include_photo else ""
+
+    success = build_custom_version(bm["data"], pdf_name, include_photo)
+    if not success:
+        raise HTTPException(500, "Failed to compile PDF")
+
+    return {"pdf": f"{pdf_name}{suffix}.pdf"}
+
+
+@router.get("/bookmarks/{bm_id}/download-latex")
+def download_bookmark_latex(bm_id: str, include_photo: bool = False):
+    from src.core.build import generate_latex_source
+    import re as _re
+    bookmarks = _load_bookmarks()
+    bm = next((b for b in bookmarks if b["id"] == bm_id), None)
+    if not bm:
+        raise HTTPException(404, "Bookmark not found")
+
+    safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
+    latex = generate_latex_source(bm["data"], safe_name, include_photo)
+    if not latex:
+        raise HTTPException(500, "Failed to generate LaTeX source")
+
+    suffix = "_X" if include_photo else ""
+    filename = f"{safe_name}{suffix}.tex"
+    return StreamingResponse(
+        io.BytesIO(latex.encode("utf-8")),
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/bookmarks/{bm_id}/download-zip")
+def download_bookmark_zip(bm_id: str):
+    from src.core.build import generate_latex_source
+    import re as _re
+    bookmarks = _load_bookmarks()
+    bm = next((b for b in bookmarks if b["id"] == bm_id), None)
+    if not bm:
+        raise HTTPException(404, "Bookmark not found")
+
+    safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
+    latex = generate_latex_source(bm["data"], safe_name, include_photo=True)
+    if not latex:
+        raise HTTPException(500, "Failed to generate LaTeX source")
+
+    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
+        zf.writestr("resume.tex", latex)
+        if PROFILE_PHOTO.exists():
+            zf.write(str(PROFILE_PHOTO), "profile.jpg")
+        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
+
+    zip_buf.seek(0)
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.zip"'},
+    )
 
 
 # ── Downloads ─────────────────────────────────────────────────────────────────
