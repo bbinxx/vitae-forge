@@ -878,6 +878,7 @@ function renderGrid() {
                     ${hasResume ? `<div class="app-card-chip" title="${esc(app.assigned_pdf)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF</div>` : ''}
                     ${app.assigned_cover_letter ? `<div class="app-card-chip" title="${esc(app.assigned_cover_letter)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover</div>` : ''}
                     ${hasTemplate ? `<div class="app-card-chip" title="Has custom template"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Custom</div>` : ''}
+                    ${hasTemplate ? `<div class="app-card-chip" style="cursor:pointer;background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.3)" onclick="event.stopPropagation();window.bookmarkAppResume('${app.id}')" title="Save resume to Saved Resumes"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">bookmark</span> Save</div>` : ''}
                 </div>
             </div>
         </div>`;
@@ -1777,3 +1778,5 @@ export function initTracker(resumeState) {
     
     setupSearch();
 }
+
+
