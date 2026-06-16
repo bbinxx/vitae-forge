@@ -48,7 +48,12 @@ def startup_event():
         print(f"⚠️  DB connection error: {e}")
 
 @app.middleware("http")
-async def jwt_auth_middleware(request: Request, call_next):
+async def cookie_auth_middleware(request: Request, call_next):
+    passcode_hash = os.environ.get("PASSCODE_HASH")
+    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
+    if not passcode_hash or passcode_enabled == "false":
+        return await call_next(request)
+        
     path = request.url.path
     if path.startswith("/api/auth/") or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/") or path == "/" or path == "/login":
         return await call_next(request)
