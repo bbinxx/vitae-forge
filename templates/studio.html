@@ -23,13 +23,12 @@
   <nav class="header-nav" id="header-nav">
     <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
     <button id="tab-tracker"   class="nav-btn"        onclick="window.switchTab('tracker')">Applications</button>
-    <button id="tab-editor"    class="nav-btn"        onclick="window.switchTab('editor')">Role Editor</button>
+    <button id="tab-saved-resumes" class="nav-btn"    onclick="window.switchTab('saved-resumes')">Saved Resumes</button>
+    <button id="tab-templates" class="nav-btn"         onclick="window.switchTab('templates')">Templates</button>
     <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
-    <button id="tab-checkpoints" class="nav-btn"      onclick="window.switchTab('checkpoints')">Version Control</button>
     <button id="tab-settings"  class="nav-btn"        onclick="window.switchTab('settings')">Settings</button>
   </nav>
   <div class="header-actions" id="header-actions">
-    <button class="btn btn-ghost btn-sm" onclick="createCheckpoint()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">history</span> Checkpoint</button>
     <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
     <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
     <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
@@ -129,69 +128,36 @@
 
 </div>
 
-<!-- ═══════════════════ ROLE EDITOR ═══════════════════ -->
-<div id="editor-view" class="view hidden">
+<!-- ═══════════════════ SAVED RESUMES ═══════════════════ -->
+<div id="saved-resumes-view" class="view hidden">
+  <div class="sr-toolbar">
+    <button class="btn btn-primary" onclick="addNewRecipe()">+ Create from Scratch</button>
+    <button class="btn btn-secondary" onclick="addRecipeFromApp()">+ Clone from Application</button>
+    <input type="text" id="sr-filter" placeholder="Filter saved resumes..." style="margin-left:auto;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card);color:var(--text-primary);font-size:12px;width:240px;">
+  </div>
+  <div class="sr-container">
+    <div id="sr-list" class="sr-list"></div>
+    <div id="sr-empty" class="editor-placeholder" style="margin-top:0">No saved resumes found.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TEMPLATES ═══════════════════ -->
+<div id="templates-view" class="view hidden">
   <div class="split-layout">
 
     <aside class="sidebar">
       <div class="sidebar-section">
-        <div class="section-title">Recipes</div>
-        <div id="roles-list" class="roles-list"></div>
-        <button class="btn btn-primary w-full mt-3" onclick="addNewRole()">+ Create from Scratch</button>
-        <button class="btn btn-secondary w-full mt-2" onclick="addRoleFromApp()">+ Clone Application</button>
+        <div class="section-title">LaTeX Templates</div>
+        <div id="templates-list" class="roles-list"></div>
       </div>
     </aside>
 
     <div class="panel-main p-6">
-      <div id="role-editor-empty" class="editor-placeholder">Select a role to edit</div>
+      <div id="template-editor-empty" class="editor-placeholder">Select a template to view</div>
 
-      <div id="role-editor-form" class="editor-form hidden">
-        <div class="editor-form-header">Role Configuration</div>
-
-        <div class="form-grid-2">
-          <div class="field-group">
-            <label>Role ID</label>
-            <input type="text" id="edit-role-id" class="input-field" readonly>
-          </div>
-          <div class="field-group">
-            <label>Short Name</label>
-            <input type="text" id="edit-role-shortname" class="input-field" onchange="updateRoleField('short_name', this.value)">
-          </div>
-        </div>
-
-        <div class="field-group">
-          <label>Section Toggles</label>
-          <div id="edit-role-sections" class="toggle-grid"></div>
-        </div>
-
-        <div class="form-grid-2">
-          <div class="field-group">
-            <label>Role Title</label>
-            <select id="edit-role-title" class="input-field" onchange="updateRoleField('role_title', this.value)"></select>
-          </div>
-          <div class="field-group">
-            <label>Summary</label>
-            <select id="edit-role-summary" class="input-field" onchange="updateRoleField('professional_summary', this.value)"></select>
-          </div>
-        </div>
-
-        <div class="chips-section">
-          <div class="field-group"><label>Skills</label><div id="edit-role-skills" class="chips-row"></div></div>
-          <div class="field-group"><label>Projects</label><div id="edit-role-projects" class="chips-row"></div></div>
-          <div class="field-group">
-            <label>Education</label>
-            <select id="edit-role-education" class="input-field" onchange="updateRoleField('education', this.value)" style="max-width:300px"></select>
-          </div>
-          <div class="field-group"><label>Certifications</label><div id="edit-role-certifications" class="chips-row"></div></div>
-          <div class="field-group"><label>Achievements</label><div id="edit-role-achievements" class="chips-row"></div></div>
-          <div class="field-group"><label>Additional Info</label><div id="edit-role-additional" class="chips-row"></div></div>
-        </div>
-
-        <div class="editor-form-footer">
-          <button class="btn btn-success" onclick="saveConfigToServer()"> Save Config</button>
-          <button class="btn btn-secondary" onclick="duplicateCurrentRole()"> Duplicate Role</button>
-          <button class="btn btn-danger" onclick="deleteCurrentRole()"> Delete Role</button>
-        </div>
+      <div id="template-editor-form" class="editor-form hidden" style="display:flex;flex-direction:column;height:100%">
+        <div id="tpl-tabs" class="tpl-tabs"></div>
+        <div class="tpl-panels" id="tpl-panels"></div>
       </div>
     </div>
 
@@ -216,22 +182,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════ CHECKPOINTS ═══════════════════ -->
-<div id="checkpoints-view" class="view hidden">
-  <div class="split-layout">
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <div class="section-title">Version Control</div>
-        <button class="btn btn-primary w-full mt-2" onclick="createCheckpoint()">+ Create Checkpoint</button>
-      </div>
-    </aside>
-    <div class="panel-main p-6">
-      <div class="editor-form-header">Checkpoint History</div>
-      <p class="hint-text mb-4">Restore your entire configuration to a previous point in time. Checkpoints are automatically synced to Firebase.</p>
-      <div id="checkpoint-list" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
-  </div>
-</div>
+
 
 <!-- ═══════════════════ SETTINGS ═══════════════════ -->
 <div id="settings-view" class="view hidden">

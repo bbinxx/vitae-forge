@@ -1,19 +1,17 @@
 import { ui, state } from './app.js';
 import './dashboard.js?v=3';
-import './editor.js?v=3';
 import './library.js?v=3';
-import { loadCheckpoints } from './checkpoints.js';
 import { loadSettings } from './settings.js';
 import { loadTracker, initTracker } from './tracker.js?v=4';
-// version_editor.js is retained for future use
-// import { openVersionEditor } from './version_editor.js';
-// window.openVersionEditor = openVersionEditor;
+import { loadSavedResumes } from './saved_resumes.js?v=1';
+import { loadTemplates } from './templates.js?v=1';
 
 // Expose switchTab globally
 window.switchTab = (tabId) => {
     ui.switchTab(tabId);
     if (tabId === 'tracker') loadTracker();
-    if (tabId === 'checkpoints') loadCheckpoints();
+    if (tabId === 'saved-resumes') loadSavedResumes();
+    if (tabId === 'templates') loadTemplates();
     if (tabId === 'settings') loadSettings();
 };
 
@@ -38,16 +36,6 @@ window.exportAllPDFs = function() {
     a.href = '/download-all-pdfs?token=' + localStorage.getItem('token');
     a.download = 'all_resumes.zip';
     a.click();
-};
-
-window.createCheckpoint = async function() {
-    try {
-        const res = await fetch('/checkpoints', { method: 'POST' });
-        const data = await res.json();
-        if(data.ok) alert(`Checkpoint created successfully!\nSaved as: ${data.name}`);
-    } catch(e) {
-        alert('Failed to create checkpoint.');
-    }
 };
 
 window.importJSON = function(event) {

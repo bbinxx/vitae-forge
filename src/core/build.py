@@ -200,6 +200,60 @@ def build_all(user_id: str) -> None:
     print("=" * 44)
 
 
+def generate_latex_source(version_data: dict, display_name: str, include_photo: bool) -> str | None:
+    """
+    Generate LaTeX source from arbitrary configuration data WITHOUT compiling to PDF.
+    Returns the LaTeX source string, or None on failure.
+    """
+    import tempfile
+
+    main_config = load_resume_config()
+    full_config = {
+        "personal": main_config.get("personal", {}),
+        "library": main_config.get("library", {}),
+    }
+
+    if "library" in version_data:
+        for lib_type, lib_items in version_data["library"].items():
+            if lib_type not in full_config["library"]:
+                full_config["library"][lib_type] = {}
+            for item_id, item_data in lib_items.items():
+                full_config["library"][lib_type][item_id] = item_data
+        v_data = dict(version_data)
+        del v_data["library"]
+        full_config.update(v_data)
+    else:
+        full_config.update(version_data)
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(full_config, tmp)
+        tmp_path = tmp.name
+
+    try:
+        generate_py = ROOT / "src" / "core" / "generate.py"
+        template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
+        suffix = "_X" if include_photo else ""
+        tex_name = f"{display_name}{suffix}_temp.tex"
+        photo = PROFILE_PHOTO if include_photo else None
+
+        gen_cmd = [sys.executable, str(generate_py), tmp_path, str(template), tex_name]
+        if photo:
+            gen_cmd += ["--photo", str(photo)]
+        subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
+
+        tex_src = ROOT / tex_name
+        if tex_src.exists():
+            content = tex_src.read_text()
+            tex_src.unlink()
+            return content
+        return None
+    except Exception as e:
+        print(f"generate_latex_source error: {e}")
+        return None
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
