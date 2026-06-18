@@ -1,19 +1,20 @@
-# Environmental variables
+# Environment
 .env
+.env.*
+!.env.example
 
-# Virtual environment
+# Python
 venv/
 .venv/
-env/
-
-# Python artifacts
 __pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
 
-# LaTeX artifacts (build files)
+# LaTeX artifacts
 **/*.aux
 **/*.log
 **/*.out
@@ -21,35 +22,25 @@ __pycache__/
 **/*.fdb_latexmk
 **/*.synctex.gz
 **/*.synctex(busy)
-**/*.toc
-**/*.lof
-**/*.lot
-**/*.pdf
-**/*.bbl
-**/*.blg
-**/*.run.xml
-**/*.bcf
 
-# Project-specific generated artifacts
-dist/
-logs/
+# Generated build artifacts
 *_temp.tex
-LIVE_PREVIEW_TEMP.*
+**/*_temp.tex
+/tmp/
 
-# Editor/System temp files
+# IDE / Editor
 *.swp
 *~
 .DS_Store
 .idea/
 .vscode/
+*.sublime-project
+*.sublime-workspace
 
-# Keep configs and templates!
-!configs/*.json
-!shared/*.tex
-!scripts/*.py
-!scripts/*.sh
-!assets/*.jpg
-!assets/*.png
+# OS
+Thumbs.db
 
-# Ignore binary data in shared
-shared/*.pdf
+# Project-specific
+configs/bookmarks.json
+logs/
+node_modules
