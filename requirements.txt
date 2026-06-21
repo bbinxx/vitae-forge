@@ -1,22 +1,43 @@
-annotated-doc==0.0.4
-annotated-types==0.7.0
-anyio==4.13.0
-boto3==1.42.88
-botocore==1.42.88
-click==8.3.2
+# Core framework
 fastapi==0.135.3
-h11==0.16.0
-idna==3.11
-jmespath==1.1.0
+starlette==1.0.0
+uvicorn==0.44.0
+python-multipart==0.0.9
+
+# Data validation
 pydantic==2.12.5
 pydantic_core==2.41.5
+annotated-types==0.7.0
+typing_extensions==4.15.0
+typing-inspection==0.4.2
+
+# AWS / R2 cloud storage
+boto3==1.42.88
+botocore==1.42.88
+s3transfer==0.16.0
+jmespath==1.1.0
+
+# Utilities
+anyio==4.13.0
+click==8.3.2
+h11==0.16.0
+idna==3.11
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
-s3transfer==0.16.0
 six==1.17.0
-starlette==1.0.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
 urllib3==2.6.3
-uvicorn==0.44.0
-requests
+
+# Image processing — 11.x has Python 3.14 wheels (10.x source-only, broken on 3.14)
+Pillow>=11.0.0
+
+# Firebase — 7.x has Python 3.14 wheels
+firebase-admin>=7.0.0
+
+# Auth — 5.x has Python 3.14 wheels
+bcrypt>=5.0.0
+
+# Web scraping — for job URL scraper
+requests>=2.32.0
+beautifulsoup4>=4.14.0
+lxml>=5.0.0
+python-jose[cryptography]>=3.3.0
