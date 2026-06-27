@@ -1018,6 +1018,10 @@ export async function openAppStudio(appId = null) {
                     <div style="display:flex; gap: 4px; background: var(--bg-elevated); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
                         <button id="preview-type-resume" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px; background: var(--accent); color: white;" onclick="window.setUnifiedPreviewType('resume')">Resume</button>
                         <button id="preview-type-cover" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedPreviewType('cover_letter')">Cover Letter</button>
+                        <span style="width:1px;height:18px;background:var(--border);margin:0 2px"></span>
+                        <button id="preview-type-photo" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedIncludePhoto(!window._includePhoto)" title="Include profile photo in resume">
+                            <span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px">photo_camera</span> Photo
+                        </button>
                     </div>
                 </div>
                 <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
@@ -1237,6 +1241,7 @@ export async function openAppStudio(appId = null) {
                     toast('Company and Role are required in JSON', 'error');
                     return false;
                 }
+                payload.include_photo = window._includePhoto;
                 const confirmBtn = document.getElementById('modal-confirm-btn');
                 if (confirmBtn) {
                     confirmBtn.disabled = true;
@@ -1276,6 +1281,14 @@ export async function openAppStudio(appId = null) {
     );
 
     setTimeout(() => {
+        // Sync photo toggle from existing app data
+        if (app && app.include_photo) {
+            window._includePhoto = true;
+            const btn = document.getElementById('preview-type-photo');
+            if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'white'; }
+        } else {
+            window._includePhoto = false;
+        }
         window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
     }, 100);
 }
@@ -1338,6 +1351,7 @@ window.syncDetailsTabFromJson = function() {
     setVal('dt-contact-email',payload.contact_email || (payload.contact && payload.contact.email) || '');
     setVal('dt-job-url',      payload.job_url || payload.url || '');
     setVal('dt-assigned-pdf', payload.assigned_pdf || payload.pdf || '');
+    setVal('dt-include-photo', payload.include_photo ? 'true' : 'false');
     setVal('dt-notes',        payload.notes || '');
     setVal('dt-jd',           payload.job_description || payload.jd || '');
     // Set the deadline input as a date value (YYYY-MM-DD) if present
@@ -1371,6 +1385,7 @@ window.onDetailsFieldChange = function() {
     payload.contact_email = g('dt-contact-email');
     payload.job_url       = g('dt-job-url');
     payload.assigned_pdf  = g('dt-assigned-pdf');
+    payload.include_photo = g('dt-include-photo') === 'true';
     payload.notes         = g('dt-notes');
     payload.job_description = g('dt-jd');
     editor.value = JSON.stringify(payload, null, 2);
@@ -1581,6 +1596,7 @@ export async function deleteApp(appId) {
 
 // ── Live Preview & Helpers ────────────────────────────────────────────────────
 window._previewType = 'resume';
+window._includePhoto = false;
 
 window.setUnifiedPreviewType = (type) => {
     window._previewType = type;
@@ -1598,6 +1614,32 @@ window.setUnifiedPreviewType = (type) => {
             resBtn.style.background = 'transparent';
             resBtn.style.color = 'inherit';
         }
+    }
+    window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
+};
+
+window.setUnifiedIncludePhoto = (val) => {
+    window._includePhoto = val;
+    const btn = document.getElementById('preview-type-photo');
+    if (btn) {
+        if (val) {
+            btn.style.background = 'var(--accent)';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.color = 'inherit';
+        }
+    }
+    // Update include_photo in JSON editor
+    const editor = document.getElementById('unified-json-editor');
+    if (editor) {
+        try {
+            const payload = parseCleanJson(editor.value);
+            payload.include_photo = val;
+            const cursor = editor.selectionStart;
+            editor.value = JSON.stringify(payload, null, 2);
+            editor.setSelectionRange(cursor, cursor);
+        } catch (e) {}
     }
     window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
 };
@@ -1660,7 +1702,8 @@ window.onUnifiedJsonInput = (val) => {
                     app_id: appId,
                     config: config,
                     pdf_name: pdfName,
-                    type: window._previewType
+                    type: window._previewType,
+                    include_photo: window._includePhoto
                 })
             });
             
@@ -1711,27 +1754,37 @@ ${JSON.stringify(APPLICATION_SCHEMA, null, 2)}`;
 window.exportToLocalFolder = async function() {
     const payloadStr = document.getElementById('unified-json-editor')?.value;
     if (!payloadStr) return;
-    
-    let pdfName = "";
+
+    let payload;
     try {
-        const payload = parseCleanJson(payloadStr);
-        pdfName = payload.assigned_pdf;
-    } catch(e) {}
-    
-    if (!pdfName) {
-        toast('No assigned PDF found in JSON.', 'error');
+        payload = parseCleanJson(payloadStr);
+    } catch(e) {
+        toast('Invalid JSON: ' + e.message, 'error');
         return;
     }
+
+    const config = payload.resume_template;
+    if (!config || Object.keys(config).length === 0) {
+        toast('No resume template found in JSON.', 'error');
+        return;
+    }
+
+    let pdfName = payload.assigned_pdf || '';
     if (pdfName.endsWith('.pdf')) {
         pdfName = pdfName.slice(0, -4);
     }
 
-    toast('Exporting PDF to local folder...', 'info');
+    toast('Generating and exporting PDF to local folder...', 'info');
     try {
         const res = await fetch('/api/export-pdf-local', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdf_name: pdfName })
+            body: JSON.stringify({
+                pdf_name: pdfName,
+                config: config,
+                type: window._previewType || 'resume',
+                include_photo: window._includePhoto || false
+            })
         });
         const data = await res.json();
         if (res.ok) {
