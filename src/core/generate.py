@@ -287,6 +287,10 @@ def generate_resume(
 
         tmpl = tmpl.replace(tag, tex)
 
+    # ── Photo path ────────────────────────────────────────────────────────────
+    if photo_path:
+        tmpl = tmpl.replace("<<PHOTO_PATH>>", photo_path)
+
     # ── Section toggling ──────────────────────────────────────────────────────
     for sec_name, is_active in config.get("sections", {}).items():
         if is_active is False:
