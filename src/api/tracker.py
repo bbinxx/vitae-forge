@@ -102,6 +102,7 @@ def _default_app(app_id: str, body: dict) -> dict:
         "contact_email":    body.get("contact_email", ""),
         "email":            body.get("email", {}),
         "interview_rounds": body.get("interview_rounds", []),
+        "include_photo":    body.get("include_photo", False),
         "created_at":       datetime.now().isoformat(),
         "updated_at":       datetime.now().isoformat(),
         "timeline":         [_timeline_event(status, "Application created")],
@@ -112,6 +113,7 @@ _UPDATABLE_FIELDS = [
     "priority", "job_type", "source", "platform", "tags",
     "assigned_resume", "assigned_pdf", "assigned_version_id", "archived_pdf",
     "resume_template",
+    "include_photo",
     "notes", "job_description", "deadline",
     "salary_range", "contact_name", "contact_email",
     "email",
@@ -132,10 +134,12 @@ async def create_application(request: Request):
     if new_app.get('resume_template'):
         try:
             display_name = _build_display_name(new_app)
+            include_photo = body.get("include_photo", False)
             from src.core.build import build_custom_version
-            success = build_custom_version(new_app['resume_template'], display_name, False)
+            success = build_custom_version(new_app['resume_template'], display_name, include_photo)
             if success:
-                new_app['assigned_pdf'] = f"{display_name}.pdf"
+                suffix_str = "_X" if include_photo else ""
+                new_app['assigned_pdf'] = f"{display_name}{suffix_str}.pdf"
         except Exception as e:
             print(f"Error compiling new application resume for {app_id}: {e}")
     save_application(new_app)
@@ -158,10 +162,7 @@ async def update_application(app_id: str, request: Request):
     # If a custom template is provided, build a custom PDF
     if "resume_template" in body and body["resume_template"]:
         try:
-            include_photo = False
-            assigned = app.get("assigned_pdf", "")
-            if assigned and "_X" in assigned:
-                include_photo = True
+            include_photo = body.get("include_photo", app.get("include_photo", False))
             display_name = _build_display_name(app)
             from src.core.build import build_custom_version
             success = build_custom_version(app["resume_template"], display_name, include_photo)
