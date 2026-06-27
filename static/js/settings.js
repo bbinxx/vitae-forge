@@ -38,6 +38,25 @@ export async function loadSettings() {
             
             <div class="editor-form-header">Manual Actions</div>
             <button class="btn btn-secondary mt-2" onclick="triggerManualR2Backup()">Force R2 Archive Backup Now</button>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:30px 0;">
+
+            <div class="editor-form-header">Profile Photo</div>
+            <div id="photo-section" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-top:12px">
+                <div id="photo-preview" style="width:120px;height:160px;border:2px dashed var(--border);border-radius:var(--radius);overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg-main);flex-shrink:0">
+                    <img id="photo-img" src="/assets/profile-photo.jpg?t=${Date.now()}" style="max-width:100%;max-height:100%;object-fit:contain" onerror="this.style.display='none'" onload="this.style.display='block'">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <label class="btn btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;width:fit-content">
+                        <span class="material-symbols-outlined" style="font-size:16px">upload</span> Upload Photo
+                        <input type="file" accept="image/*" style="display:none" onchange="window.settingsUploadPhoto(event)">
+                    </label>
+                    <p class="hint-text" style="font-size:11px;color:var(--text-muted);max-width:300px">
+                        JPEG/PNG, ~3:4 aspect ratio. Saved locally and synced to R2 cloud storage.
+                    </p>
+                    <div id="photo-status" style="font-size:11px;color:var(--text-muted)"></div>
+                </div>
+            </div>
         `;
     } catch (e) {
         container.innerHTML = '<div style="color:red;font-size:12px;">Failed to load settings.</div>';
@@ -91,4 +110,30 @@ window.pickExportFolder = async function() {
     } catch(e) {
         console.error("Error picking folder", e);
     }
+};
+
+window.settingsUploadPhoto = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('photo-status');
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/upload-photo', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            if (statusEl) statusEl.textContent = data.message || 'Photo updated';
+            const img = document.getElementById('photo-img');
+            if (img) img.src = '/assets/profile-photo.jpg?t=' + Date.now();
+        } else {
+            if (statusEl) statusEl.textContent = 'Error: ' + (data.detail || 'Unknown error');
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Upload failed: ' + e.message;
+    }
+    event.target.value = '';
 };
