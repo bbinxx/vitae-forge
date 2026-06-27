@@ -231,11 +231,9 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
         suffix = "_X" if include_photo else ""
         tex_name = f"{display_name}{suffix}_temp.tex"
-        photo = PROFILE_PHOTO if include_photo else None
-
         gen_cmd = [sys.executable, str(generate_py), tmp_path, str(template), tex_name]
-        if photo:
-            gen_cmd += ["--photo", str(photo)]
+        # Don't pass --photo; leave <<PHOTO_PATH>> placeholder in output
+        # so callers (ZIP/LaTeX download) can substitute their own path
         subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
 
         tex_src = ROOT / tex_name
