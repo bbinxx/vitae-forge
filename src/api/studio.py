@@ -98,11 +98,14 @@ def download_latex_direct(req: DirectCompileRequest):
     latex = generate_latex_source(req.config, safe_name, req.include_photo)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
+    if req.include_photo:
+        latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
     return StreamingResponse(
         io.BytesIO(latex.encode("utf-8")),
         media_type="text/plain",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}{suffix}.tex"'},
     )
+
 
 @router.post("/download-zip-direct")
 def download_zip_direct(req: DirectCompileRequest):
@@ -112,7 +115,7 @@ def download_zip_direct(req: DirectCompileRequest):
     latex = generate_latex_source(req.config, safe_name, include_photo=True)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
-    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+    latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
         zf.writestr("resume.tex", latex)
@@ -175,34 +178,112 @@ def pick_folder_route():
 @router.post("/api/export-pdf-local")
 async def export_pdf_local_route(request: Request):
     data = await request.json()
-    pdf_name = data.get("pdf_name")
-    if not pdf_name:
-        raise HTTPException(400, "Missing pdf_name")
-        
+    config = data.get("config")
+    pdf_name = data.get("pdf_name", "")
+    preview_type = data.get("type", "resume")
+    include_photo = data.get("include_photo", False)
+
     from src.core.firebase import get_settings
     settings = get_settings()
     export_folder = settings.get("export_folder")
-    
+
     if not export_folder:
         raise HTTPException(400, "No export folder specified in settings.")
-        
-    import shutil
-    import os
-    from src.core.config import DIST_DIR
+
+    if not config:
+        raise HTTPException(400, "Missing config in request body")
+
+    if not pdf_name:
+        prefix = settings.get("file_name_prefix", "BIBIN_RAJU-") if isinstance(settings, dict) else "BIBIN_RAJU-"
+        role = config.get("role_title", "")
+        import re
+        safe_role = re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
+        pdf_name = f"{prefix}{safe_role}"
+
     from pathlib import Path
-    
-    source_pdf = DIST_DIR / f"{pdf_name}.pdf"
-    if not source_pdf.exists():
-        raise HTTPException(404, f"PDF {pdf_name}.pdf not found. Generate it first.")
-        
+
+    if not pdf_name.endswith(".pdf"):
+        pdf_name = f"{pdf_name}.pdf"
+
     target_dir = Path(export_folder)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / pdf_name
+
+    import shutil
+    import json
+    import tempfile
+    import subprocess
+    import os
+    from src.core.config import (
+        TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
+        PROFILE_PHOTO, DIST_DIR, load_resume_config,
+    )
+    from src.core.generate import generate_resume
+
+    main_config = load_resume_config()
+    full_config = {
+        "personal": main_config.get("personal", {}),
+        "library": main_config.get("library", {}),
+    }
+
+    if "library" in config:
+        for lib_type, lib_items in config["library"].items():
+            if lib_type not in full_config["library"]:
+                full_config["library"][lib_type] = {}
+            full_config["library"][lib_type].update(lib_items)
+    v_data = {k: v for k, v in config.items() if k != "library"}
+    full_config.update(v_data)
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(full_config, tmp)
+        tmp_config_path = tmp.name
+
+    tmp_dir = Path(tmp_config_path).parent
+    tmp_tex_path = str(tmp_dir / f"export_{os.getpid()}.tex")
+
     try:
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / f"{pdf_name}.pdf"
-        shutil.copy2(source_pdf, target_path)
+        if preview_type == "cover_letter":
+            template = TEMPLATE_COVER_LETTER
+        elif include_photo:
+            template = TEMPLATE_PHOTO
+        else:
+            template = TEMPLATE_PLAIN
+
+        generate_resume(
+            tmp_config_path, str(template), tmp_tex_path,
+            photo_path=str(PROFILE_PHOTO) if include_photo else None,
+        )
+
+        from src.core.config import find_pdflatex
+        pdflatex_cmd = find_pdflatex()
+        if not pdflatex_cmd:
+            raise HTTPException(400, "LaTeX compiler 'pdflatex' not found.")
+
+        subprocess.run(
+            [pdflatex_cmd, "-interaction=nonstopmode",
+             "-output-directory", str(tmp_dir), tmp_tex_path],
+            capture_output=True, timeout=60,
+        )
+
+        pdf_file = Path(tmp_tex_path).with_suffix(".pdf")
+        if not pdf_file.exists():
+            raise HTTPException(500, "PDF compilation failed.")
+
+        shutil.copy2(str(pdf_file), str(target_path))
+        shutil.copy2(str(pdf_file), str(DIST_DIR / pdf_name))
+
         return {"ok": True, "path": str(target_path)}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
+        raise HTTPException(500, f"Failed to generate and export PDF: {str(e)}")
+    finally:
+        for p in [tmp_config_path, tmp_tex_path]:
+            try:
+                if Path(p).exists():
+                    os.unlink(p)
+            except Exception:
+                pass
 
 @router.get("/api/template/{filename}")
 def get_template(filename: str):
@@ -397,6 +478,8 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False):
     latex = generate_latex_source(bm["data"], safe_name, include_photo)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
+    if include_photo:
+        latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
 
     suffix = "_X" if include_photo else ""
     filename = f"{safe_name}{suffix}.tex"
@@ -421,7 +504,7 @@ def download_bookmark_zip(bm_id: str):
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
 
-    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+    latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
 
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
@@ -459,7 +542,7 @@ def download_bundle(filename: str):
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
         content = tex_path.read_text().replace(
-            "../assets/profile-photo.jpg", "profile.jpg"
+            str(PROFILE_PHOTO), "profile.jpg"
         )
         zf.writestr("resume.tex", content)
         if PROFILE_PHOTO.exists():
@@ -658,7 +741,23 @@ async def upload_photo(file: UploadFile = File(...)):
         if new_img.mode != "RGB":
             new_img = new_img.convert("RGB")
         new_img.save(PROFILE_PHOTO, "JPEG", quality=90)
-        return {"ok": True, "message": "Photo updated successfully"}
+
+        # Also upload to R2
+        r2_ok = False
+        try:
+            from src.core.upload import get_r2_client, BUCKET
+            client = get_r2_client()
+            if client:
+                client.upload_file(
+                    str(PROFILE_PHOTO), BUCKET, "profile-photo.jpg",
+                    ExtraArgs={"ContentType": "image/jpeg"},
+                )
+                r2_ok = True
+        except Exception as r2e:
+            print(f"R2 upload error: {r2e}")
+
+        msg = "Photo updated" + (" and synced to cloud" if r2_ok else " (local only)")
+        return {"ok": True, "message": msg}
     except HTTPException:
         raise
     except Exception as e:
