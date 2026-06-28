@@ -178,7 +178,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
           "focus": "Use exactly 4 role-specific keywords (e.g. Java Development, Backend Systems, Databases, Problem Solving)."
         },
         "languages": {
-          "exact_value": "English, Malayalam"
+          "exact_value": "[Your Languages]"
         }
       },
       "cover_letter": {
@@ -237,7 +237,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
     "email_rules": {
       "required": true,
       "to_rule": "Extract the contact/recruitment email from the JD (e.g. careers@company.com, hr@company.com). If found, use it as the recipient. If not found, leave blank.",
-      "subject_format": "Application for [Role] \u2013  Candidate",
+      "subject_format": "Application for [Role]",
       "greeting_rule": "Use 'Dear Hiring Team' by default. Use 'Dear Mr./Ms. [Surname]' only if the surname is explicitly provided in the JD.",
       "body_structure": [
         "Introduce interest in the role.",
@@ -247,7 +247,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
         "Professional sign-off."
       ],
       "signature": {
-        "name": " Candidate",
+        "name": "[Your Name]",
         "phone": "[Your Phone]",
         "email": "[your@email.com]",
         "linkedin": "linkedin.com/in/[your-linkedin]"

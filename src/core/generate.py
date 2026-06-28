@@ -162,9 +162,9 @@ def generate_resume(
     cover_letter = re.sub(r'\r\n', '\n', cover_letter)
     cover_letter = re.sub(r'\n{3,}', '\n\n', cover_letter)
     cover_letter = cover_letter.replace('\n', '\n\n')
-    # Strip trailing "Sincerely,\n Candidate" (or similar) — template adds the signature block
+    # Strip trailing signature block (e.g. "Sincerely,\nName") — template adds its own
     cover_letter = re.sub(
-        r'\n*((Sincerely|Best regards|Yours sincerely|Yours faithfully|Regards|Thanks?)[,\s]*)?\n*\\n?YOUR_NAME\s*Raju\s*$',
+        r'\n*((Sincerely|Best regards|Yours sincerely|Yours faithfully|Regards|Thanks?)[,\s]*)?\n*\\n?[\w\s]+\s*$',
         '',
         cover_letter,
         flags=re.IGNORECASE
