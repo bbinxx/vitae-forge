@@ -52,7 +52,7 @@ def md5_of_file(path: Path) -> str:
 
 
 def list_r2_objects() -> dict[str, str]:
-    """Return {key: etag} for all objects in the R2 bucket."""
+    """Return {key: etag} for all objects in the R2 bucket (single page)."""
     client = get_r2_client()
     if not client:
         return {}
@@ -64,6 +64,22 @@ def list_r2_objects() -> dict[str, str]:
         }
     except Exception:
         return {}
+
+
+def list_r2_objects_all() -> list[str]:
+    """Return a list of ALL object keys in the R2 bucket (handles pagination)."""
+    client = get_r2_client()
+    if not client:
+        return []
+    keys = []
+    try:
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=BUCKET):
+            for obj in page.get("Contents", []):
+                keys.append(obj["Key"])
+    except Exception:
+        return []
+    return keys
 
 
 def upload_pdf(filename: str) -> dict:

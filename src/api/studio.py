@@ -286,35 +286,61 @@ def _save_bookmarks_data(bookmarks: list):
     BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=4))
 
 
-@router.get("/api/export-backup")
+@router.post("/api/export-backup", response_class=StreamingResponse)
 def export_backup(request: Request):
-    """Export ALL user data as a single JSON backup (incl. base64 images)."""
+    """Export ALL user data as a single JSON backup (incl. base64 images).
+
+    Streams progress events (SSE-style), then sends the full backup JSON
+    as the final event with type='file' and the base64-encoded content.
+    """
     user_id = get_user_id(request)
-    user = db.get_user_by_id(user_id)
+
+    def emit(step: str, status: str, **kw):
+        import json as _json
+        obj = {"step": step, "status": status, **kw}
+        yield f"data: {_json.dumps(obj)}\n\n"
+
+    yield from emit("init", "start", message="Starting backup...")
 
     # 1. Core resume data
+    yield from emit("personal", "fetching")
     personal = db.get_personal(user_id)
+    yield from emit("personal", "done")
+
+    yield from emit("library", "fetching")
     library = db.get_library(user_id)
+    yield from emit("library", "done")
+
+    yield from emit("recipes", "fetching")
     recipes = db.get_recipes(user_id)
+    yield from emit("recipes", "done")
+
+    yield from emit("settings", "fetching")
     settings = db.get_settings(user_id)
+    yield from emit("settings", "done")
 
     # 2. Applications with versions
+    yield from emit("applications", "fetching")
     apps_raw = db.get_all_applications(user_id)
     applications = []
     for app in apps_raw:
         app_id = app.get("id", "")
         versions = db.get_app_versions(user_id, app_id) if app_id else []
         applications.append({**app, "versions": versions})
+    yield from emit("applications", "done", count=len(applications))
 
     # 3. Checkpoints
+    yield from emit("checkpoints", "fetching")
     checkpoint_names = db.list_checkpoints(user_id)
     checkpoints = {}
     for name in checkpoint_names:
         data = db.get_checkpoint(user_id, name)
         if data:
             checkpoints[name] = data
+    yield from emit("checkpoints", "done", count=len(checkpoints))
 
     # 4. Assets — profile photo
+    yield from emit("profile_photo", "fetching")
     assets = {}
     photo_b64 = _base64_file(PROFILE_PHOTO)
     if photo_b64:
@@ -323,36 +349,34 @@ def export_backup(request: Request):
             "content": photo_b64,
             "encoding": "base64",
         }
+    yield from emit("profile_photo", "done" if photo_b64 else "skipped")
 
-    # 5. Application photos from R2
-    from src.core.upload import get_r2_client
-    r2_client = get_r2_client()
-    app_photos = {}
-    if r2_client:
-        seen_keys = set()
-        for app in applications:
-            for v in app.get("versions", []):
-                key = v.get("photo_r2_key", "")
-                if key and key not in seen_keys:
-                    seen_keys.add(key)
-                    asset = _r2_download_base64(key)
-                    if asset:
-                        app_photos[key] = asset
-        # Also check archived_pdf as potential image (unlikely but thorough)
-        # — only pdfs, skip
-    if app_photos:
-        assets["application_photos"] = app_photos
+    # 5. All images from R2 (photos, any uploaded images)
+    yield from emit("r2_images", "fetching")
+    r2_images = {}
+    from src.core.upload import get_r2_client, list_r2_objects_all
+    r2_objects = list_r2_objects_all()
+    image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".ico"}
+    for key in r2_objects:
+        ext = Path(key).suffix.lower()
+        if ext in image_exts:
+            asset = _r2_download_base64(key)
+            if asset:
+                r2_images[key] = asset
+    if r2_images:
+        assets["r2_images"] = r2_images
+    yield from emit("r2_images", "done", count=len(r2_images))
 
     # 6. Bookmarks (local file)
+    yield from emit("bookmarks", "fetching")
     bookmarks = _load_bookmarks_data()
+    yield from emit("bookmarks", "done", count=len(bookmarks))
 
+    # 7. Build final backup (NO user metadata — just pure data)
+    yield from emit("finalizing", "start")
     backup = {
         "version": 2,
         "exported_at": datetime.now().isoformat(),
-        "user": {
-            "id": user_id,
-            "username": (user or {}).get("username", ""),
-        },
         "data": {
             "personal": personal,
             "library": library,
@@ -365,20 +389,21 @@ def export_backup(request: Request):
         "bookmarks": bookmarks,
     }
 
-    import json
-    json_str = json.dumps(backup, indent=2, default=str)
-    return StreamingResponse(
-        io.BytesIO(json_str.encode("utf-8")),
-        media_type="application/json",
-        headers={
-            "Content-Disposition": f'attachment; filename="resume_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
-        },
-    )
+    import json as _json
+    json_bytes = _json.dumps(backup, indent=2, default=str).encode("utf-8")
+    yield from emit("file", "ready", content=_json.dumps({
+        "filename": f"resume_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        "size": len(json_bytes),
+    }))
+    yield from emit("data", "complete", payload=backup)
 
 
 @router.post("/api/import-backup")
 async def import_backup(request: Request):
-    """Restore ALL user data from a full backup JSON."""
+    """Restore ALL user data from a full backup JSON.
+
+    Streams SSE-style progress events during restore.
+    """
     user_id = get_user_id(request)
     body = await request.json()
 
@@ -386,79 +411,124 @@ async def import_backup(request: Request):
     assets = body.get("assets", {})
     bookmarks = body.get("bookmarks")
 
-    # 1. Core resume data
-    if "personal" in data:
-        db.save_personal(user_id, data["personal"])
-    if "library" in data:
-        db.save_library(user_id, data["library"])
-    if "recipes" in data:
-        db.save_recipes(user_id, data["recipes"])
-    if "settings" in data:
-        db.save_settings(user_id, data["settings"])
+    def emit(step: str, status: str, **kw):
+        import json as _json
+        obj = {"step": step, "status": status, **kw}
+        yield f"data: {_json.dumps(obj)}\n\n"
 
-    # 2. Applications → replace all (delete existing, re-save)
-    existing_apps = db.get_all_applications(user_id)
-    for app in existing_apps:
-        app_id = app.get("id")
-        if app_id:
-            # Delete versions first
-            v_docs = db.get_app_versions(user_id, app_id)
-            for v in v_docs:
-                v_id = v.get("id")
-                if v_id:
-                    db.delete_app_version(user_id, app_id, v_id)
-            db.delete_application(user_id, app_id)
+    def generate():
+        # 1. Core resume data
+        yield from emit("personal", "restoring")
+        if "personal" in data:
+            db.save_personal(user_id, data["personal"])
+        yield from emit("personal", "done")
 
-    for app in data.get("applications", []):
-        versions = app.pop("versions", [])
-        db.save_application(user_id, app)
-        app_id = app.get("id", "")
-        if app_id:
-            for v in versions:
-                db.save_app_version(user_id, app_id, v)
+        yield from emit("library", "restoring")
+        if "library" in data:
+            db.save_library(user_id, data["library"])
+        yield from emit("library", "done")
 
-    # 3. Checkpoints → replace all
-    existing_cps = db.list_checkpoints(user_id)
-    for name in existing_cps:
-        db.delete_checkpoint(user_id, name)
-    for name, cp_data in data.get("checkpoints", {}).items():
-        db.save_checkpoint(user_id, name, cp_data)
+        yield from emit("recipes", "restoring")
+        if "recipes" in data:
+            db.save_recipes(user_id, data["recipes"])
+        yield from emit("recipes", "done")
 
-    # 4. Profile photo
-    profile = assets.get("profile_photo", {})
-    if profile.get("content") and profile.get("encoding") == "base64":
-        import base64
-        try:
-            raw = base64.b64decode(profile["content"])
-            PROFILE_PHOTO.parent.mkdir(parents=True, exist_ok=True)
-            with open(PROFILE_PHOTO, "wb") as f:
-                f.write(raw)
-        except Exception as e:
-            print(f"Failed to restore profile photo: {e}")
+        yield from emit("settings", "restoring")
+        if "settings" in data:
+            db.save_settings(user_id, data["settings"])
+        yield from emit("settings", "done")
 
-    # 5. Application photos → upload back to R2
-    app_photos = assets.get("application_photos", {})
-    if app_photos:
-        from src.core.upload import get_r2_client, BUCKET
-        import base64, io
-        r2_client = get_r2_client()
-        if r2_client:
-            for r2_key, photo in app_photos.items():
-                if photo.get("content") and photo.get("encoding") == "base64":
-                    try:
-                        raw = base64.b64decode(photo["content"])
-                        r2_client.upload_fileobj(
-                            io.BytesIO(raw), BUCKET, r2_key,
-                            ExtraArgs={"ContentType": "image/jpeg"},
-                        )
-                    except Exception as e:
-                        print(f"Failed to restore app photo {r2_key}: {e}")
+        # 2. Applications → replace all
+        yield from emit("applications", "clearing")
+        existing_apps = db.get_all_applications(user_id)
+        for app in existing_apps:
+            app_id = app.get("id")
+            if app_id:
+                v_docs = db.get_app_versions(user_id, app_id)
+                for v in v_docs:
+                    v_id = v.get("id")
+                    if v_id:
+                        db.delete_app_version(user_id, app_id, v_id)
+                db.delete_application(user_id, app_id)
 
-    # 6. Bookmarks
-    if bookmarks is not None:
-        _save_bookmarks_data(bookmarks)
+        apps_list = data.get("applications", [])
+        yield from emit("applications", "restoring", count=len(apps_list))
+        for app in apps_list:
+            versions = app.pop("versions", [])
+            db.save_application(user_id, app)
+            app_id = app.get("id", "")
+            if app_id:
+                for v in versions:
+                    db.save_app_version(user_id, app_id, v)
+        yield from emit("applications", "done", count=len(apps_list))
 
-    return {"ok": True, "message": "Backup restored successfully"}
+        # 3. Checkpoints → replace all
+        yield from emit("checkpoints", "clearing")
+        existing_cps = db.list_checkpoints(user_id)
+        for name in existing_cps:
+            db.delete_checkpoint(user_id, name)
+        cp_data = data.get("checkpoints", {})
+        yield from emit("checkpoints", "restoring", count=len(cp_data))
+        for name, cp in cp_data.items():
+            db.save_checkpoint(user_id, name, cp)
+        yield from emit("checkpoints", "done", count=len(cp_data))
+
+        # 4. Profile photo
+        yield from emit("profile_photo", "restoring")
+        profile = assets.get("profile_photo", {})
+        if profile.get("content") and profile.get("encoding") == "base64":
+            import base64
+            try:
+                raw = base64.b64decode(profile["content"])
+                PROFILE_PHOTO.parent.mkdir(parents=True, exist_ok=True)
+                with open(PROFILE_PHOTO, "wb") as f:
+                    f.write(raw)
+                yield from emit("profile_photo", "done")
+            except Exception as e:
+                yield from emit("profile_photo", "error", message=str(e))
+        else:
+            yield from emit("profile_photo", "skipped")
+
+        # 5. All R2 images → upload back
+        r2_images = assets.get("r2_images", {})
+        if r2_images:
+            yield from emit("r2_images", "uploading", count=len(r2_images))
+            from src.core.upload import get_r2_client, BUCKET
+            import base64, io
+            r2_client = get_r2_client()
+            if r2_client:
+                success = 0
+                for r2_key, photo in r2_images.items():
+                    if photo.get("content") and photo.get("encoding") == "base64":
+                        try:
+                            raw = base64.b64decode(photo["content"])
+                            ct = "image/jpeg"
+                            if photo.get("filename", "").endswith(".png"):
+                                ct = "image/png"
+                            elif photo.get("filename", "").endswith(".gif"):
+                                ct = "image/gif"
+                            elif photo.get("filename", "").endswith(".webp"):
+                                ct = "image/webp"
+                            r2_client.upload_fileobj(
+                                io.BytesIO(raw), BUCKET, r2_key,
+                                ExtraArgs={"ContentType": ct},
+                            )
+                            success += 1
+                        except Exception as e:
+                            print(f"Failed to restore {r2_key}: {e}")
+                yield from emit("r2_images", "done", count=success)
+        else:
+            yield from emit("r2_images", "skipped")
+
+        # 6. Bookmarks
+        yield from emit("bookmarks", "restoring")
+        if bookmarks is not None:
+            _save_bookmarks_data(bookmarks)
+        yield from emit("bookmarks", "done", count=len(bookmarks or []))
+
+        yield from emit("complete", "done", message="Backup restored successfully")
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.post("/api/r2-backup")
