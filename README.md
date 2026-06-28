@@ -30,7 +30,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/[your-github]/vitae-forge.git
+git clone https://github.com/your-github/vitae-forge.git
 cd vitae-forge
 
 # Run the start script (handles venv, deps, and launch)
