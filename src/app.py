@@ -1,21 +1,19 @@
 """
-src/app.py — Resume Studio · FastAPI Application Entry Point
-============================================================
+src/app.py — Vitae Forge · FastAPI Application Entry Point
+==========================================================
 All routers are registered here. Run via:
     uvicorn src.app:app --host 127.0.0.1 --port 5050 --reload
 """
 import os
-import secrets
 import json
-import io
 import tempfile
 import subprocess
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from jose import jwt, JWTError
 
 from src.core.config import DIST_DIR, STATIC_DIR, ROOT, ensure_dirs, find_pdflatex
@@ -29,23 +27,26 @@ ensure_dirs()
 _LOGIN_FILE = ROOT / "templates" / "login.html"
 _HTML_FILE  = ROOT / "templates" / "studio.html"
 
-app = FastAPI(
-    title="Resume Studio",
-    description="Resume management, building, and application tracking system.",
-    version="7.0.0",
-)
 
-@app.on_event("startup")
-def startup_event():
-    print("🚀 Resume Studio Starting Up...")
-    # Trigger DB initialization
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Vitae Forge Starting Up...")
     from src.db import db
     try:
-        # Just a ping to ensure initialization
         db.list_users()
-        print("🔥 DB connected successfully! Cloud sync is ACTIVE.")
+        print("DB connected successfully. Cloud sync is ACTIVE.")
     except Exception as e:
-        print(f"⚠️  DB connection error: {e}")
+        print(f"DB connection error: {e}")
+    yield
+    print("Vitae Forge Shutting Down.")
+
+
+app = FastAPI(
+    title="Vitae Forge",
+    description="Multi-tenant LaTeX resume builder and job application tracker.",
+    version="2.0.0",
+    lifespan=lifespan,
+)
 
 @app.middleware("http")
 async def cookie_auth_middleware(request: Request, call_next):
