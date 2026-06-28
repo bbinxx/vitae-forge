@@ -351,7 +351,8 @@ Each resume generates two PDF variants:
 ### Tagging
 
 ```
-v2.0.0  — Current (src/ restructure, CI/CD, Docker, multi-platform deploy)
+v2.2.0  — Current (Dashboard overhaul, Cloud Photo, Backup Import/Export)
+v2.0.0  — (src/ restructure, CI/CD, Docker, multi-platform deploy)
 ```
 
 ---
