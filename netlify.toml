@@ -1,0 +1,9 @@
+[build]
+  publish = "templates"
+  command = "echo 'Static frontend only — deploy backend via Render or DigitalOcean'"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://your-app.onrender.com/api/:splat"
+  status = 200
+  force = true
