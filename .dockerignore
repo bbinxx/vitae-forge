@@ -1,0 +1,32 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.github/
+.gitignore
+.editorconfig
+
+# Build artifacts
+logs/
+*_temp.tex
+**/*_temp.tex
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Documentation
+*.md
+LICENSE
+
+# Deployment configs (not needed in container)
+app.yaml
+render.yaml
+vercel.json
+netlify.toml
+docker-compose.yml
+run.bat
