@@ -30,9 +30,8 @@
   </nav>
   <div class="header-actions" id="header-actions">
     <span id="user-badge" style="font-size:12px;color:var(--text-muted,#94a3b8);margin-right:8px"></span>
-    <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
-    <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-    <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportBackup()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">unarchive</span> Import Backup<input type="file" accept=".json" onchange="importBackup(event)" style="display:none"></label>
     <button class="btn btn-ghost btn-sm" onclick="handleLogout()" style="color:#f87171"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">logout</span> Logout</button>
   </div>
 </header>

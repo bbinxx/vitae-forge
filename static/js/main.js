@@ -15,40 +15,37 @@ window.switchTab = (tabId) => {
     if (tabId === 'settings') loadSettings();
 };
 
-// Global actions
-window.exportJSON = function() {
-    const blob = new Blob([JSON.stringify(state.data, null, 2)], {type:'application/json'});
+// ── Full Backup / Restore ─────────────────────────────────────────────────────
+window.exportBackup = function() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'resume_config.json';
+    a.href = '/api/export-backup?token=' + token;
+    a.download = 'resume_backup.json';
     a.click();
 };
 
-window.exportWorkspace = function() {
-    const a = document.createElement('a');
-    a.href = '/download-workspace-archive?token=' + localStorage.getItem('token');
-    a.download = 'resume_workspace_backup.zip';
-    a.click();
-};
-
-window.exportAllPDFs = function() {
-    const a = document.createElement('a');
-    a.href = '/download-all-pdfs?token=' + localStorage.getItem('token');
-    a.download = 'all_resumes.zip';
-    a.click();
-};
-
-window.importJSON = function(event) {
+window.importBackup = function(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         try {
-            state.data = JSON.parse(e.target.result);
-            alert('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Configuration loaded locally (Click Save to Server to persist)');
-            state.notify();
+            const backup = JSON.parse(e.target.result);
+            const res = await fetch('/api/import-backup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(backup),
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                alert('Backup restored successfully! Refreshing data...');
+                window.location.reload();
+            } else {
+                alert('Restore failed: ' + (data.detail || data.message || 'Unknown error'));
+            }
         } catch(err) {
-            alert('Invalid JSON file');
+            alert('Invalid backup file: ' + err.message);
         }
     };
     reader.readAsText(file);

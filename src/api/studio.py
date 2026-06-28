@@ -236,6 +236,231 @@ def get_template(filename: str):
         raise HTTPException(404, "Template not found")
     return {"content": tpl_path.read_text(), "filename": filename}
 
+# ── Full User Backup / Restore ────────────────────────────────────────────────
+
+def _base64_file(path: Path) -> str | None:
+    try:
+        if path.exists() and path.is_file():
+            import base64
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    except Exception as e:
+        print(f"Failed to read {path}: {e}")
+    return None
+
+
+def _r2_download_base64(r2_key: str) -> dict | None:
+    from src.core.upload import get_r2_client, BUCKET
+    import io, base64
+    client = get_r2_client()
+    if not client:
+        return None
+    try:
+        buf = io.BytesIO()
+        client.download_fileobj(BUCKET, r2_key, buf)
+        buf.seek(0)
+        ext = Path(r2_key).suffix or ".bin"
+        return {
+            "filename": Path(r2_key).name,
+            "content": base64.b64encode(buf.read()).decode(),
+            "encoding": "base64",
+        }
+    except Exception as e:
+        print(f"R2 download failed for {r2_key}: {e}")
+    return None
+
+
+def _load_bookmarks_data():
+    import json
+    if BOOKMARKS_FILE.exists():
+        try:
+            return json.loads(BOOKMARKS_FILE.read_text())
+        except Exception:
+            return []
+    return []
+
+
+def _save_bookmarks_data(bookmarks: list):
+    import json
+    BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=4))
+
+
+@router.get("/api/export-backup")
+def export_backup(request: Request):
+    """Export ALL user data as a single JSON backup (incl. base64 images)."""
+    user_id = get_user_id(request)
+    user = db.get_user_by_id(user_id)
+
+    # 1. Core resume data
+    personal = db.get_personal(user_id)
+    library = db.get_library(user_id)
+    recipes = db.get_recipes(user_id)
+    settings = db.get_settings(user_id)
+
+    # 2. Applications with versions
+    apps_raw = db.get_all_applications(user_id)
+    applications = []
+    for app in apps_raw:
+        app_id = app.get("id", "")
+        versions = db.get_app_versions(user_id, app_id) if app_id else []
+        applications.append({**app, "versions": versions})
+
+    # 3. Checkpoints
+    checkpoint_names = db.list_checkpoints(user_id)
+    checkpoints = {}
+    for name in checkpoint_names:
+        data = db.get_checkpoint(user_id, name)
+        if data:
+            checkpoints[name] = data
+
+    # 4. Assets — profile photo
+    assets = {}
+    photo_b64 = _base64_file(PROFILE_PHOTO)
+    if photo_b64:
+        assets["profile_photo"] = {
+            "filename": "profile-photo.jpg",
+            "content": photo_b64,
+            "encoding": "base64",
+        }
+
+    # 5. Application photos from R2
+    from src.core.upload import get_r2_client
+    r2_client = get_r2_client()
+    app_photos = {}
+    if r2_client:
+        seen_keys = set()
+        for app in applications:
+            for v in app.get("versions", []):
+                key = v.get("photo_r2_key", "")
+                if key and key not in seen_keys:
+                    seen_keys.add(key)
+                    asset = _r2_download_base64(key)
+                    if asset:
+                        app_photos[key] = asset
+        # Also check archived_pdf as potential image (unlikely but thorough)
+        # — only pdfs, skip
+    if app_photos:
+        assets["application_photos"] = app_photos
+
+    # 6. Bookmarks (local file)
+    bookmarks = _load_bookmarks_data()
+
+    backup = {
+        "version": 2,
+        "exported_at": datetime.now().isoformat(),
+        "user": {
+            "id": user_id,
+            "username": (user or {}).get("username", ""),
+        },
+        "data": {
+            "personal": personal,
+            "library": library,
+            "recipes": recipes,
+            "settings": settings,
+            "applications": applications,
+            "checkpoints": checkpoints,
+        },
+        "assets": assets,
+        "bookmarks": bookmarks,
+    }
+
+    import json
+    json_str = json.dumps(backup, indent=2, default=str)
+    return StreamingResponse(
+        io.BytesIO(json_str.encode("utf-8")),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="resume_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+        },
+    )
+
+
+@router.post("/api/import-backup")
+async def import_backup(request: Request):
+    """Restore ALL user data from a full backup JSON."""
+    user_id = get_user_id(request)
+    body = await request.json()
+
+    data = body.get("data", {})
+    assets = body.get("assets", {})
+    bookmarks = body.get("bookmarks")
+
+    # 1. Core resume data
+    if "personal" in data:
+        db.save_personal(user_id, data["personal"])
+    if "library" in data:
+        db.save_library(user_id, data["library"])
+    if "recipes" in data:
+        db.save_recipes(user_id, data["recipes"])
+    if "settings" in data:
+        db.save_settings(user_id, data["settings"])
+
+    # 2. Applications → replace all (delete existing, re-save)
+    existing_apps = db.get_all_applications(user_id)
+    for app in existing_apps:
+        app_id = app.get("id")
+        if app_id:
+            # Delete versions first
+            v_docs = db.get_app_versions(user_id, app_id)
+            for v in v_docs:
+                v_id = v.get("id")
+                if v_id:
+                    db.delete_app_version(user_id, app_id, v_id)
+            db.delete_application(user_id, app_id)
+
+    for app in data.get("applications", []):
+        versions = app.pop("versions", [])
+        db.save_application(user_id, app)
+        app_id = app.get("id", "")
+        if app_id:
+            for v in versions:
+                db.save_app_version(user_id, app_id, v)
+
+    # 3. Checkpoints → replace all
+    existing_cps = db.list_checkpoints(user_id)
+    for name in existing_cps:
+        db.delete_checkpoint(user_id, name)
+    for name, cp_data in data.get("checkpoints", {}).items():
+        db.save_checkpoint(user_id, name, cp_data)
+
+    # 4. Profile photo
+    profile = assets.get("profile_photo", {})
+    if profile.get("content") and profile.get("encoding") == "base64":
+        import base64
+        try:
+            raw = base64.b64decode(profile["content"])
+            PROFILE_PHOTO.parent.mkdir(parents=True, exist_ok=True)
+            with open(PROFILE_PHOTO, "wb") as f:
+                f.write(raw)
+        except Exception as e:
+            print(f"Failed to restore profile photo: {e}")
+
+    # 5. Application photos → upload back to R2
+    app_photos = assets.get("application_photos", {})
+    if app_photos:
+        from src.core.upload import get_r2_client, BUCKET
+        import base64, io
+        r2_client = get_r2_client()
+        if r2_client:
+            for r2_key, photo in app_photos.items():
+                if photo.get("content") and photo.get("encoding") == "base64":
+                    try:
+                        raw = base64.b64decode(photo["content"])
+                        r2_client.upload_fileobj(
+                            io.BytesIO(raw), BUCKET, r2_key,
+                            ExtraArgs={"ContentType": "image/jpeg"},
+                        )
+                    except Exception as e:
+                        print(f"Failed to restore app photo {r2_key}: {e}")
+
+    # 6. Bookmarks
+    if bookmarks is not None:
+        _save_bookmarks_data(bookmarks)
+
+    return {"ok": True, "message": "Backup restored successfully"}
+
+
 @router.post("/api/r2-backup")
 def trigger_r2_backup():
     from src.core.upload import get_r2_client, BUCKET
