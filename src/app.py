@@ -108,6 +108,7 @@ async def preview_pdf(request: Request):
         config = body.get("config", {})
         pdf_name = body.get("pdf_name", "preview.pdf")
         preview_type = body.get("type", "resume")
+        include_photo = body.get("include_photo", False)
         
         if not config:
             raise HTTPException(400, "Missing 'config' in request body")
@@ -125,7 +126,7 @@ async def preview_pdf(request: Request):
         if not user_id:
             raise HTTPException(401, "Not authenticated")
             
-        from src.core.config import TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER
+        from src.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER
         
         main_config = get_full_config(user_id)
         
@@ -157,15 +158,20 @@ async def preview_pdf(request: Request):
         try:
             if preview_type == "cover_letter":
                 template = TEMPLATE_COVER_LETTER
+            elif include_photo:
+                template = TEMPLATE_PHOTO
             else:
                 template = TEMPLATE_PLAIN
+            
+            from src.core.config import PROFILE_PHOTO
+            photo_path = str(PROFILE_PHOTO) if (include_photo and PROFILE_PHOTO.exists()) else None
             
             from src.core.generate import generate_resume
             
             with tempfile.NamedTemporaryFile("w", suffix=".tex", delete=False, dir=Path(tmp_pdf_path).parent) as tmp_tex:
                 tmp_tex_path = tmp_tex.name
                 
-            generate_resume(tmp_config_path, str(template), tmp_tex_path)
+            generate_resume(tmp_config_path, str(template), tmp_tex_path, photo_path=photo_path)
             
             # Compile TeX to PDF
             pdflatex_cmd = find_pdflatex()

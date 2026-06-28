@@ -1021,6 +1021,8 @@ export async function openAppStudio(appId = null) {
                     <div style="display:flex; gap: 4px; background: var(--bg-elevated); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
                         <button id="preview-type-resume" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px; background: var(--accent); color: white;" onclick="window.setUnifiedPreviewType('resume')">Resume</button>
                         <button id="preview-type-cover" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedPreviewType('cover_letter')">Cover Letter</button>
+                        <span style="width:1px;height:16px;background:var(--border);margin:0 2px"></span>
+                        <button id="preview-type-photo" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedIncludePhoto(!window._includePhoto)">Photo</button>
                     </div>
                 </div>
                 <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
@@ -1584,6 +1586,17 @@ export async function deleteApp(appId) {
 
 // ── Live Preview & Helpers ────────────────────────────────────────────────────
 window._previewType = 'resume';
+window._includePhoto = false;
+
+window.setUnifiedIncludePhoto = (val) => {
+    window._includePhoto = val;
+    const btn = document.getElementById('preview-type-photo');
+    if (btn) {
+        btn.style.background = val ? 'var(--accent)' : 'transparent';
+        btn.style.color = val ? 'white' : 'inherit';
+    }
+    window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
+};
 
 window.setUnifiedPreviewType = (type) => {
     window._previewType = type;
@@ -1663,7 +1676,8 @@ window.onUnifiedJsonInput = (val) => {
                     app_id: appId,
                     config: config,
                     pdf_name: pdfName,
-                    type: window._previewType
+                    type: window._previewType,
+                    include_photo: window._includePhoto
                 })
             });
             

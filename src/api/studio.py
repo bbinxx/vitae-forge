@@ -132,10 +132,11 @@ def download_zip_direct(req: DirectCompileRequest):
     from src.core.build import generate_latex_source
     import re as _re
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
-    latex = generate_latex_source(req.config, safe_name, include_photo=True)
+    latex = generate_latex_source(req.config, safe_name, req.include_photo)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
     latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+    latex = latex.replace(str(PROFILE_PHOTO), "profile.jpg")
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
         zf.writestr("resume.tex", latex)
@@ -148,6 +149,18 @@ def download_zip_direct(req: DirectCompileRequest):
         media_type="application/x-zip-compressed",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}.zip"'},
     )
+
+
+@router.post("/upload-photo")
+async def upload_photo(file: UploadFile = File(...)):
+    """Upload a profile photo to assets/profile-photo.jpg."""
+    try:
+        PROFILE_PHOTO.parent.mkdir(parents=True, exist_ok=True)
+        contents = await file.read()
+        PROFILE_PHOTO.write_bytes(contents)
+        return {"ok": True, "message": "Photo uploaded successfully"}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to upload photo: {e}")
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -680,6 +693,7 @@ def download_bookmark_zip(bm_id: str):
         raise HTTPException(500, "Failed to generate LaTeX source")
 
     latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
+    latex = latex.replace(str(PROFILE_PHOTO), "profile.jpg")
 
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:

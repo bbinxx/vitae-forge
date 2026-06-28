@@ -141,6 +141,8 @@ def generate_resume(
     # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)
     summary_text = config.get("professional_summary") or config.get("summary", "")
     tmpl = tmpl.replace("<<SUMMARY>>", escape_latex(summary_text))
+
+    tmpl = tmpl.replace("<<PHOTO_PATH>>", photo_path or "../assets/profile-photo.jpg")
     
     projects = config.get("projects", [])
     proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 and isinstance(projects[0], dict) else "Academic Projects"
