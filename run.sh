@@ -1,72 +1,59 @@
 #!/bin/bash
+# Resume Studio — Start Script (EndeavourOS / Arch / Linux / macOS)
+# Uses explicit venv/bin/python paths to avoid Arch PEP 668 + broken-venv issues.
+set -euo pipefail
+cd "$(dirname "$0")"
 
-# ── Resume Studio Run Script ──────────────────────────────────────────────────
-# This script automates the environment setup and starts the visual builder.
+VENV_DIR="venv"
+VENV_PYTHON="$VENV_DIR/bin/python"
 
-# Background Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-echo -e "${CYAN}"
-echo "  ▶  RESUME STUDIO ULTIMATE  ◀  "
-echo "───────────────────────────────"
-echo -e "${NC}"
-
-# 1. Check Python installation
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Error: python3 is not installed.${NC}"
-    echo "Please install it: sudo apt update && sudo apt install python3"
+# ── Resolve python3 ───────────────────────────────────────────────────────────
+if ! command -v python3 &>/dev/null; then
+    echo "❌ python3 not found. Install via: sudo pacman -S python"
     exit 1
 fi
 
-# 2. Check for python3-venv (Common issue on Ubuntu/Debian)
-if ! python3 -m venv --help &> /dev/null; then
-    echo -e "${YELLOW}⚠️  Missing python3-venv. Attempting to install...${NC}"
-    if command -v apt &> /dev/null; then
-        sudo apt update && sudo apt install -y python3-venv
-    else
-        echo -e "${RED}❌ Could not install python3-venv automatically.${NC}"
-        echo "Please install it manually for your distribution."
-        exit 1
+SYS_PYTHON="$(command -v python3)"
+SYS_VERSION="$($SYS_PYTHON --version 2>&1)"
+echo "🐍 System Python: $SYS_VERSION"
+
+SYS_VER=$($SYS_PYTHON -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+
+# ── Detect stale venv (Python version mismatch) ───────────────────────────────
+if [ -f "$VENV_DIR/pyvenv.cfg" ]; then
+    VENV_VER=$(grep "^version" "$VENV_DIR/pyvenv.cfg" | cut -d' ' -f3 | cut -d'.' -f1-2)
+    if [ "$VENV_VER" != "$SYS_VER" ]; then
+        echo "⚠️  Venv was Python $VENV_VER but system is $SYS_VER — recreating venv..."
+        rm -rf "$VENV_DIR"
     fi
 fi
 
-# 3. Virtual Environment Setup
-if [ ! -d "venv" ]; then
-    echo -e "${BLUE}📦 Creating virtual environment...${NC}"
-    python3 -m venv venv
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Failed to create virtual environment.${NC}"
-        exit 1
-    fi
+# ── Create venv if missing ────────────────────────────────────────────────────
+if [ ! -d "$VENV_DIR" ]; then
+    echo "📦 Creating virtual environment (Python $SYS_VER)..."
+    $SYS_PYTHON -m venv "$VENV_DIR"
 fi
 
-# 4. Activate Venv
-source venv/bin/activate
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Failed to activate virtual environment.${NC}"
-    exit 1
+# ── Install deps via explicit venv Python (bypasses Arch PEP 668 entirely) ───
+echo "⬆️  Upgrading pip..."
+"$VENV_PYTHON" -m pip install --upgrade pip --quiet
+
+echo "📦 Installing dependencies..."
+"$VENV_PYTHON" -m pip install -r requirements.txt
+
+# ── Load .env just before launching (keeps pip clean) ────────────────────────
+if [ -f .env ]; then
+    echo "🔑 Loading environment from .env..."
+    set -a
+    source .env
+    set +a
 fi
 
-# 5. Install/Update Dependencies
-echo -e "${BLUE}📥 Checking dependencies...${NC}"
-pip install --upgrade pip
-pip install -r requirements.txt
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Failed to install dependencies.${NC}"
-    exit 1
-fi
-
-# 6. Final Launch
-echo -e "${GREEN}✅ Environment Ready${NC}"
+# ── Launch ────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${YELLOW}🚀 Starting Resume VISUAL BUILDER...${NC}"
-echo -e "👉 Open: ${CYAN}http://127.0.0.1:5051${NC}"
+echo "═══════════════════════════════════════════════"
+echo "  🚀 Resume Studio  →  http://127.0.0.1:5050  "
+echo "═══════════════════════════════════════════════"
 echo ""
 
-# Run uvicorn
-uvicorn app:app --host 127.0.0.1 --port 5051 --reload
+"$VENV_PYTHON" -m uvicorn src.app:app --host 127.0.0.1 --port 5050 --reload
