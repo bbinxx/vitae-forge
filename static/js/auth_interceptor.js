@@ -12,9 +12,14 @@ window.fetch = async function() {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
     const response = await originalFetch(resource, config);
-    if (response.status === 401 && !window.location.pathname.includes('/login')) {
-        // Redirect to login or handle unauthorized
+    if (response.status === 401) {
+        const path = window.location.pathname;
+        if (path === '/login') {
+            return response;
+        }
+        localStorage.removeItem('token');
         window.location.href = '/login';
+        return response;
     }
     return response;
 };

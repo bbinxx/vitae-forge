@@ -4,22 +4,41 @@ export const state = {
     data: { personal: {}, library: {}, recipes: {} },
     currentEditingRole: null,
     selectedDashFile: null,
+    settings: {},
     listeners: [],
+    authenticated: false,
 
     subscribe(cb)  { this.listeners.push(cb); },
     notify()       { for (const l of this.listeners) l(); },
 
     async loadConfig() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
         try {
             this.data = await api.fetchConfig();
+            this.authenticated = true;
             try {
                 const res = await fetch('/api/settings');
-                this.settings = await res.json();
+                if (res.ok) {
+                    this.settings = await res.json();
+                } else {
+                    this.settings = {};
+                }
             } catch(se) {
                 this.settings = {};
             }
             this.notify();
-        } catch(e) { console.error('Server offline', e); }
+        } catch(e) {
+            if (e.message && e.message.includes('401')) {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+                return;
+            }
+            console.error('Server offline', e);
+        }
     },
 
     async saveConfig() {
@@ -43,7 +62,6 @@ export const ui = {
         const btn = document.getElementById(`tab-${tabId}`);
         if (btn) btn.classList.add('active');
 
-        // Close mobile nav/sidebar on tab switch
         document.querySelectorAll('.header-nav, #header-actions').forEach(el => el.classList.remove('open'));
         document.querySelectorAll('.sidebar, .tracker-sidebar').forEach(el => el.classList.remove('open'));
         const backdrop = document.getElementById('sidebar-backdrop');

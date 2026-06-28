@@ -67,4 +67,4 @@ def read_users_me(request: Request):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    return {"id": user["id"], "username": user["username"]}
+    return {"id": user.get("id", user_id), "username": user.get("username", "")}

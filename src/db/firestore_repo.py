@@ -54,7 +54,10 @@ class FirestoreRepository(AbstractRepository):
     def get_user(self, username: str) -> Optional[Dict[str, Any]]:
         users = self.db.collection("users").where("username", "==", username).limit(1).stream()
         for u in users:
-            return u.to_dict()
+            data = u.to_dict()
+            if "id" not in data:
+                data["id"] = u.id
+            return data
         return None
         
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -98,11 +101,22 @@ class FirestoreRepository(AbstractRepository):
     # ── Applications (per-user) ──
     def get_all_applications(self, user_id: str) -> List[Dict[str, Any]]:
         docs = self._user_ref(user_id).collection("applications").stream()
-        return [doc.to_dict() for doc in docs]
+        result = []
+        for doc in docs:
+            data = doc.to_dict()
+            if data and "id" not in data:
+                data["id"] = doc.id
+            result.append(data)
+        return result
 
     def get_application(self, user_id: str, app_id: str) -> Optional[Dict[str, Any]]:
         doc = self._user_ref(user_id).collection("applications").document(app_id).get()
-        return doc.to_dict() if doc.exists else None
+        if not doc.exists:
+            return None
+        data = doc.to_dict()
+        if "id" not in data:
+            data["id"] = doc.id
+        return data
 
     def save_application(self, user_id: str, app: Dict[str, Any]) -> None:
         app_id = app.get("id")

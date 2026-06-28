@@ -50,31 +50,36 @@ app = FastAPI(
 
 @app.middleware("http")
 async def cookie_auth_middleware(request: Request, call_next):
-    passcode_hash = os.environ.get("PASSCODE_HASH")
-    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
-    if not passcode_hash or passcode_enabled == "false":
-        return await call_next(request)
-        
     path = request.url.path
-    if path.startswith("/api/auth/") or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/") or path == "/" or path == "/login":
+    if path.startswith("/static/") or path.startswith("/.well-known"):
         return await call_next(request)
-        
+
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
     elif request.query_params.get("token"):
         token = request.query_params.get("token")
-        
+
     if token:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             request.state.user_id = payload.get("sub")
-            return await call_next(request)
         except JWTError:
             pass
-            
-    # For HTML requests, redirect to login might be handled by frontend
+
+    passcode_hash = os.environ.get("PASSCODE_HASH")
+    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
+
+    if path in ("/api/auth/login", "/api/auth/register") or path == "/api/preview-pdf" or path.startswith("/share/") or path == "/" or path == "/login":
+        return await call_next(request)
+
+    if not passcode_hash or passcode_enabled == "false":
+        return await call_next(request)
+
+    if getattr(request.state, "user_id", None):
+        return await call_next(request)
+
     return Response(content="Unauthorized", status_code=401)
 
 # ── Static mounts ─────────────────────────────────────────────────────────────

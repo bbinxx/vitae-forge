@@ -692,7 +692,7 @@ export async function loadTracker() {
     }
 
     try {
-        if (window.__PRELOADED_APPS__ && window.__PRELOADED_FILES__) {
+        if (window.__PRELOADED_APPS__?.length && window.__PRELOADED_FILES__?.length) {
             applications = window.__PRELOADED_APPS__;
             distFiles = window.__PRELOADED_FILES__;
             window.__PRELOADED_APPS__ = null;
@@ -700,7 +700,10 @@ export async function loadTracker() {
         } else {
             [applications, distFiles] = await Promise.all([
                 trackerApi.list(),
-                fetch('/list-files').then(r => r.json()).catch(() => []),
+                Promise.race([
+                    fetch('/list-files').then(r => r.json()),
+                    new Promise(resolve => setTimeout(() => resolve([]), 5000))
+                ]).catch(() => []),
             ]);
         }
         const countEl = document.getElementById('apps-count-badge');
