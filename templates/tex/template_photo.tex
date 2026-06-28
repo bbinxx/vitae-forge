@@ -1,0 +1,132 @@
+\documentclass[10pt, a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[
+  top=0.3in, bottom=0.3in,
+  left=0.45in, right=0.45in
+]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{parskip}
+
+% ── Hyperlink styling ─────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  urlcolor=black,
+  linkcolor=black
+}
+
+\pagestyle{empty}
+
+% Section formatting
+\titleformat{\section}
+  {\normalsize\bfseries}
+  {}{0em}{\MakeUppercase}
+  [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
+
+\titlespacing{\section}{0pt}{6pt plus 1fill minus 3pt}{2pt minus 1pt}
+\flushbottom
+
+\setlist[itemize]{topsep=0pt plus 0.05fill, partopsep=0pt, parsep=0pt plus 0.05fill, leftmargin=1.2em, itemsep=1pt plus 0.1fill minus 1pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt plus 0.15fill minus 1pt}
+
+% Set base font size slightly larger than 10pt default
+\fontsize{10.5}{13.5}\selectfont
+
+\begin{document}
+
+% ── HEADER ────────────────────────────────────────────────────────────────────
+\noindent
+\begin{minipage}[c]{0.48\textwidth}
+  \raggedright
+  {\fontsize{24}{28}\selectfont \textbf{<<NAME>>}}\par
+  \vspace{2pt}
+% [SECTION:ROLE_TITLE]
+  {\large\itshape\color{gray} <<ROLE_TITLE>> }\par
+% [/SECTION:ROLE_TITLE]
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.36\textwidth}
+  \raggedleft
+  \begin{minipage}[c]{0.68\linewidth}
+    \raggedleft
+    {\small\itshape\color{gray}
+      \href{mailto:<<EMAIL>>}{<<EMAIL>>}\\[3pt]
+      <<PHONE>>\\[3pt]
+      \href{https://linkedin.com/in/<<LINKEDIN>>}{linkedin.com/in/<<LINKEDIN>>}\\[3pt]
+      \href{https://github.com/<<GITHUB>>}{github.com/<<GITHUB>>}\\
+    }
+  \end{minipage}%
+  \hspace{0.1pt}
+% [SECTION:PHOTO]
+\begin{minipage}[c]{0.26\linewidth}
+    \raggedleft
+    \fboxsep=2pt\fboxrule=0.5pt
+    \fbox{%
+      \includegraphics[height=0.75in,keepaspectratio]{../assets/profile-photo.jpg}%
+    }%
+  \end{minipage}
+% [/SECTION:PHOTO]
+\end{minipage}
+
+\vspace{5pt}
+
+% [SECTION:SUMMARY]
+\section*{Professional Summary}
+<<SUMMARY>>
+% [/SECTION:SUMMARY]
+
+% [SECTION:SKILLS]
+\section*{Skills}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
+<<SKILLS>>
+\end{tabular}
+% [/SECTION:SKILLS]
+
+% [SECTION:PROJECTS]
+\section*{Projects}
+
+<<PROJECTS>>
+% [/SECTION:PROJECTS]
+
+% [SECTION:EDUCATION]
+\section*{Education}
+<<EDUCATION>>
+% [/SECTION:EDUCATION]
+
+% [SECTION:CERTIFICATIONS]
+\section*{Certifications}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
+\textbf{Certificate} & \textbf{Issuer} & \textbf{Year} \\[1pt]
+<<CERTIFICATIONS>>
+\end{tabular}
+% [/SECTION:CERTIFICATIONS]
+
+% [SECTION:ACHIEVEMENTS]
+\section*{Achievements}
+
+\begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
+<<ACHIEVEMENTS>>
+\end{tabular}
+% [/SECTION:ACHIEVEMENTS]
+
+% [SECTION:LANGUAGES]
+\section*{Additional Information}
+
+\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
+<<ADDITIONAL>>
+\end{tabular}
+% [/SECTION:LANGUAGES]
+
+\end{document}
