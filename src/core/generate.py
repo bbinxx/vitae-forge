@@ -135,7 +135,10 @@ def generate_resume(
     tmpl = tmpl.replace("<<DATE>>",       datetime.datetime.now().strftime("%B %d, %Y"))
     
     tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(config.get("email", "")))
-    tmpl = tmpl.replace("<<PHONE>>",      escape_latex(config.get("phone", "")))
+    raw_phone = config.get("phone", "")
+    phone_uri = re.sub(r'[^\d+]', '', raw_phone)
+    tmpl = tmpl.replace("<<PHONE_URI>>", escape_latex(phone_uri))
+    tmpl = tmpl.replace("<<PHONE>>",     escape_latex(raw_phone))
     tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(config.get("linkedin", "")))
     tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(config.get("github", "")))
     # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)

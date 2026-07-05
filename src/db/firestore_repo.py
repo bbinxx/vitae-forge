@@ -59,18 +59,36 @@ class FirestoreRepository(AbstractRepository):
                 data["id"] = u.id
             return data
         return None
-        
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        users = self.db.collection("users").where("email", "==", email).limit(1).stream()
+        for u in users:
+            data = u.to_dict()
+            if "id" not in data:
+                data["id"] = u.id
+            return data
+        return None
+
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         doc = self._user_ref(user_id).get()
         if doc.exists:
-            return doc.to_dict()
+            data = doc.to_dict()
+            if "id" not in data:
+                data["id"] = user_id
+            return data
         return None
 
     def save_user(self, user_id: str, user: Dict[str, Any]) -> None:
         self._user_ref(user_id).set(user, merge=True)
 
     def list_users(self) -> List[Dict[str, Any]]:
-        return [doc.to_dict() for doc in self.db.collection("users").stream()]
+        users = []
+        for doc in self.db.collection("users").stream():
+            data = doc.to_dict()
+            if "id" not in data:
+                data["id"] = doc.id
+            users.append(data)
+        return users
 
     # ── Resume Data (per-user) ──
     def get_personal(self, user_id: str) -> Dict[str, Any]:

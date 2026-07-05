@@ -397,7 +397,6 @@ const MASTER_INSTRUCTION = {
         "validation_checklist": {
             "valid_json": true,
             "schema_preserved": true,
-            "correct_assigned_pdf": true,
             "exactly_one_page": true,
             "ats_keyword_coverage_percent": 80,
             "summary_word_range": [
@@ -476,7 +475,6 @@ const APPLICATION_SCHEMA = {
     "platform": "",
     "job_url": "",
     "notes": "",
-    "assigned_pdf": "",
     "job_description": "",
     "resume_template": {
         "role_title": "",
@@ -673,23 +671,29 @@ function fmtRel(iso) {
 let _trackerLoaded = false;
 
 export async function loadTracker() {
-    if (_trackerLoaded && applications.length > 0) return;
+    if (_trackerLoaded) return;
 
     const grid = document.getElementById('apps-grid');
-    if (grid) {
-        grid.innerHTML = Array(3).fill(0).map(() => `
+    const countEl = document.getElementById('apps-count-badge');
+
+    // Show loading state immediately
+    if (countEl) {
+        countEl.textContent = '…';
+        countEl.classList.add('loading');
+    }
+
+    if (grid && !grid.querySelector('.app-card:not(.skeleton-card)')) {
+        grid.innerHTML = Array(8).fill(0).map(() => `
             <div class="app-card skeleton-card">
-                <div class="app-card-header" style="border-bottom:none; margin-bottom: 0px; padding-bottom: 0px;">
-                    <div class="skeleton-line" style="width: 70%; height: 18px; margin-bottom: 8px;"></div>
-                    <div class="skeleton-line" style="width: 40%; height: 12px;"></div>
-                </div>
-                <div class="app-card-body" style="gap: 12px; padding-top: 8px;">
-                    <div class="skeleton-line" style="width: 90%; height: 12px;"></div>
-                    <div class="skeleton-line" style="width: 60%; height: 12px;"></div>
+                <div class="app-card-body">
+                    <div class="skeleton-line" style="width: 55%; height: 14px; margin-bottom: 6px;"></div>
+                    <div class="skeleton-line" style="width: 75%; height: 12px; margin-bottom: 10px;"></div>
+                    <div class="skeleton-line" style="width: 85%; height: 10px; margin-bottom: 4px;"></div>
+                    <div class="skeleton-line" style="width: 45%; height: 10px; margin-bottom: 12px;"></div>
                 </div>
                 <div class="app-card-footer" style="background: none; border-top: none;">
-                    <div class="skeleton-line" style="width: 30%; height: 18px; border-radius: 6px;"></div>
-                    <div class="skeleton-line" style="width: 25%; height: 12px;"></div>
+                    <div class="skeleton-line" style="width: 50%; height: 14px; border-radius: 6px;"></div>
+                    <div class="skeleton-line" style="width: 20%; height: 14px;"></div>
                 </div>
             </div>
         `).join('');
@@ -710,14 +714,21 @@ export async function loadTracker() {
                 ]).catch(() => []),
             ]);
         }
-        const countEl = document.getElementById('apps-count-badge');
-        if (countEl) countEl.textContent = applications.length;
         _trackerLoaded = true;
+        if (countEl) {
+            countEl.textContent = applications.length;
+            countEl.classList.remove('loading');
+        }
         renderGrid();
     } catch (e) {
         console.error('Error loading tracker:', e);
+        _trackerLoaded = true;
+        if (countEl) {
+            countEl.textContent = '0';
+            countEl.classList.remove('loading');
+        }
         if (grid) {
-            grid.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Failed to load applications.</div>`;
+            grid.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Failed to load applications. Try again.</div>`;
         }
     }
 }
@@ -829,7 +840,6 @@ function renderGrid() {
     grid.className = 'apps-container';
     grid.innerHTML = filtered.map(app => {
         const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG['Bookmarked'];
-        const hasResume = !!app.assigned_pdf;
         const hasTemplate = app.resume_template && Object.keys(app.resume_template).length > 0;
         const prio = (app.priority || '').toLowerCase();
         const prioClass = prio === 'high' ? 'high' : prio === 'low' ? 'low' : 'medium';
@@ -837,56 +847,35 @@ function renderGrid() {
         
         return `
         <div class="app-card" onclick="window.openAppEditor('${app.id}')">
-            <div class="app-card-priority-bar ${prioClass}"></div>
-            <div class="app-card-header">
-                <div class="app-card-emoji">${cfg.icon}</div>
-                <div class="app-card-title-group">
-                    <div class="app-card-company">${esc(app.company)}</div>
-                    <div class="app-card-role">${esc(app.role)}</div>
-                    <div class="app-card-status" style="color:${cfg.color};background:${cfg.bg}">
-                        ${app.status}
+            <div class="app-card-bar ${prioClass}"></div>
+            <div class="app-card-inner">
+                <div class="app-card-head">
+                    <span class="app-card-status" style="color:${cfg.color};background:${cfg.bg}">${app.status}</span>
+                    <div class="app-card-head-text">
+                        <div class="app-card-company" title="${esc(app.company)}">${esc(app.company)}</div>
+                        <div class="app-card-role">${esc(app.role)}</div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="app-card-body">
-                ${app.location ? `
-                    <div class="app-card-location">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">location_on</span> ${esc(app.location)}
-                    </div>
-                ` : ''}
-                ${app.platform ? `
-                    <div class="app-card-location" style="margin-top: 4px;">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">business</span> ${esc(app.platform)}
-                    </div>
-                ` : ''}
-                ${app.contact_email ? `
-                    <div class="app-card-location" style="margin-top: 4px;">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">mail</span> ${esc(app.contact_email)}
-                    </div>
-                ` : ''}
-                ${app.job_url ? `
-                    <div class="app-card-info-row">
-                        <a href="${esc(app.job_url)}" target="_blank" onclick="event.stopPropagation()" style="color: #7c3aed; text-decoration: none; font-weight: 500;">View Job →</a>
-                    </div>
-                ` : ''}
-                ${app.notes ? `
-                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; padding-left: 2px; border-left: 2px solid var(--border); padding-left: 8px;">
-                        ${esc(app.notes.substring(0, 80))}${app.notes.length > 80 ? '...' : ''}
-                    </div>
-                ` : ''}
-            </div>
-            
-            <div class="app-card-footer">
-                <div class="app-card-meta">
-                    <span title="Last updated">${fmtRel(app.updated_at)}</span>
-                    ${deadline ? `<span class="app-card-deadline ${deadline.cls}"><span class="material-symbols-outlined" style="font-size:1em;vertical-align:middle">calendar_month</span> ${deadline.label}</span>` : ''}
+
+                <div class="app-card-details">
+                    ${app.location ? `<div class="app-card-detail"><span class="material-symbols-outlined">location_on</span><span>${esc(app.location)}</span></div>` : ''}
+                    ${app.platform ? `<div class="app-card-detail"><span class="material-symbols-outlined">business</span><span>${esc(app.platform)}</span></div>` : ''}
+                    ${app.contact_email ? `<div class="app-card-detail"><span class="material-symbols-outlined">mail</span><span>${esc(app.contact_email)}</span></div>` : ''}
+                    ${app.job_url ? `<a href="${esc(app.job_url)}" target="_blank" onclick="event.stopPropagation()" class="app-card-detail app-card-detail-link"><span class="material-symbols-outlined">open_in_new</span><span>View Job</span></a>` : ''}
                 </div>
-                <div class="app-card-chips">
-                    ${hasResume ? `<div class="app-card-chip" title="${esc(app.assigned_pdf)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> PDF</div>` : ''}
-                    ${app.assigned_cover_letter ? `<div class="app-card-chip" title="${esc(app.assigned_cover_letter)}"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">draft</span> Cover</div>` : ''}
-                    ${hasTemplate ? `<div class="app-card-chip" title="Has custom template"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">edit</span> Custom</div>` : ''}
-                    ${hasTemplate ? `<div class="app-card-chip" style="cursor:pointer;background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.3)" onclick="event.stopPropagation();window.bookmarkAppResume('${app.id}')" title="Save resume to Saved Resumes"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">bookmark</span> Save</div>` : ''}
+
+                ${app.notes ? `<div class="app-card-notes">${esc(app.notes.substring(0, 100))}${app.notes.length > 100 ? '…' : ''}</div>` : ''}
+            </div>
+
+            <div class="app-card-foot">
+                <div class="app-card-foot-dates">
+                    <span title="${fmtDate(app.created_at)}"><span class="material-symbols-outlined">add_circle</span>${fmtRel(app.created_at)}</span>
+                    <span title="${fmtDate(app.updated_at)}"><span class="material-symbols-outlined">schedule</span>${fmtRel(app.updated_at)}</span>
+                    ${deadline ? `<span class="app-card-deadline ${deadline.cls}"><span class="material-symbols-outlined">calendar_month</span>${deadline.label}</span>` : ''}
+                </div>
+                <div class="app-card-foot-tags">
+                    ${app.assigned_cover_letter ? `<span class="app-card-tag">Cover</span>` : ''}
+                    ${hasTemplate ? `<span class="app-card-tag app-card-tag-action" onclick="event.stopPropagation();window.bookmarkAppResume('${app.id}')">Save</span>` : ''}
                 </div>
             </div>
         </div>`;
@@ -1030,7 +1019,7 @@ export async function openAppStudio(appId = null) {
                         <button id="preview-type-photo" class="btn btn-ghost" style="font-size:10px; padding: 2px 8px;" onclick="window.setUnifiedIncludePhoto(!window._includePhoto)">Photo</button>
                     </div>
                 </div>
-                <div style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
+                <div class="preview-loading" style="flex:1;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
                     <div style="background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:6px 10px;font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
                         <span id="unified-preview-status"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">description</span> PDF Preview</span>
                         <div style="display:flex; gap: 12px; align-items: center;">
@@ -1253,15 +1242,21 @@ export async function openAppStudio(appId = null) {
                     confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">hourglass_empty</span> Saving & Generating...';
                 }
                 setSaveIndicator('saving');
+                const countEl = document.getElementById('apps-count-badge');
                 if (appId) {
-                    await trackerApi.update(appId, payload);
+                    const updated = await trackerApi.update(appId, payload);
+                    const idx = applications.findIndex(a => a.id === appId);
+                    if (idx !== -1) applications[idx] = updated;
                     toast('Application updated and PDF built successfully.', 'success');
                 } else {
-                    await trackerApi.create(payload);
+                    const created = await trackerApi.create(payload);
+                    applications.push(created);
                     toast('Application created and PDF built successfully.', 'success');
                 }
+                _trackerLoaded = true;
+                if (countEl) countEl.textContent = applications.length;
                 setSaveIndicator('saved');
-                await loadTracker();
+                renderGrid();
                 return true;
             } catch (e) {
                 toast('Invalid JSON format or Save Error: ' + e.message, 'error');
@@ -1347,7 +1342,6 @@ window.syncDetailsTabFromJson = function() {
     setVal('dt-contact-name', payload.contact_name || (payload.contact && payload.contact.name) || '');
     setVal('dt-contact-email',payload.contact_email || (payload.contact && payload.contact.email) || '');
     setVal('dt-job-url',      payload.job_url || payload.url || '');
-    setVal('dt-assigned-pdf', payload.assigned_pdf || payload.pdf || '');
     setVal('dt-notes',        payload.notes || '');
     setVal('dt-jd',           payload.job_description || payload.jd || '');
     // Set the deadline input as a date value (YYYY-MM-DD) if present
@@ -1380,7 +1374,6 @@ window.onDetailsFieldChange = function() {
     payload.contact_name  = g('dt-contact-name');
     payload.contact_email = g('dt-contact-email');
     payload.job_url       = g('dt-job-url');
-    payload.assigned_pdf  = g('dt-assigned-pdf');
     payload.notes         = g('dt-notes');
     payload.job_description = g('dt-jd');
     editor.value = JSON.stringify(payload, null, 2);
@@ -1590,6 +1583,20 @@ export async function deleteApp(appId) {
 }
 
 // ── Live Preview & Helpers ────────────────────────────────────────────────────
+(function(){
+    const style = document.createElement('style');
+    style.textContent = `
+        .preview-loading .material-symbols-outlined { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .preview-loading { position:relative; }
+        .preview-loading::after {
+            content:''; position:absolute; inset:0; background:var(--bg-main);
+            opacity:0; pointer-events:none; transition:opacity .2s;
+        }
+        .preview-loading.active::after { opacity:0.7; pointer-events:auto; }
+    `;
+    document.head.appendChild(style);
+})();
 window._previewType = 'resume';
 window._includePhoto = false;
 
@@ -1640,36 +1647,24 @@ window.onUnifiedJsonInput = (val) => {
     // Debounced preview
     clearTimeout(window._previewDebounceTimer);
     const statusEl = document.getElementById('unified-preview-status');
-    if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Generating...';
+    const previewWrap = statusEl?.closest('.preview-loading');
+    if (statusEl) {
+        statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">hourglass_empty</span> Generating...';
+        statusEl.classList.add('active');
+    }
+    if (previewWrap) previewWrap.classList.add('active');
     
     window._previewDebounceTimer = setTimeout(async () => {
         try {
             const config = payload.resume_template;
             
             if (!config || Object.keys(config).length === 0) {
-                if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> No resume template found in JSON';
-                
-                // If no template in json but app has an assigned_pdf already (legacy apps), we can preview that.
-                if (payload.assigned_pdf) {
-                     const blobUrl = `/pdf/${encodeURIComponent(payload.assigned_pdf)}`;
-                     const iframe = document.getElementById('unified-preview-iframe');
-                     if (iframe) iframe.src = blobUrl + '#toolbar=0&view=FitH';
-                     
-                     const openLink = document.getElementById('unified-preview-open');
-                     if (openLink) { openLink.href = blobUrl; openLink.style.display = 'inline'; }
-                     
-                     const downloadLink = document.getElementById('unified-preview-download');
-                     if (downloadLink) {
-                         downloadLink.href = blobUrl; 
-                         downloadLink.download = payload.assigned_pdf;
-                         downloadLink.style.display = 'inline'; 
-                     }
-                     if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> Existing PDF Preview';
-                }
+                if (statusEl) { statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">description</span> No resume template found in JSON'; statusEl.classList.remove('active'); }
+                if (previewWrap) previewWrap.classList.remove('active');
                 return;
             }
             
-            let pdfName = payload.assigned_pdf || 'preview.pdf';
+            let pdfName = 'preview.pdf';
             if (!pdfName.endsWith('.pdf')) pdfName += '.pdf';
             
             const appId = window._currentEditingApp ? window._currentEditingApp.id : "preview";
@@ -1705,10 +1700,12 @@ window.onUnifiedJsonInput = (val) => {
                 downloadLink.download = pdfName;
                 downloadLink.style.display = 'inline';
             }
-            if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> PDF Preview';
+            if (statusEl) { statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check_circle</span> PDF Preview'; statusEl.classList.remove('active'); }
+            if (previewWrap) previewWrap.classList.remove('active');
         } catch (err) {
             console.error('Preview error:', err);
-            if (statusEl) statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Preview failed';
+            if (statusEl) { statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">warning</span> Preview failed'; statusEl.classList.remove('active'); }
+            if (previewWrap) previewWrap.classList.remove('active');
         }
     }, 800);
 };
@@ -1733,31 +1730,30 @@ ${JSON.stringify(APPLICATION_SCHEMA, null, 2)}`;
 window.exportToLocalFolder = async function() {
     const payloadStr = document.getElementById('unified-json-editor')?.value;
     if (!payloadStr) return;
-    
-    let pdfName = "";
-    try {
-        const payload = parseCleanJson(payloadStr);
-        pdfName = payload.assigned_pdf;
-    } catch(e) {}
-    
-    if (!pdfName) {
-        toast('No assigned PDF found in JSON.', 'error');
+
+    let payload;
+    try { payload = parseCleanJson(payloadStr); } catch { return; }
+
+    const config = payload.resume_template;
+    if (!config || Object.keys(config).length === 0) {
+        toast('No resume template found in application data.', 'error');
         return;
     }
-    if (pdfName.endsWith('.pdf')) {
-        pdfName = pdfName.slice(0, -4);
-    }
 
-    toast('Exporting PDF to local folder...', 'info');
+    toast('Building & exporting PDF...', 'info');
     try {
         const res = await fetch('/api/export-pdf-local', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdf_name: pdfName })
+            body: JSON.stringify({
+                config: config,
+                role: payload.role || '',
+                include_photo: window._includePhoto || false
+            })
         });
         const data = await res.json();
         if (res.ok) {
-            toast(`Saved to folder!`, 'success');
+            toast('Saved to folder!', 'success');
         } else {
             toast(`Export failed: ${data.detail || data.error}`, 'error');
         }

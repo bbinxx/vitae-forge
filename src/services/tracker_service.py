@@ -45,7 +45,6 @@ def default_app(app_id: str, body: dict) -> dict:
         "platform":         body.get("platform", ""),
         "tags":             body.get("tags", []),
         "assigned_resume":      body.get("assigned_resume", ""),
-        "assigned_pdf":         body.get("assigned_pdf", ""),
         "assigned_version_id":  body.get("assigned_version_id", ""),
         "archived_pdf":         body.get("archived_pdf", ""), # R2 key or URL
         "resume_template":      body.get("resume_template", {}),  # Per-app JSON resume template

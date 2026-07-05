@@ -1,5 +1,22 @@
 import { state } from './app.js';
 
+(function(){
+    const style = document.createElement('style');
+    style.textContent = `
+        .template-preview-loading .material-symbols-outlined { animation: tplSpin 1s linear infinite; }
+        @keyframes tplSpin { to { transform: rotate(360deg); } }
+        .template-preview-loading { position:relative; }
+        .template-preview-loading.active::after {
+            content:''; position:absolute; inset:0; background:var(--bg-main);
+            opacity:0.7; pointer-events:auto; border-radius:4px; z-index:2;
+        }
+        .template-preview-loading.active #template-preview-empty {
+            z-index:3; position:relative;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
 const SYSTEM_TEMPLATES = [
     { id: 'standard', type: 'resume', label: 'Standard Resume', files: { plain: 'template.tex', photo: 'template_photo.tex' }, is_system: true },
     { id: 'cover_letter', type: 'cover_letter', label: 'Standard Cover Letter', files: { plain: 'cover_letter.tex' }, is_system: true },
@@ -110,6 +127,7 @@ export function openTemplate(templateId) {
 export function switchVariant(variant) {
     selectedVariant = variant;
     renderTemplateContent();
+    previewCurrentTemplate();
 }
 
 function renderTemplateContent() {
@@ -296,11 +314,13 @@ export async function previewCurrentTemplate() {
     
     const iframe = document.getElementById('template-preview-iframe');
     const empty = document.getElementById('template-preview-empty');
+    const container = document.getElementById('template-preview-container');
     if (!iframe || !empty) return;
     
     empty.textContent = "Generating PDF Preview...";
     empty.classList.remove('hidden');
     iframe.classList.add('hidden');
+    if (container) container.classList.add('active');
     
     // Build dummy config
     const dummyConfig = {
@@ -369,6 +389,8 @@ export async function previewCurrentTemplate() {
     } catch (e) {
         empty.textContent = "Error communicating with server.";
         console.error("Preview Network Error:", e);
+    } finally {
+        if (container) container.classList.remove('active');
     }
 }
 
@@ -388,6 +410,87 @@ export function downloadTpl() {
 function escapeHtml(str) {
     return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+window.showTemplateGuide = function() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML = `
+    <div style="background:var(--bg-card);border-radius:12px;max-width:820px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.5)">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);flex-shrink:0">
+            <h2 style="font-size:15px;font-weight:700;margin:0">Template Authoring Guide</h2>
+            <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px">&times;</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:24px;font-size:12px;line-height:1.7;color:var(--text-primary)">
+
+        <p style="color:var(--text-secondary);margin-bottom:16px">Templates are LaTeX <code>.tex</code> files with placeholders and section markers. The system replaces placeholders with your resume data and removes inactive sections at build time.</p>
+
+        <h3 style="font-size:13px;margin:20px 0 8px">Available Placeholders</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr style="background:var(--bg-main)">
+                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);font-weight:600">Placeholder</th>
+                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);font-weight:600">Description</th>
+                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);font-weight:600">Source</th>
+            </tr></thead>
+            <tbody>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;NAME&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Full name</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;ROLE_TITLE&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Job title / role</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Library recipe</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;EMAIL&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Email address</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;PHONE&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Phone number (display)</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;PHONE_URI&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Phone (digits only, for <code>tel:</code> links)</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info (auto)</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;LINKEDIN&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">LinkedIn handle</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;GITHUB&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">GitHub handle</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Personal info</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;SUMMARY&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Professional summary</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Library recipe</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;SKILLS&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Skills table rows</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;PROJECTS&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Projects section content</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;EDUCATION&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Education entries</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;CERTIFICATIONS&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Certifications table rows</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;ACHIEVEMENTS&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Achievements table rows</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;ADDITIONAL&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Additional info table rows</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Generated from library</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;PHOTO_PATH&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Profile photo file path</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Uploaded photo</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;COMPANY_NAME&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Company name (cover letters)</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Recipe config</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;COVER_LETTER&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Cover letter body text</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Recipe config</td></tr>
+                <tr><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:10px"><code>&lt;&lt;DATE&gt;&gt;</code></td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">Current date (auto-inserted)</td><td style="padding:5px 10px;border-bottom:1px solid var(--border-soft)">System</td></tr>
+            </tbody>
+        </table>
+
+        <h3 style="font-size:13px;margin:24px 0 8px">Section Markers</h3>
+        <p style="color:var(--text-secondary);margin-bottom:8px">Wrap optional sections in comment markers. When a section is toggled off in the recipe, the entire block is removed:</p>
+        <pre style="background:#0b1119;padding:12px;border-radius:6px;font-size:10px;color:#22c55e;overflow-x:auto;margin-bottom:12px;white-space:pre-wrap">% [SECTION:ROLE_TITLE]
+\\textbf{<<ROLE_TITLE>>}
+% [/SECTION:ROLE_TITLE]</pre>
+        <p style="color:var(--text-secondary);margin-bottom:8px">Available sections:</p>
+        <pre style="background:#0b1119;padding:12px;border-radius:6px;font-size:10px;color:#22c55e;overflow-x:auto;margin-bottom:12px">ROLE_TITLE   SUMMARY   SKILLS   PROJECTS   EDUCATION
+CERTIFICATIONS   ACHIEVEMENTS   LANGUAGES   PHOTO</pre>
+        <p style="color:var(--text-secondary);font-size:11px">The <code>PHOTO</code> section is only available in the <strong>With Photo</strong> variant.</p>
+
+        <h3 style="font-size:13px;margin:24px 0 8px">LaTeX Requirements</h3>
+        <p style="color:var(--text-secondary);margin-bottom:8px">Your template must use <code>\\documentclass{article}</code> or another standard class. These packages are recommended and preloaded in system templates:</p>
+        <pre style="background:#0b1119;padding:12px;border-radius:6px;font-size:10px;color:#22c55e;overflow-x:auto;margin-bottom:12px">geometry, hyperref, titlesec, enumitem, array, tabularx, parskip</pre>
+        <p style="color:var(--text-secondary);font-size:11px">For photo templates: <code>graphicx</code>, <code>xcolor</code> are also needed. You can use any standard LaTeX packages — they must be installed on the server (TeX Live).</p>
+
+        <h3 style="font-size:13px;margin:24px 0 8px">Creating a Custom Template</h3>
+        <ol style="padding-left:20px;color:var(--text-secondary);line-height:2">
+            <li><strong>Clone</strong> an existing system template using the <em>Clone to Custom</em> button, or click <em>+ New</em> to start from scratch.</li>
+            <li><strong>Edit</strong> the LaTeX source in the editor. Use placeholders where resume data should appear.</li>
+            <li><strong>Preview</strong> by clicking <em>Update Preview</em> — the system renders it with dummy data.</li>
+            <li><strong>Save</strong> to the cloud when you're happy. Your template will appear in the sidebar.</li>
+        </ol>
+
+        <h3 style="font-size:13px;margin:24px 0 8px">Tips for ATS-Friendly Templates</h3>
+        <ul style="padding-left:20px;color:var(--text-secondary);line-height:2">
+            <li>Avoid tables, columns, and complex layouts — parsers often misread them.</li>
+            <li>Use standard section headings (<code>\\section*{Experience}</code>).</li>
+            <li>Keep font sizes 10-12pt and margins 0.5-1 inch.</li>
+            <li>Avoid images, icons, and non-standard characters.</li>
+            <li>Use <code>\\href</code> for clickable links (email, phone, LinkedIn, GitHub).</li>
+        </ul>
+
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
 
 window.openTemplate = openTemplate;
 window.switchVariant = switchVariant;

@@ -2,8 +2,19 @@
   publish = "templates"
   command = "echo 'Static frontend only — deploy backend via Render or DigitalOcean'"
 
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[redirects]]
   from = "/api/*"
   to = "https://your-app.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/health"
+  to = "https://your-app.onrender.com/health"
   status = 200
   force = true

@@ -8,6 +8,10 @@ class AbstractRepository(ABC):
         pass
         
     @abstractmethod
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         pass
 

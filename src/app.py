@@ -6,8 +6,8 @@ All routers are registered here. Run via:
 """
 import os
 import json
-import tempfile
 import subprocess
+import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -71,7 +71,7 @@ async def cookie_auth_middleware(request: Request, call_next):
     passcode_hash = os.environ.get("PASSCODE_HASH")
     passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
 
-    if path in ("/api/auth/login", "/api/auth/register") or path == "/api/preview-pdf" or path.startswith("/share/") or path == "/" or path == "/login":
+    if path in ("/api/auth/login", "/api/auth/register", "/health") or path == "/api/preview-pdf" or path.startswith("/share/") or path == "/" or path == "/login":
         return await call_next(request)
 
     if not passcode_hash or passcode_enabled == "false":
@@ -146,24 +146,20 @@ async def preview_pdf(request: Request):
         v_data = {k: v for k, v in config.items() if k != "library"}
         full_config.update(v_data)
         
-        # Write temp JSON config
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
-            json.dump(full_config, tmp)
-            tmp_config_path = tmp.name
-        
-        # Build PDF to temp file
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
-            tmp_pdf_path = tmp_pdf.name
-        
-        try:
+        pdf_bytes = None
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            tmp_config_path = tmp / "config.json"
+            with open(tmp_config_path, "w") as f:
+                json.dump(full_config, f)
+
             template_content = body.get("template_content")
-            tmp_custom_template_path = None
-            
+
             if template_content:
-                with tempfile.NamedTemporaryFile("w", suffix=".tex", delete=False) as tmp_tpl:
-                    tmp_tpl.write(template_content)
-                    tmp_custom_template_path = tmp_tpl.name
-                template = Path(tmp_custom_template_path)
+                tmp_tpl_path = tmp / "custom_template.tex"
+                tmp_tpl_path.write_text(template_content)
+                template = tmp_tpl_path
             else:
                 if preview_type == "cover_letter":
                     template = TEMPLATE_COVER_LETTER
@@ -171,7 +167,7 @@ async def preview_pdf(request: Request):
                     template = TEMPLATE_PHOTO
                 else:
                     template = TEMPLATE_PLAIN
-            
+
             from src.core.config import PROFILE_PHOTO
             if include_photo and not PROFILE_PHOTO.exists():
                 try:
@@ -187,15 +183,12 @@ async def preview_pdf(request: Request):
                     pass
 
             photo_path = str(PROFILE_PHOTO) if (include_photo and PROFILE_PHOTO.exists()) else None
-            
+
             from src.core.generate import generate_resume
-            
-            with tempfile.NamedTemporaryFile("w", suffix=".tex", delete=False, dir=Path(tmp_pdf_path).parent) as tmp_tex:
-                tmp_tex_path = tmp_tex.name
-                
-            generate_resume(tmp_config_path, str(template), tmp_tex_path, photo_path=photo_path)
-            
-            # Compile TeX to PDF
+
+            tmp_tex_path = tmp / "output.tex"
+            generate_resume(str(tmp_config_path), str(template), str(tmp_tex_path), photo_path=photo_path)
+
             pdflatex_cmd = find_pdflatex()
             if not pdflatex_cmd:
                 raise HTTPException(
@@ -203,37 +196,26 @@ async def preview_pdf(request: Request):
                     detail="LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or compile downloaded TeX bundle in Overleaf."
                 )
 
-            try:
-                subprocess.run(
-                    [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", str(Path(tmp_pdf_path).parent), tmp_tex_path],
-                    capture_output=True,
-                    timeout=30
-                )
-                pdf_file = Path(tmp_tex_path).with_suffix(".pdf")
-                if pdf_file.exists():
-                    # Stream the PDF back
-                    def iterfile():
-                        with open(pdf_file, "rb") as f:
-                            for chunk in iter(lambda: f.read(8192), b""):
-                                yield chunk
-                    
-                    return StreamingResponse(
-                        iterfile(),
-                        media_type="application/pdf",
-                        headers={"Content-Disposition": f"inline; filename={pdf_name}"}
-                    )
-            except Exception as e:
-                print(f"LaTeX compilation error: {e}")
-                raise HTTPException(500, f"PDF generation failed: {str(e)}")
-        finally:
-            try:
-                os.unlink(tmp_config_path)
-                if Path(tmp_pdf_path).exists():
-                    os.unlink(tmp_pdf_path)
-                if 'tmp_custom_template_path' in locals() and tmp_custom_template_path and Path(tmp_custom_template_path).exists():
-                    os.unlink(tmp_custom_template_path)
-            except Exception:
-                pass
+            pdf_file = tmp / "output.pdf"
+            subprocess.run(
+                [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", str(tmp), "output.tex"],
+                cwd=str(tmp), capture_output=True, timeout=30
+            )
+
+            if not pdf_file.exists():
+                raise HTTPException(500, "PDF generation failed — no output file produced.")
+
+            pdf_bytes = pdf_file.read_bytes()
+            # Temp dir is auto-cleaned on exit from context manager
+
+        if pdf_bytes:
+            from fastapi.responses import Response
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"inline; filename={pdf_name}"}
+            )
+        raise HTTPException(500, "PDF generation failed.")
     
     except json.JSONDecodeError:
         raise HTTPException(400, "Invalid JSON in request body")
@@ -241,7 +223,12 @@ async def preview_pdf(request: Request):
         print(f"Preview error: {e}")
         raise HTTPException(500, f"Preview generation failed: {str(e)}")
 
-# ── UI Entry Point ────────────────────────────────────────────────────────────
+# ── Health & UI Entry Points ────────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health_check():
+    """Simple health check endpoint for cloud platform probes."""
+    return {"status": "ok", "version": "2.2.0"}
 
 @app.get("/", response_class=HTMLResponse)
 def index():

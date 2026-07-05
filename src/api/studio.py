@@ -5,11 +5,15 @@ photo upload, and bookmark endpoints.
 """
 import sys
 import io
+import os
+import re
+import asyncio
+import shutil
 import zipfile
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
-
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -23,6 +27,18 @@ from src.core.build import build_role, build_all, clean
 
 from src.db import db
 from src.services.resume_service import get_full_config, save_full_config
+
+_settings_cache: dict[str, tuple[dict, float]] = {}
+_SETTINGS_CACHE_TTL = 30
+
+def _get_cached_settings(user_id: str) -> dict:
+    now = time.time()
+    cached = _settings_cache.get(user_id)
+    if cached and (now - cached[1]) < _SETTINGS_CACHE_TTL:
+        return cached[0]
+    settings = db.get_settings(user_id)
+    _settings_cache[user_id] = (settings, now)
+    return settings
 
 
 def get_user_id(request: Request) -> str:
@@ -114,9 +130,10 @@ def compile_direct(req: DirectCompileRequest):
     import re as _re
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
     suffix = "_X" if req.include_photo else ""
-    success = build_custom_version(req.config, safe_name, req.include_photo)
-    if not success:
+    pdf_bytes = build_custom_version(req.config, safe_name, req.include_photo)
+    if not pdf_bytes:
         raise HTTPException(500, "Failed to compile PDF")
+    (DIST_DIR / f"{safe_name}{suffix}.pdf").write_bytes(pdf_bytes)
     return {"pdf": f"{safe_name}{suffix}.pdf"}
 
 @router.post("/download-latex-direct")
@@ -302,6 +319,7 @@ async def save_settings_route(request: Request):
     user_id = get_user_id(request)
     data = await request.json()
     db.save_settings(user_id, data)
+    _settings_cache.pop(user_id, None)
     return {"ok": True}
 
 @router.get("/api/settings/pick-folder")
@@ -322,50 +340,51 @@ def pick_folder_route():
         print(f"Failed to open folder picker: {e}")
         return {"folder": None}
 
+def _build_pdf_name(settings: dict, role: str = '') -> str:
+    prefix = settings.get('file_name_prefix', 'RESUME-')
+    safe = re.sub(r'[^\w\-_]', '_', role or 'resume').strip('_')
+    return f"{prefix}{safe}"
+
 @router.post("/api/export-pdf-local")
 async def export_pdf_local_route(request: Request):
     user_id = get_user_id(request)
     data = await request.json()
-    pdf_name = data.get("pdf_name")
-    if not pdf_name:
-        raise HTTPException(400, "Missing pdf_name")
-        
-    settings = db.get_settings(user_id)
+    config = data.get("config")
+
+    settings = _get_cached_settings(user_id)
     export_folder = settings.get("export_folder")
-    
+
     if not export_folder:
-        raise HTTPException(400, "No export folder specified in settings.")
-        
-    import shutil
-    import os
-    from src.core.config import DIST_DIR
-    from pathlib import Path
-    
-    source_pdf = DIST_DIR / f"{pdf_name}.pdf"
-    if not source_pdf.exists():
-        try:
-            from src.core.upload import get_r2_client, BUCKET
-            client = get_r2_client()
-            if client:
-                import io
-                buf = io.BytesIO()
-                client.download_fileobj(BUCKET, f"pdfs/{pdf_name}.pdf", buf)
-                source_pdf.parent.mkdir(parents=True, exist_ok=True)
-                source_pdf.write_bytes(buf.getvalue())
-        except Exception as e:
-            pass
-            
-    if not source_pdf.exists():
-        raise HTTPException(404, f"PDF {pdf_name}.pdf not found locally or on cloud. Generate it first.")
-        
+        raise HTTPException(400, "No export folder set. Go to Settings to configure it.")
+
+    pdf_name = data.get("pdf_name") or _build_pdf_name(settings, data.get('role', ''))
+
     target_dir = Path(export_folder)
-    try:
+
+    pdf_bytes = None
+    if config:
+        include_photo = data.get("include_photo", False)
+        from src.core.build import build_custom_version
+        pdf_bytes = build_custom_version(config, pdf_name, include_photo, user_id=user_id)
+    if pdf_bytes:
         target_dir.mkdir(parents=True, exist_ok=True)
         target_path = target_dir / f"{pdf_name}.pdf"
-        shutil.copy2(source_pdf, target_path)
+        await asyncio.to_thread(target_path.write_bytes, pdf_bytes)
         return {"ok": True, "path": str(target_path)}
-    except Exception as e:
-        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
+
+    try:
+        from src.core.upload import get_r2_client
+        client = get_r2_client()
+        if client:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = target_dir / f"{pdf_name}.pdf"
+            with open(target_path, "wb") as f:
+                await asyncio.to_thread(client.download_fileobj, BUCKET, f"pdfs/{pdf_name}.pdf", f)
+            return {"ok": True, "path": str(target_path)}
+    except Exception:
+        pass
+
+    raise HTTPException(404, f"PDF {pdf_name}.pdf not found. Generate it first.")
 
 @router.get("/api/template/{filename}")
 def get_template(filename: str):
@@ -754,10 +773,11 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False):
     pdf_name = f"bm_{safe_name}"
     suffix = "_X" if include_photo else ""
 
-    success = build_custom_version(bm["data"], pdf_name, include_photo)
-    if not success:
+    pdf_bytes = build_custom_version(bm["data"], pdf_name, include_photo)
+    if not pdf_bytes:
         raise HTTPException(500, "Failed to compile PDF")
 
+    (DIST_DIR / f"{pdf_name}{suffix}.pdf").write_bytes(pdf_bytes)
     return {"pdf": f"{pdf_name}{suffix}.pdf"}
 
 

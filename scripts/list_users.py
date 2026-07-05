@@ -17,10 +17,10 @@ def main():
     if not users:
         print("No users found.")
         return
-    print(f"{'#':<4} {'Username':<30} {'User ID'}")
-    print("-" * 70)
+    print(f"{'#':<4} {'Email':<35} {'Username':<25} {'User ID'}")
+    print("-" * 95)
     for i, u in enumerate(users, 1):
-        print(f"{i:<4} {u.get('username', '?'):<30} {u.get('id', '?')}")
+        print(f"{i:<4} {u.get('email', '-'):<35} {u.get('username', '?'):<25} {u.get('id', '?')}")
     print(f"\nTotal: {len(users)} user(s)")
 
 if __name__ == "__main__":

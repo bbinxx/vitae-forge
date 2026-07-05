@@ -6,6 +6,7 @@ export async function loadSettings() {
     try {
         const res = await fetch('/api/settings');
         const settings = await res.json();
+        const exportFolder = settings.export_folder || '';
 
         container.innerHTML = `
             <div class="settings-section" style="max-width: 600px;">
@@ -14,6 +15,16 @@ export async function loadSettings() {
                     <input type="text" id="setting-file-prefix" class="input-field" value="${settings.file_name_prefix || 'RESUME-'}" placeholder="e.g. RESUME-">
                     <p class="hint-text mt-1">Prefix added to automatically generated PDF and cover letter filenames.</p>
                 </div>
+
+                <div class="field-group mb-4">
+                    <label>Export Folder</label>
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="setting-export-folder" class="input-field" value="${exportFolder}" placeholder="/home/user/Exports" style="flex:1">
+                        <button class="btn btn-secondary" onclick="pickExportFolder()" title="Browse..."><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">folder_open</span></button>
+                    </div>
+                    <p class="hint-text mt-1">Local folder where PDFs are saved when using "Save to Folder".</p>
+                </div>
+
                 <button class="btn btn-success mt-2" onclick="saveSettings()">Save Preferences</button>
             </div>
 
@@ -79,20 +90,31 @@ export async function loadSettingsPhotoPreview() {
 
 window.saveSettings = async function() {
     const file_name_prefix = document.getElementById('setting-file-prefix').value;
+    const export_folder = document.getElementById('setting-export-folder').value;
 
     try {
         const res = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ file_name_prefix })
+            body: JSON.stringify({ file_name_prefix, export_folder })
         });
         if (res.ok) {
-            toast('Settings saved to Firebase successfully!', 'success');
+            toast('Settings saved successfully!', 'success');
         } else {
             toast('Failed to save settings.', 'error');
         }
     } catch (e) {
         toast('Error saving settings.', 'error');
+    }
+};
+
+window.pickExportFolder = async function() {
+    const res = await fetch('/api/settings/pick-folder');
+    const data = await res.json();
+    if (data.folder) {
+        document.getElementById('setting-export-folder').value = data.folder;
+    } else {
+        toast('No folder selected or picker unavailable.', 'info');
     }
 };
 

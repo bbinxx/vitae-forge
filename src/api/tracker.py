@@ -49,7 +49,7 @@ from src.services.tracker_service import (
 _UPDATABLE_FIELDS = [
     "company", "role", "location", "job_url", "status",
     "priority", "job_type", "source", "platform", "tags",
-    "assigned_resume", "assigned_pdf", "assigned_version_id", "archived_pdf",
+    "assigned_resume", "assigned_version_id", "archived_pdf",
     "resume_template",
     "notes", "job_description", "deadline",
     "salary_range", "contact_name", "contact_email",
@@ -71,15 +71,6 @@ async def create_application(request: Request):
     body = await request.json()
     app_id = str(uuid.uuid4())
     new_app = default_app(app_id, body)
-    if new_app.get('resume_template'):
-        try:
-            display_name = build_display_name(user_id, new_app)
-            from src.core.build import build_custom_version
-            success = build_custom_version(new_app['resume_template'], display_name, False, user_id=user_id)
-            if success:
-                new_app['assigned_pdf'] = f"{display_name}.pdf"
-        except Exception as e:
-            print(f"Error compiling new application resume for {app_id}: {e}")
     db.save_application(user_id, new_app)
     return new_app
 
@@ -98,19 +89,14 @@ async def update_application(app_id: str, request: Request):
         if field in body:
             app[field] = body[field]
 
-    # If a custom template is provided, build a custom PDF
+    # Build PDF if a custom template is provided
     if "resume_template" in body and body["resume_template"]:
         try:
-            include_photo = False
-            assigned = app.get("assigned_pdf", "")
-            if assigned and "_X" in assigned:
-                include_photo = True
             display_name = build_display_name(user_id, app)
             from src.core.build import build_custom_version
-            success = build_custom_version(app["resume_template"], display_name, include_photo, user_id=user_id)
-            if success:
-                suffix_str = "_X" if include_photo else ""
-                app["assigned_pdf"] = f"{display_name}{suffix_str}.pdf"
+            success = build_custom_version(app["resume_template"], display_name, False, user_id=user_id)
+            if not success:
+                print(f"Warning: PDF build failed for application {app_id}")
         except Exception as e:
             print(f"Error compiling custom resume for application {app_id}: {e}")
 
@@ -334,26 +320,19 @@ def build_version(app_id: str, v_id: str, request: Request):
                     custom_photo_path = Path(tmp.name)
         
         display_name = build_display_name(user_id, app)
-        success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
+        pdf_bytes = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
         
         if custom_photo_path:
             custom_photo_path.unlink(missing_ok=True)
             
-        if not success:
+        if not pdf_bytes:
             yield "Build failed.\n"
             return
             
-        # Find the built PDF
         suffix_str = "_X" if version.get("include_photo") else ""
         built_pdf_name = f"{display_name}{suffix_str}.pdf"
-        built_pdf_path = DIST_DIR / built_pdf_name
-        
-        if not built_pdf_path.exists():
-            yield "Could not find built PDF.\n"
-            return
             
         yield f"Uploading {built_pdf_name} to R2...\n"
-        # Upload to R2
         from src.core.upload import get_r2_client, BUCKET
         client = get_r2_client()
         if not client:
@@ -361,14 +340,14 @@ def build_version(app_id: str, v_id: str, request: Request):
             return
             
         r2_key = f"resumes/{app_id}/{v_id}.pdf"
-        client.upload_file(str(built_pdf_path), BUCKET, r2_key, ExtraArgs={"ContentType": "application/pdf"})
+        import io
+        client.upload_fileobj(io.BytesIO(pdf_bytes), BUCKET, r2_key, ExtraArgs={"ContentType": "application/pdf"})
         
         # Update version and app
         version["pdf_r2_key"] = r2_key
         db.save_app_version(user_id, app_id, version)
         
         app["assigned_resume"] = version.get("name")
-        app["assigned_pdf"] = built_pdf_name
         app["assigned_version_id"] = v_id
         app["archived_pdf"] = r2_key
         app["updated_at"] = datetime.now().isoformat()
@@ -424,7 +403,6 @@ def assign_version(app_id: str, v_id: str, request: Request):
         raise HTTPException(400, "Version has not been built yet (no PDF)")
         
     app["assigned_resume"] = version.get("name")
-    app["assigned_pdf"] = Path(r2_key).name if r2_key else ""
     app["assigned_version_id"] = v_id
     app["archived_pdf"] = r2_key
     app["updated_at"] = datetime.now().isoformat()
@@ -493,15 +471,12 @@ async def compile_pdf(app_id: str, request: Request):
             )
 
         # 3. Build the custom PDF
-        from src.core.build import build_custom_version
+        from src.core.build import build_custom_version, build_variant
+        from src.core.config import TEMPLATE_COVER_LETTER
         include_photo = body.get("include_photo", False)
-        if not include_photo:
-            assigned = app.get("assigned_pdf", "")
-            if assigned and "_X" in assigned:
-                include_photo = True
-        success = build_custom_version(config, pdf_name, include_photo=include_photo, user_id=user_id)
+        pdf_bytes = build_custom_version(config, pdf_name, include_photo=include_photo, user_id=user_id)
         
-        if not success:
+        if not pdf_bytes:
             # Read build log to surface actual error
             log_dir = ROOT / "logs"
             log_pattern = f"{pdf_name}_build.log"
@@ -519,14 +494,24 @@ async def compile_pdf(app_id: str, request: Request):
             detail = f"PDF build failed. {log_tail}" if log_tail else "PDF build failed. Check server logs."
             raise HTTPException(500, detail)
         
-        # Update app with assigned PDF
-        app["assigned_pdf"] = f"{pdf_name}.pdf"
+        (DIST_DIR / f"{pdf_name}.pdf").write_bytes(pdf_bytes)
         
-        # Check if cover letter was generated
-        cover_letter_name = f"{pdf_name}_Cover_Letter.pdf"
-        cover_letter_path = DIST_DIR / cover_letter_name
-        if cover_letter_path.exists():
-            app["assigned_cover_letter"] = cover_letter_name
+        # Check if cover letter should be generated
+        has_cl = config.get("cover_letter") and str(config.get("cover_letter", "")).strip()
+        if has_cl:
+            import tempfile as _tf
+            with _tf.NamedTemporaryFile("w", suffix=".json", delete=False) as _tmp:
+                json.dump({**config}, _tmp)
+                _cl_json = _tmp.name
+            try:
+                _cl_success, _cl_bytes = build_variant(_cl_json, pdf_name, TEMPLATE_COVER_LETTER, "_Cover_Letter", None, user_id=user_id)
+                if _cl_success and _cl_bytes:
+                    (DIST_DIR / f"{pdf_name}_Cover_Letter.pdf").write_bytes(_cl_bytes)
+                    app["assigned_cover_letter"] = f"{pdf_name}_Cover_Letter.pdf"
+                else:
+                    app.pop("assigned_cover_letter", None)
+            finally:
+                Path(_cl_json).unlink(missing_ok=True)
         else:
             app.pop("assigned_cover_letter", None)
             
@@ -618,7 +603,6 @@ def scrape_job_url(req: ScrapeRequest):
         '  "job_url": "",\n'
         '  "notes": "",\n'
         '  "job_description": "",\n'
-        '  "assigned_pdf": "",\n'
         '  "email": {"to": "", "cc": "", "subject": "", "body": ""}\n'
         '}\n\n'
         'Fill in every field you can. If not found, leave empty string.\n'

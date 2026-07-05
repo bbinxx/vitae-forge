@@ -216,6 +216,9 @@ window.saveConfigToServer = () => state.saveConfig();
 // Init tracker with shared state reference
 initTracker(state);
 
+// Applications tab is the default active view — start loading immediately
+loadTracker();
+
 // ── Material Icon Helper ──────────────────────────────────────────────────────
 window.icon = (name) =>
   `<span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">${name}</span>`;

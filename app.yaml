@@ -6,6 +6,8 @@ services:
     http_port: 5050
     instance_count: 1
     instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
     envs:
       - key: PASSCODE_HASH
       - key: FIREBASE_SERVICE_ACCOUNT

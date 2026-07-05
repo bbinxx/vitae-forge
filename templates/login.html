@@ -166,7 +166,7 @@
         <p class="subtitle">Multi-User Account Login</p>
         
         <div class="passcode-container">
-            <input type="text" id="username" placeholder="Username" autofocus autocomplete="off">
+            <input type="text" id="email" placeholder="Email or username" autofocus autocomplete="off">
             <input type="password" id="password" placeholder="Password" autocomplete="off">
             <button id="btn-unlock" class="btn-unlock" onclick="handleSubmit()">Login</button>
             <button id="btn-register" class="btn-register" onclick="handleRegister()">Register New User</button>
@@ -175,14 +175,14 @@
     </div>
 
     <script>
-        const userInp = document.getElementById('username');
+        const emailInp = document.getElementById('email');
         const passInp = document.getElementById('password');
         const box = document.getElementById('login-box');
         const errorMsg = document.getElementById('error-msg');
         const unlockBtn = document.getElementById('btn-unlock');
         const registerBtn = document.getElementById('btn-register');
         
-        [userInp, passInp].forEach(el => {
+        [emailInp, passInp].forEach(el => {
             el.addEventListener('keyup', (e) => {
                 errorMsg.classList.remove('show');
                 box.classList.remove('shake');
@@ -191,11 +191,11 @@
         });
         
         async function handleSubmit() {
-            const username = userInp.value;
+            const email = emailInp.value;
             const password = passInp.value;
-            if (!username || !password) return;
+            if (!email || !password) return;
             
-            userInp.disabled = true;
+            emailInp.disabled = true;
             passInp.disabled = true;
             unlockBtn.disabled = true;
             registerBtn.disabled = true;
@@ -207,7 +207,7 @@
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email, password })
                 });
                 
                 const data = await res.json();
@@ -222,31 +222,31 @@
                     unlockBtn.disabled = false;
                     registerBtn.disabled = false;
                     unlockBtn.textContent = 'Login';
-                    userInp.disabled = false;
+                    emailInp.disabled = false;
                     passInp.disabled = false;
                     passInp.value = '';
                     passInp.focus();
-                    triggerError('Invalid username or password', false);
+                    triggerError('Invalid email or password', false);
                 }
             } catch (e) {
                 unlockBtn.disabled = false;
                 registerBtn.disabled = false;
                 unlockBtn.textContent = 'Login';
-                userInp.disabled = false;
+                emailInp.disabled = false;
                 passInp.disabled = false;
                 triggerError('Connection error', false);
             }
         }
         
         async function handleRegister() {
-            const username = userInp.value;
+            const email = emailInp.value;
             const password = passInp.value;
-            if (!username || !password) {
-                triggerError('Please enter username and password to register', false);
+            if (!email || !password) {
+                triggerError('Please enter email and password to register', false);
                 return;
             }
             
-            userInp.disabled = true;
+            emailInp.disabled = true;
             passInp.disabled = true;
             unlockBtn.disabled = true;
             registerBtn.disabled = true;
@@ -257,7 +257,7 @@
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email, password })
                 });
                 
                 if (res.ok) {
@@ -265,7 +265,7 @@
                     triggerError('Registration successful. You can now login.', true);
                     registerBtn.disabled = false;
                     unlockBtn.disabled = false;
-                    userInp.disabled = false;
+                    emailInp.disabled = false;
                     passInp.disabled = false;
                     setTimeout(() => { registerBtn.textContent = 'Register New User'; }, 2000);
                 } else {
@@ -273,15 +273,15 @@
                     registerBtn.disabled = false;
                     unlockBtn.disabled = false;
                     registerBtn.textContent = 'Register New User';
-                    userInp.disabled = false;
+                    emailInp.disabled = false;
                     passInp.disabled = false;
-                    triggerError(data.detail || 'Username already exists', false);
+                    triggerError(data.detail || 'Email already registered', false);
                 }
             } catch (e) {
                 registerBtn.disabled = false;
                 unlockBtn.disabled = false;
                 registerBtn.textContent = 'Register New User';
-                userInp.disabled = false;
+                emailInp.disabled = false;
                 passInp.disabled = false;
                 triggerError('Connection error', false);
             }

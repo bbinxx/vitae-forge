@@ -328,13 +328,15 @@ Each resume generates two PDF variants:
 
 ## Deployment
 
+Please see the comprehensive [**Deployment Guide** (`DEPLOYMENT.md`)](DEPLOYMENT.md) for detailed, step-by-step instructions on deploying Vitae Forge to various cloud platforms.
+
 | Platform | Config | Notes |
 |----------|--------|-------|
 | Docker / GHCR | `Dockerfile` + `.github/workflows/cd.yml` | Primary — auto-builds on `v*` tags |
-| DigitalOcean | `app.yaml` | App Platform |
-| Render | `render.yaml` | Docker service |
-| Vercel | `vercel.json` | Frontend only |
-| Netlify | `netlify.toml` | Static frontend only |
+| DigitalOcean | `app.yaml` | App Platform (Docker) |
+| Render | `render.yaml` | Docker service (Recommended) |
+| Vercel | `vercel.json` | Serverless API / UI (No PDF generation) |
+| Netlify | `netlify.toml` | Static frontend proxy to Render |
 
 ### CI/CD
 
