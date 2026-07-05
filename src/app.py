@@ -12,7 +12,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 
@@ -71,7 +71,7 @@ async def cookie_auth_middleware(request: Request, call_next):
     passcode_hash = os.environ.get("PASSCODE_HASH")
     passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
 
-    if path in ("/api/auth/login", "/api/auth/register", "/health") or path == "/api/preview-pdf" or path.startswith("/share/") or path == "/" or path == "/login":
+    if path in ("/api/auth/login", "/api/auth/register", "/health", "/manifest.json", "/sw.js") or path == "/api/preview-pdf" or path.startswith("/share/") or path == "/" or path == "/login":
         return await call_next(request)
 
     if not passcode_hash or passcode_enabled == "false":
@@ -229,6 +229,14 @@ async def preview_pdf(request: Request):
 def health_check():
     """Simple health check endpoint for cloud platform probes."""
     return {"status": "ok", "version": "2.2.0"}
+
+@app.get("/manifest.json")
+def get_manifest():
+    return FileResponse(STATIC_DIR / "manifest.json", media_type="application/manifest+json")
+
+@app.get("/sw.js")
+def get_sw():
+    return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript")
 
 @app.get("/", response_class=HTMLResponse)
 def index():

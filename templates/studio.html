@@ -7,7 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet">
-<link rel="icon" href="data:,">
+<link rel="icon" href="/static/img/icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="stylesheet" href="/static/css/studio.css">
 </head>
 <body>
@@ -195,5 +197,12 @@ fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + (localStorage.ge
 
 <script src="/static/js/auth_interceptor.js"></script>
 <script type="module" src="/static/js/main.js?v=6"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW registration failed:', err));
+  });
+}
+</script>
 </body>
 </html>
