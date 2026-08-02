@@ -481,6 +481,19 @@ const APPLICATION_SCHEMA = {
     "resume_template": {
         "role_title": "",
         "summary": "",
+        "sections": {
+            "role_title": true,
+            "summary": true,
+            "skills": true,
+            "experience": true,
+            "projects": true,
+            "education": true,
+            "certifications": true,
+            "achievements": true,
+            "areas_of_interest": true,
+            "languages": true,
+            "additional_info": true
+        },
         "skills": {
             "Languages": [],
             "Web Development": [],
@@ -1005,6 +1018,8 @@ export async function openAppStudio(appId = null) {
                         <button class="btn btn-sm btn-secondary" onclick="window.copyForAI()" title="Copy prompt for AI" style="font-size:10px;padding:3px 8px;">Copy AI Prompt</button>
                     </div>
                 </div>
+                <!-- Dynamic Section Toggles Toolbar -->
+                <div id="section-toggles-bar" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:5px 8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px"></div>
                 <div id="unified-json-error" style="display:none; color: #dc2626; font-size: 10px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 4px;"></div>
                 <textarea id="unified-json-editor" class="input-field textarea" spellcheck="false"
                     oninput="window.onUnifiedJsonInput(this.value)"
@@ -1644,12 +1659,132 @@ window.setUnifiedIncludePhoto = (val) => {
     window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
 };
 
+window.renderSectionToggleButtons = (payload) => {
+    const bar = document.getElementById('section-toggles-bar');
+    if (!bar) return;
+
+    if (!payload) {
+        try {
+            const editor = document.getElementById('unified-json-editor');
+            if (editor) payload = parseCleanJson(editor.value);
+        } catch (e) {}
+    }
+
+    const tpl = payload?.resume_template || payload || {};
+    const sectionsObj = tpl.sections || payload?.sections || {};
+
+    const standardKeys = [
+        'role_title', 'photo', 'summary', 'skills', 'experience', 
+        'projects', 'education', 'certifications', 'achievements', 
+        'areas_of_interest', 'languages', 'additional_info'
+    ];
+
+    const detectedKeys = new Set(standardKeys);
+
+    // Collect any key explicitly defined in sections object
+    Object.keys(sectionsObj).forEach(k => detectedKeys.add(k));
+
+    // Collect any top-level section key present in resume_template
+    const tplKeys = ['role_title', 'photo', 'summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'achievements', 'additional_info', 'areas_of_interest', 'languages', 'cover_letter'];
+    tplKeys.forEach(k => {
+        if (tpl[k] !== undefined && tpl[k] !== null && tpl[k] !== '') {
+            detectedKeys.add(k);
+        }
+    });
+
+    const formatLabel = (key) => {
+        const labels = {
+            role_title: 'Role Title',
+            photo: 'Photo',
+            summary: 'Summary',
+            skills: 'Skills',
+            experience: 'Experience',
+            projects: 'Projects',
+            education: 'Education',
+            certifications: 'Certifications',
+            achievements: 'Achievements',
+            areas_of_interest: 'Areas of Interest',
+            languages: 'Languages',
+            additional_info: 'Additional Info',
+            cover_letter: 'Cover Letter'
+        };
+        if (labels[key]) return labels[key];
+        return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    };
+
+    const buttonsHtml = Array.from(detectedKeys).map(secKey => {
+        const isEnabled = sectionsObj[secKey] !== false;
+        const activeCls = isEnabled ? 'active' : 'disabled';
+        const title = isEnabled ? `Click to disable ${formatLabel(secKey)} section in PDF` : `Click to enable ${formatLabel(secKey)} section in PDF`;
+        return `<button type="button" class="sec-toggle-btn ${activeCls}" data-section="${secKey}" title="${title}" onclick="window.toggleResumeSection('${secKey}')">${formatLabel(secKey)}</button>`;
+    }).join('');
+
+    bar.innerHTML = `<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-right:2px">PDF Sections:</span>${buttonsHtml}`;
+};
+
+window.toggleResumeSection = (secKey) => {
+    const editor = document.getElementById('unified-json-editor');
+    if (!editor) return;
+    let payload;
+    try {
+        payload = parseCleanJson(editor.value);
+    } catch (e) {
+        toast('Cannot toggle section: Invalid JSON syntax', 'error');
+        return;
+    }
+
+    if (!payload.resume_template) {
+        payload.resume_template = {};
+    }
+
+    if (!payload.resume_template.sections) {
+        payload.resume_template.sections = {
+            role_title: true,
+            photo: true,
+            summary: true,
+            skills: true,
+            experience: true,
+            projects: true,
+            education: true,
+            certifications: true,
+            achievements: true,
+            languages: true
+        };
+    }
+
+    const currentVal = payload.resume_template.sections[secKey] !== false;
+    const newVal = !currentVal;
+    payload.resume_template.sections[secKey] = newVal;
+
+    if (secKey === 'photo') {
+        window._includePhoto = newVal;
+        const photoBtn = document.getElementById('preview-type-photo');
+        if (photoBtn) {
+            if (newVal) {
+                photoBtn.style.background = 'var(--accent)';
+                photoBtn.style.color = 'white';
+            } else {
+                photoBtn.style.background = 'transparent';
+                photoBtn.style.color = 'inherit';
+            }
+        }
+    }
+
+    const cursor = editor.selectionStart;
+    editor.value = JSON.stringify(payload, null, 2);
+    try { editor.setSelectionRange(cursor, cursor); } catch (err) {}
+
+    window.renderSectionToggleButtons(payload);
+    window.onUnifiedJsonInput(editor.value);
+};
+
 window.onUnifiedJsonInput = (val) => {
     const errorDiv = document.getElementById('unified-json-error');
     let payload = null;
     try {
         payload = parseCleanJson(val);
         if (errorDiv) errorDiv.style.display = 'none';
+        window.renderSectionToggleButtons(payload);
     } catch (e) {
         if (errorDiv) {
             errorDiv.textContent = `JSON Error: ${e.message}`;

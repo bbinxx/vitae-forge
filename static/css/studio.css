@@ -819,6 +819,43 @@ select.input-field { cursor: pointer; }
 .view-toggle-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 .view-toggle-btn.active { background: var(--accent); color: #fff; }
 
+/* ── Section Toggle Buttons ────────────────────────────────────────────────── */
+.sec-toggle-btn {
+  font-size: 0.6rem;
+  font-family: var(--font);
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.sec-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sec-toggle-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sec-toggle-btn.disabled {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+
 /* ── Tracker Header Bar ──────────────────────────────────────────────────── */
 .tracker-header {
   display: flex;
