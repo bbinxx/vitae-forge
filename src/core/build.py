@@ -15,10 +15,11 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from src.core.config import (
-    ROOT, RESUME_CONFIG, DIST_DIR, LOG_DIR,
+    ROOT, DIST_DIR, LOG_DIR,
     TEMPLATE_PLAIN, TEMPLATE_PHOTO, PROFILE_PHOTO,
-    load_resume_config, find_pdflatex,
+    find_pdflatex,
 )
+from src.services.resume_service import get_full_config
 
 # Ensure output dirs exist on import
 DIST_DIR.mkdir(exist_ok=True)
@@ -49,6 +50,7 @@ def build_variant(
     template: Path,
     suffix: str,
     photo: Path | None = None,
+    user_id: str = None
 ) -> bool:
     """
     Generate a single LaTeX variant, compile with pdflatex.
@@ -59,7 +61,7 @@ def build_variant(
     pdf_name   = f"{display_name}{suffix}.pdf"
     print(f"  → Variant: {suffix or 'Standard'}")
 
-    gen_cmd = [sys.executable, str(generate_py), source_role, str(template), tex_name]
+    gen_cmd = [sys.executable, str(generate_py), source_role, str(template), tex_name, "--user", user_id]
     if photo:
         gen_cmd += ["--photo", str(photo)]
     subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
@@ -115,9 +117,9 @@ def build_variant(
         return False
 
 
-def build_role(role_id: str) -> None:
+def build_role(role_id: str, user_id: str) -> None:
     """Build both plain and photo variants for a single role."""
-    config   = load_resume_config()
+    config   = get_full_config(user_id)
     name_raw = config.get("personal", {}).get("name", "Resume")
     short    = config.get("recipes", {}).get(role_id, {}).get("short_name", role_id)
     display  = f"{name_raw.upper().replace(' ', '_')}_{short}"
@@ -125,11 +127,11 @@ def build_role(role_id: str) -> None:
     print("-" * 44)
     print(f"  Building: {display}")
     print("-" * 44)
-    build_variant(role_id, display, TEMPLATE_PLAIN, "")
-    build_variant(role_id, display, TEMPLATE_PHOTO, "_X", PROFILE_PHOTO)
+    build_variant(role_id, display, TEMPLATE_PLAIN, "", user_id=user_id)
+    build_variant(role_id, display, TEMPLATE_PHOTO, "_X", PROFILE_PHOTO, user_id=user_id)
 
 
-def build_custom_version(version_data: dict, display_name: str, include_photo: bool, custom_photo_path: Path | None = None) -> bool:
+def build_custom_version(version_data: dict, display_name: str, include_photo: bool, custom_photo_path: Path | None = None, user_id: str = None) -> bool:
     """
     Build a PDF from an arbitrary configuration dictionary instead of a global recipe.
     Used for application-specific custom versions.
@@ -137,7 +139,7 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     import tempfile
     
     # Merge with personal/library from main config to ensure complete data
-    main_config = load_resume_config()
+    main_config = get_full_config(user_id) if user_id else {}
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
@@ -171,26 +173,27 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
         suffix = "_X" if include_photo else ""
         photo_to_use = custom_photo_path if (include_photo and custom_photo_path) else (PROFILE_PHOTO if include_photo else None)
         
-        success = build_variant(tmp_path, display_name, template, suffix, photo_to_use)
+        success = build_variant(tmp_path, display_name, template, suffix, photo_to_use, user_id=user_id)
         
         from src.core.config import TEMPLATE_COVER_LETTER
         if full_config.get("cover_letter") and str(full_config.get("cover_letter")).strip():
             print(f"  Building Cover Letter: {display_name}_Cover_Letter")
-            build_variant(tmp_path, display_name, TEMPLATE_COVER_LETTER, "_Cover_Letter", None)
+            build_variant(tmp_path, display_name, TEMPLATE_COVER_LETTER, "_Cover_Letter", None, user_id=user_id)
             
         return success
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def build_all() -> None:
+def build_all(user_id: str) -> None:
     """Build every role defined in the resume config."""
-    config = load_resume_config()
+    config = get_full_config(user_id)
     roles = list(config.get("recipes", {}).keys())
     
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as executor:
-        executor.map(build_role, roles)
+        # Pass user_id to build_role
+        executor.map(lambda r: build_role(r, user_id), roles)
         
     print("=" * 44)
     print(" All builds complete.")
@@ -231,9 +234,11 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
         suffix = "_X" if include_photo else ""
         tex_name = f"{display_name}{suffix}_temp.tex"
+        photo = PROFILE_PHOTO if include_photo else None
+
         gen_cmd = [sys.executable, str(generate_py), tmp_path, str(template), tex_name]
-        # Don't pass --photo; leave <<PHOTO_PATH>> placeholder in output
-        # so callers (ZIP/LaTeX download) can substitute their own path
+        if photo:
+            gen_cmd += ["--photo", str(photo)]
         subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
 
         tex_src = ROOT / tex_name
@@ -250,12 +255,15 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
 
 
 if __name__ == "__main__":
-    import sys as _sys
-    if len(_sys.argv) > 1:
-        arg = _sys.argv[1]
-        if arg == "clean":
-            clean()
-        else:
-            build_role(arg)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("role", nargs="?", default="all")
+    parser.add_argument("--user", required=False, help="User ID")
+    args = parser.parse_args()
+    
+    if args.role == "clean":
+        clean()
+    elif args.role == "all":
+        build_all(args.user)
     else:
-        build_all()
+        build_role(args.role, args.user)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Studio — Locked</title>
+    <title>Resume Studio — Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet">
@@ -66,26 +66,24 @@
             flex-direction: column;
             gap: 14px;
         }
-        input[type="password"] {
+        input {
             width: 100%;
             padding: 12px 16px;
             border-radius: 12px;
             border: 1.5px solid #2d3139;
             background: rgba(13, 15, 20, 0.6);
             color: #fff;
-            font-size: 1.133rem;
+            font-size: 1rem;
             text-align: center;
-            letter-spacing: 4px;
             outline: none;
             transition: all 0.2s ease;
             font-family: 'Inter', sans-serif;
         }
-        input[type="password"]:focus {
+        input:focus {
             border-color: #6d28d9;
             box-shadow: 0 0 0 3px rgba(109,40,217,0.15), 0 0 20px rgba(109,40,217,0.08);
         }
-        input[type="password"]::placeholder {
-            letter-spacing: 2px;
+        input::placeholder {
             color: #4a4f5a;
             font-size: 0.933rem;
         }
@@ -109,6 +107,25 @@
         }
         .btn-unlock:active:not(:disabled) { transform: translateY(0); }
         .btn-unlock:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-register {
+            background: transparent;
+            border: 1px solid #4a4f5a;
+            color: #cbd5e1;
+            margin-top: -6px;
+            padding: 12px 16px;
+            font-size: 0.8667rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-register:hover:not(:disabled) {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+
         .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
@@ -146,70 +163,136 @@
     <div class="login-box" id="login-box">
         <div class="logo-shield"><span class="material-symbols-outlined" style="font-size: 1.2em; vertical-align: middle; line-height: 1;">lock</span></div>
         <h1>Resume Studio</h1>
-        <p class="subtitle">Enter passcode to unlock the control center</p>
+        <p class="subtitle">Multi-User Account Login</p>
         
         <div class="passcode-container">
-            <input type="password" id="passcode" placeholder="Passcode" autofocus autocomplete="off">
-            <button id="btn-unlock" class="btn-unlock" onclick="handleSubmit()">Unlock Studio</button>
-            <div class="error-msg" id="error-msg">Incorrect passcode</div>
+            <input type="text" id="username" placeholder="Username" autofocus autocomplete="off">
+            <input type="password" id="password" placeholder="Password" autocomplete="off">
+            <button id="btn-unlock" class="btn-unlock" onclick="handleSubmit()">Login</button>
+            <button id="btn-register" class="btn-register" onclick="handleRegister()">Register New User</button>
+            <div class="error-msg" id="error-msg">Incorrect credentials</div>
         </div>
     </div>
 
     <script>
-        const input = document.getElementById('passcode');
+        const userInp = document.getElementById('username');
+        const passInp = document.getElementById('password');
         const box = document.getElementById('login-box');
         const errorMsg = document.getElementById('error-msg');
         const unlockBtn = document.getElementById('btn-unlock');
+        const registerBtn = document.getElementById('btn-register');
         
-        input.addEventListener('keyup', (e) => {
-            errorMsg.classList.remove('show');
-            box.classList.remove('shake');
-            if (e.key === 'Enter') handleSubmit();
+        [userInp, passInp].forEach(el => {
+            el.addEventListener('keyup', (e) => {
+                errorMsg.classList.remove('show');
+                box.classList.remove('shake');
+                if (e.key === 'Enter') handleSubmit();
+            });
         });
         
         async function handleSubmit() {
-            const passcode = input.value;
-            if (!passcode) return;
+            const username = userInp.value;
+            const password = passInp.value;
+            if (!username || !password) return;
             
-            input.disabled = true;
+            userInp.disabled = true;
+            passInp.disabled = true;
             unlockBtn.disabled = true;
+            registerBtn.disabled = true;
             unlockBtn.textContent = 'Verifying...';
             errorMsg.classList.remove('show');
             box.classList.remove('shake');
             
             try {
-                const res = await fetch('/api/login', {
+                const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ passcode })
+                    body: JSON.stringify({ username, password })
                 });
+                
+                const data = await res.json();
                 
                 if (res.ok) {
                     unlockBtn.textContent = 'Success!';
                     unlockBtn.style.background = 'linear-gradient(135deg, #059669, #047857)';
                     unlockBtn.style.boxShadow = '0 4px 16px rgba(5,150,105,0.25)';
-                    setTimeout(() => { window.location.reload(); }, 200);
+                    localStorage.setItem('token', data.access_token);
+                    setTimeout(() => { window.location.href = '/'; }, 200);
                 } else {
                     unlockBtn.disabled = false;
-                    unlockBtn.textContent = 'Unlock Studio';
-                    input.disabled = false;
-                    input.value = '';
-                    input.focus();
-                    triggerError('Incorrect passcode');
+                    registerBtn.disabled = false;
+                    unlockBtn.textContent = 'Login';
+                    userInp.disabled = false;
+                    passInp.disabled = false;
+                    passInp.value = '';
+                    passInp.focus();
+                    triggerError('Invalid username or password', false);
                 }
             } catch (e) {
                 unlockBtn.disabled = false;
-                unlockBtn.textContent = 'Unlock Studio';
-                input.disabled = false;
-                triggerError('Connection error');
+                registerBtn.disabled = false;
+                unlockBtn.textContent = 'Login';
+                userInp.disabled = false;
+                passInp.disabled = false;
+                triggerError('Connection error', false);
             }
         }
         
-        function triggerError(msg) {
-            errorMsg.textContent = msg || 'Incorrect passcode';
+        async function handleRegister() {
+            const username = userInp.value;
+            const password = passInp.value;
+            if (!username || !password) {
+                triggerError('Please enter username and password to register', false);
+                return;
+            }
+            
+            userInp.disabled = true;
+            passInp.disabled = true;
+            unlockBtn.disabled = true;
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Registering...';
+            errorMsg.classList.remove('show');
+            
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (res.ok) {
+                    registerBtn.textContent = 'Success!';
+                    triggerError('Registration successful. You can now login.', true);
+                    registerBtn.disabled = false;
+                    unlockBtn.disabled = false;
+                    userInp.disabled = false;
+                    passInp.disabled = false;
+                    setTimeout(() => { registerBtn.textContent = 'Register New User'; }, 2000);
+                } else {
+                    const data = await res.json();
+                    registerBtn.disabled = false;
+                    unlockBtn.disabled = false;
+                    registerBtn.textContent = 'Register New User';
+                    userInp.disabled = false;
+                    passInp.disabled = false;
+                    triggerError(data.detail || 'Username already exists', false);
+                }
+            } catch (e) {
+                registerBtn.disabled = false;
+                unlockBtn.disabled = false;
+                registerBtn.textContent = 'Register New User';
+                userInp.disabled = false;
+                passInp.disabled = false;
+                triggerError('Connection error', false);
+            }
+        }
+        
+        function triggerError(msg, isSuccess) {
+            errorMsg.textContent = msg || 'Error';
+            errorMsg.style.color = isSuccess ? '#10b981' : '#f87171';
             box.classList.remove('shake');
             void box.offsetWidth;
-            box.classList.add('shake');
+            if (!isSuccess) box.classList.add('shake');
             errorMsg.classList.add('show');
         }
     </script>

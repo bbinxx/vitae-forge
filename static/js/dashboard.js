@@ -83,7 +83,8 @@ export function dashPreview(path) {
     const isCloud = f.type === 'cloud';
     const isPhoto = f.name.includes('_X.pdf');
     
-    const url = isCloud ? `/cloud-pdf/${f.path}` : `/pdf/${f.path}`;
+    let url = isCloud ? `/cloud-pdf/${f.path}` : `/pdf/${f.path}`;
+    url += '?token=' + localStorage.getItem('token');
     document.getElementById('viewer-container').innerHTML = `<iframe src="${url}#toolbar=0" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
     
     document.getElementById('btn-dash-bundle').style.display = (!isCloud && isPhoto) ? 'inline-flex' : 'none';
@@ -141,14 +142,14 @@ window.uploadAll   = uploadAll;
 window.downloadCurrent       = () => { 
     if (state.selectedDashFile) {
         if (state.selectedDashFile.type === 'cloud') {
-            window.open(`/cloud-pdf/${state.selectedDashFile.path}`, '_blank');
+            window.open(`/cloud-pdf/${state.selectedDashFile.path}?token=` + localStorage.getItem('token'), '_blank');
         } else {
-            window.open(`/download/${state.selectedDashFile.path}`, '_blank');
+            window.open(`/download/${state.selectedDashFile.path}?token=` + localStorage.getItem('token'), '_blank');
         }
     } 
 };
-window.downloadCurrentBundle = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download-bundle/${state.selectedDashFile.path.replace('.pdf','.tex')}`, '_blank'); };
-window.downloadCurrentTex    = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download/${state.selectedDashFile.path.replace('.pdf','.tex')}`, '_blank'); };
+window.downloadCurrentBundle = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download-bundle/${state.selectedDashFile.path.replace('.pdf','.tex')}?token=` + localStorage.getItem('token'), '_blank'); };
+window.downloadCurrentTex    = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') window.open(`/download/${state.selectedDashFile.path.replace('.pdf','.tex')}?token=` + localStorage.getItem('token'), '_blank'); };
 window.uploadCurrent         = () => { if (state.selectedDashFile && state.selectedDashFile.type !== 'cloud') dashUpload(state.selectedDashFile.path); };
 
 window.shareCurrent = async () => {

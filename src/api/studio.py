@@ -18,10 +18,19 @@ from PIL import Image
 
 from src.core.config import (
     ROOT, DIST_DIR, ASSETS_DIR, PROFILE_PHOTO,
-    load_resume_config, save_resume_config,
 )
 from src.core.upload import md5_of_file, list_r2_objects, upload_pdf, BUCKET
 from src.core.build import build_role, build_all, clean
+
+from src.db import db
+from src.services.resume_service import get_full_config, save_full_config
+import src.services.checkpoint_service as cps
+
+def get_user_id(request: Request) -> str:
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user_id
 
 router = APIRouter()
 
@@ -98,14 +107,11 @@ def download_latex_direct(req: DirectCompileRequest):
     latex = generate_latex_source(req.config, safe_name, req.include_photo)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
-    if req.include_photo:
-        latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
     return StreamingResponse(
         io.BytesIO(latex.encode("utf-8")),
         media_type="text/plain",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}{suffix}.tex"'},
     )
-
 
 @router.post("/download-zip-direct")
 def download_zip_direct(req: DirectCompileRequest):
@@ -115,7 +121,7 @@ def download_zip_direct(req: DirectCompileRequest):
     latex = generate_latex_source(req.config, safe_name, include_photo=True)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
-    latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
+    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
         zf.writestr("resume.tex", latex)
@@ -133,28 +139,30 @@ def download_zip_direct(req: DirectCompileRequest):
 # ── Config ────────────────────────────────────────────────────────────────────
 
 @router.get("/get-config")
-def get_config():
-    return load_resume_config()
+def get_config(request: Request):
+    user_id = get_user_id(request)
+    return get_full_config(user_id)
 
 
 @router.post("/save-config")
 async def save_config(request: Request):
+    user_id = get_user_id(request)
     data = await request.json()
-    save_resume_config(data)
+    save_full_config(user_id, data)
     return {"ok": True}
 
 # ── Settings (Firebase) ───────────────────────────────────────────────────────
 
 @router.get("/api/settings")
-def get_settings_route():
-    from src.core.firebase import get_settings
-    return get_settings()
+def get_settings_route(request: Request):
+    user_id = get_user_id(request)
+    return db.get_settings(user_id)
 
 @router.post("/api/settings")
 async def save_settings_route(request: Request):
+    user_id = get_user_id(request)
     data = await request.json()
-    from src.core.firebase import save_settings
-    save_settings(data)
+    db.save_settings(user_id, data)
     return {"ok": True}
 
 @router.get("/api/settings/pick-folder")
@@ -276,14 +284,7 @@ async def export_pdf_local_route(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"Failed to generate and export PDF: {str(e)}")
-    finally:
-        for p in [tmp_config_path, tmp_tex_path]:
-            try:
-                if Path(p).exists():
-                    os.unlink(p)
-            except Exception:
-                pass
+        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
 
 @router.get("/api/template/{filename}")
 def get_template(filename: str):
@@ -321,94 +322,32 @@ def trigger_r2_backup():
 # ── File listing ──────────────────────────────────────────────────────────────
 
 @router.get("/list-files")
-def list_files():
-    from src.core.firebase import get_all_applications
-    from src.core.config import load_resume_config
-
+def list_files(request: Request):
+    user_id = get_user_id(request)
+    
     r2_objects = list_r2_objects()
     files = []
-    local_names = set()
     
-    # Identify base builds
-    config = load_resume_config()
-    name_raw = config.get("personal", {}).get("name", "Resume")
-    base_prefix = name_raw.upper().replace(' ', '_')
-    expected_base_builds = set()
-    for role_id, recipe in config.get("recipes", {}).items():
-        short = recipe.get("short_name", role_id)
-        display = f"{base_prefix}_{short}"
-        expected_base_builds.add(f"{display}.pdf")
-        expected_base_builds.add(f"{display}_X.pdf")
-    
-    # 1. Local files
-    if DIST_DIR.exists():
-        for f in DIST_DIR.glob("*.pdf"):
-            # Only include base builds in the file list
-            if f.name not in expected_base_builds:
-                continue
-                
-            local_hash = md5_of_file(f)
-            local_names.add(f.name)
-            if f.name in r2_objects:
-                status = "synced" if r2_objects[f.name] == local_hash else "modified"
-            else:
-                status = "new"
-            files.append({
-                "name": f.name,
-                "path": f.name,
-                "sync_status": status,
-                "type": "local"
-            })
-            
-    # 2. Cloud files (R2)
+    # Cloud files (R2)
     # Build a lookup map from r2_key -> {company, version_name}
     key_to_meta = {}
     try:
-        apps = get_all_applications()
-        apps_map = {app["id"]: app for app in apps if "id" in app}
+        apps = db.get_all_applications(user_id)
         
-        # Try fetching all versions using collection group query to avoid N+1 queries
-        from src.core.firebase import get_firebase_db
-        db = get_firebase_db()
-        versions_fetched = False
-        if db:
-            try:
-                # collection_group query retrieves all documents in the "versions" subcollection
-                version_docs = db.collection_group("versions").stream()
-                for doc in version_docs:
-                    v = doc.to_dict()
-                    pdf_key = v.get("pdf_r2_key")
-                    if pdf_key:
-                        try:
-                            # parent is collection 'versions', parent.parent is the application doc
-                            app_id = doc.reference.parent.parent.id
-                            app = apps_map.get(app_id)
-                            if app:
-                                company = app.get("company", "Unknown App")
-                                key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
-                        except Exception:
-                            pass
-                versions_fetched = True
-            except Exception as e:
-                print(f"Collection group query failed (possibly missing index), falling back: {e}")
-                
-        # Fallback if collection group query failed or Firebase is not available
-        if not versions_fetched:
-            for key in r2_objects:
-                parts = key.split("/")
-                if len(parts) == 3 and parts[0] == "resumes":
-                    app_id = parts[1]
-                    app = apps_map.get(app_id)
-                    if app:
-                        company = app.get("company", "Unknown App")
-                        role = app.get("role", "Custom Version")
-                        key_to_meta[key] = f"{company} - {role}"
+        # We fetch all versions iteratively instead of collection group to stay db-agnostic
+        for app in apps:
+            app_id = app["id"]
+            versions = db.get_app_versions(user_id, app_id)
+            for v in versions:
+                pdf_key = v.get("pdf_r2_key")
+                if pdf_key:
+                    company = app.get("company", "Unknown App")
+                    key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
     except Exception as e:
-        print(f"Failed to load firebase apps for list-files: {e}")
+        print(f"Failed to load apps for list-files: {e}")
 
     for key in r2_objects:
-        if key.endswith(".pdf") and key not in local_names:
-            # Check if we should extract just the filename for display
+        if key.endswith(".pdf"):
             display_name = key.split("/")[-1]
             if key in key_to_meta:
                 display_name = f"{key_to_meta[key]}.pdf"
@@ -420,7 +359,7 @@ def list_files():
             files.append({
                 "name": display_name,
                 "path": key,
-                "sync_status": "cloud_only",
+                "sync_status": "synced",
                 "type": "cloud"
             })
             
@@ -478,8 +417,6 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False):
     latex = generate_latex_source(bm["data"], safe_name, include_photo)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
-    if include_photo:
-        latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
 
     suffix = "_X" if include_photo else ""
     filename = f"{safe_name}{suffix}.tex"
@@ -504,7 +441,7 @@ def download_bookmark_zip(bm_id: str):
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
 
-    latex = latex.replace("<<PHOTO_PATH>>", "profile.jpg")
+    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
 
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
@@ -523,104 +460,20 @@ def download_bookmark_zip(bm_id: str):
 
 # ── Downloads ─────────────────────────────────────────────────────────────────
 
-@router.get("/download/{filename}")
-def download_file(filename: str):
-    file_path = DIST_DIR / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404)
-    return FileResponse(path=file_path, filename=filename)
 
 
-@router.get("/download-bundle/{filename}")
-def download_bundle(filename: str):
-    if not filename.endswith(".tex"):
-        filename += ".tex"
-    tex_path = DIST_DIR / filename
-    if not tex_path.exists():
-        raise HTTPException(status_code=404)
-
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        content = tex_path.read_text().replace(
-            str(PROFILE_PHOTO), "profile.jpg"
-        )
-        zf.writestr("resume.tex", content)
-        if PROFILE_PHOTO.exists():
-            zf.write(str(PROFILE_PHOTO), "profile.jpg")
-        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
-
-    zip_buf.seek(0)
-    stem = filename.replace(".tex", "")
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": f'attachment; filename="resume_bundle_{stem}.zip"'},
-    )
-
-
-@router.get("/download-workspace-archive")
-def download_workspace_archive():
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        # Save configs
-        for f in (ROOT / "configs").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"configs/{f.name}")
-        # Save templates
-        for f in (ROOT / "templates").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"templates/{f.name}")
-        # Save assets
-        for f in (ROOT / "assets").glob("*"):
-            if f.is_file(): zf.write(str(f), arcname=f"assets/{f.name}")
-        # Save dist (compiled pdfs and tracker_db)
-        if DIST_DIR.exists():
-            for f in DIST_DIR.glob("*"):
-                if f.is_file(): zf.write(str(f), arcname=f"dist/{f.name}")
-    
-    zip_buf.seek(0)
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": 'attachment; filename="resume_workspace_backup.zip"'},
-    )
-
-
-@router.get("/download-all-pdfs")
-def download_all_pdfs():
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        if DIST_DIR.exists():
-            for f in DIST_DIR.glob("*.pdf"):
-                zf.write(str(f), arcname=f.name)
-                
-    zip_buf.seek(0)
-    return StreamingResponse(
-        zip_buf,
-        media_type="application/x-zip-compressed",
-        headers={"Content-Disposition": 'attachment; filename="all_resumes.zip"'},
-    )
-
-
-def _bundle_instructions() -> str:
-    return (
-        "HOW TO COMPILE YOUR RESUME\n"
-        "---------------------------\n"
-        "1. Unzip this folder.\n"
-        "2. Ensure resume.tex and profile.jpg are in the same folder.\n"
-        "3. Open a terminal and run: pdflatex resume.tex\n"
-        "4. Done! Your PDF will be in the same folder.\n\n"
-        "Alternative: Upload both files to Overleaf.com and click Compile.\n"
-    )
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 @router.get("/build/{role}")
-def build_role_stream(role: str):
+def build_role_stream(role: str, request: Request):
+    user_id = get_user_id(request)
     def stream():
         cmd = (
-            [sys.executable, str(BUILD_PY)]
+            [sys.executable, str(BUILD_PY), "all", "--user", user_id]
             if role == "all"
-            else [sys.executable, str(BUILD_PY), role]
+            else [sys.executable, str(BUILD_PY), role, "--user", user_id]
         )
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -690,12 +543,10 @@ def public_share_page(filename: str):
             ExpiresIn=3600 * 24 * 7
         )
         
-        # Load user data
-        config = load_resume_config()
-        personal = config.get("personal", {})
-        user_name = personal.get("name", "Candidate")
-        user_email = personal.get("email", "contact@example.com")
-        user_initial = user_name[0].upper() if user_name else "C"
+        # Just default values for public share (user_id not easily available)
+        user_name = "Candidate"
+        user_email = ""
+        user_initial = "C"
         
         # Load the presentation template
         template_path = ROOT / "templates" / "share.html"
@@ -714,56 +565,6 @@ def public_share_page(filename: str):
 
 
 
-# ── Photo Manager ─────────────────────────────────────────────────────────────
-
-@router.post("/upload-photo")
-async def upload_photo(file: UploadFile = File(...)):
-    try:
-        content = await file.read()
-        try:
-            new_img = Image.open(io.BytesIO(content))
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid image format")
-
-        if PROFILE_PHOTO.exists():
-            with Image.open(PROFILE_PHOTO) as cur:
-                cur_ratio = cur.width / cur.height
-                new_ratio = new_img.width / new_img.height
-                if abs(cur_ratio - new_ratio) > 0.15:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Aspect ratio mismatch. Current: {cur_ratio:.2f}, "
-                            f"new: {new_ratio:.2f}. Please use a ~3:4 image."
-                        ),
-                    )
-
-        if new_img.mode != "RGB":
-            new_img = new_img.convert("RGB")
-        new_img.save(PROFILE_PHOTO, "JPEG", quality=90)
-
-        # Also upload to R2
-        r2_ok = False
-        try:
-            from src.core.upload import get_r2_client, BUCKET
-            client = get_r2_client()
-            if client:
-                client.upload_file(
-                    str(PROFILE_PHOTO), BUCKET, "profile-photo.jpg",
-                    ExtraArgs={"ContentType": "image/jpeg"},
-                )
-                r2_ok = True
-        except Exception as r2e:
-            print(f"R2 upload error: {r2e}")
-
-        msg = "Photo updated" + (" and synced to cloud" if r2_ok else " (local only)")
-        return {"ok": True, "message": msg}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 # ── Resume Snapshot (custom one-off recipe) ───────────────────────────────────
 
 class SnapshotRequest(BaseModel):
@@ -773,13 +574,14 @@ class SnapshotRequest(BaseModel):
 
 
 @router.post("/snapshot-resume")
-def create_snapshot(req: SnapshotRequest):
+def create_snapshot(req: SnapshotRequest, request: Request):
     """
     Merge `base_recipe` with `customizations` and save as a new recipe.
     The snapshot recipe can then be built like any other role.
     """
-    config = load_resume_config()
-    base = config.get("recipes", {}).get(req.base_recipe)
+    user_id = get_user_id(request)
+    recipes = db.get_recipes(user_id)
+    base = recipes.get(req.base_recipe)
     if not base:
         raise HTTPException(404, f"Base recipe '{req.base_recipe}' not found")
 
@@ -791,19 +593,20 @@ def create_snapshot(req: SnapshotRequest):
     merged["short_name"] = req.snapshot_name.upper()[:8]
 
     snap_key = f"snap_{req.snapshot_name.lower().replace(' ', '_')}"
-    config["recipes"][snap_key] = merged
-    save_resume_config(config)
+    recipes[snap_key] = merged
+    db.save_recipes(user_id, recipes)
     return {"ok": True, "recipe_key": snap_key, "recipe": merged}
 
 
 @router.delete("/snapshot-resume/{snap_key}")
-def delete_snapshot(snap_key: str):
-    config = load_resume_config()
-    recipe = config.get("recipes", {}).get(snap_key)
+def delete_snapshot(snap_key: str, request: Request):
+    user_id = get_user_id(request)
+    recipes = db.get_recipes(user_id)
+    recipe = recipes.get(snap_key)
     if not recipe:
         raise HTTPException(404, "Snapshot not found")
     if not recipe.get("_snapshot"):
         raise HTTPException(400, "Only snapshot recipes can be deleted via this route")
-    del config["recipes"][snap_key]
-    save_resume_config(config)
+    del recipes[snap_key]
+    db.save_recipes(user_id, recipes)
     return {"ok": True}
