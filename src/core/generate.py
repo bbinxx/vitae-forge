@@ -267,32 +267,40 @@ def generate_resume(
         items = config.get(key, [])
 
         if key == "additional_info":
-            # AI JSON format: {"areas_of_interest": "...", "languages": "..."}
-            # Library format: [{"name": "Languages", "content": "..."}, ...]
-            # Normalise both into a canonical list, then render Languages first.
+            sec_toggles = config.get("sections", {})
+            add_info_active = sec_toggles.get("additional_info") is not False
+            
             if isinstance(items, dict):
-                # Build ordered pair: Languages row first, then Areas of Interest
                 lang_val = items.get("languages", "")
                 aoi_val  = items.get("areas_of_interest", "")
-                # Handle AI filling these as arrays instead of strings
                 if isinstance(lang_val, list):
                     lang_val = ", ".join(lang_val)
                 if isinstance(aoi_val, list):
                     aoi_val = ", ".join(aoi_val)
                 normalised = []
-                if lang_val:
+                if lang_val and add_info_active and sec_toggles.get("languages") is not False:
                     normalised.append({"name": "Languages",         "content": lang_val})
-                if aoi_val:
+                if aoi_val and add_info_active and sec_toggles.get("areas_of_interest") is not False:
                     normalised.append({"name": "Areas of Interest", "content": aoi_val})
                 items = normalised
             elif isinstance(items, list):
-                # Library format — sort so Languages always comes first
-                lang_items = [i for i in items if isinstance(i, dict) and "language" in i.get("name","").lower()]
-                aoi_items  = [i for i in items if isinstance(i, dict) and "interest" in i.get("name","").lower()]
-                other      = [i for i in items if isinstance(i, dict)
-                              and "language" not in i.get("name","").lower()
-                              and "interest"  not in i.get("name","").lower()]
-                items = lang_items + aoi_items + other
+                if not add_info_active:
+                    items = []
+                else:
+                    lang_items = [i for i in items if isinstance(i, dict) and "language" in i.get("name","").lower() and sec_toggles.get("languages") is not False]
+                    aoi_items  = [i for i in items if isinstance(i, dict) and "interest" in i.get("name","").lower() and sec_toggles.get("areas_of_interest") is not False]
+                    other      = [i for i in items if isinstance(i, dict)
+                                  and "language" not in i.get("name","").lower()
+                                  and "interest"  not in i.get("name","").lower()]
+                    items = lang_items + aoi_items + other
+
+            # If additional_info items remain, ensure LANGUAGES section wrapper stays active in template
+            if "sections" not in config:
+                config["sections"] = {}
+            if items:
+                config["sections"]["languages"] = True
+            else:
+                config["sections"]["languages"] = False
 
             for item in items:
                 if not isinstance(item, dict) or item.get("active") is False:

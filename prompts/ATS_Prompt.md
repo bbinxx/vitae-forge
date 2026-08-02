@@ -371,6 +371,19 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
     "resume_template": {
       "role_title": "",
       "summary": "",
+      "sections": {
+        "role_title": true,
+        "summary": true,
+        "skills": true,
+        "experience": true,
+        "projects": true,
+        "education": true,
+        "certifications": true,
+        "achievements": true,
+        "areas_of_interest": true,
+        "languages": true,
+        "additional_info": true
+      },
       "skills": {
         "Languages": [],
         "Web Development": [],
