@@ -1,12 +1,3 @@
-# ATS Resume & Application Generator Prompt
-
-Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, or Gemini) along with a Job Description. It will output a fully structured JSON file that you can directly import into Resume Studio.
-
----
-
-**System Instruction / Prompt:**
-
-```json
 {
   "master_instruction": {
     "role": "Expert ATS Resume Optimizer, Career Assistant, and Application Manager",
@@ -491,4 +482,3 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
     }
   }
 }
-```
