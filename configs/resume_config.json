@@ -121,6 +121,20 @@
         "keywords": "Arduino, Raspberry Pi, ESP32, ESP8266"
       }
     },
+    "experience": {
+      "softnotions": {
+        "role": "Software Engineer Trainee",
+        "company": "Softnotions Technologies",
+        "location": "Technopark, Thiruvananthapuram, Kerala",
+        "date": "Jul 2026 -- Present",
+        "points": [
+          "Building Retrieval-Augmented Generation (RAG) pipelines using AWS Bedrock Knowledge Bases for intelligent document search and contextual querying.",
+          "Developing full-stack MERN applications by implementing responsive React interfaces and scalable Node.js/Express REST APIs.",
+          "Managing development tasks through Jira while collaborating using GitHub feature branches, pull requests, and peer code reviews.",
+          "Troubleshooting development environments and testing application components to support reliable software releases."
+        ]
+      }
+    },
     "projects": {
       "will_it_rain": {
         "name": "Will It Rain? -- Weather Risk Prediction System",
@@ -280,6 +294,7 @@
         "photo": true,
         "summary": true,
         "skills": true,
+        "experience": true,
         "projects": true,
         "education": true,
         "certifications": true,
@@ -297,12 +312,14 @@
         "deploy_sd",
         "os_linux_win"
       ],
+      "experience": [
+        "softnotions"
+      ],
       "projects": [
         "will_it_rain",
         "smart_traffic",
         "cert_generator",
-        "irrigo",
-        "texspace"
+        "irrigo"
       ],
       "education": "standard",
       "certifications": [
@@ -329,6 +346,7 @@
         "photo": true,
         "summary": true,
         "skills": true,
+        "experience": true,
         "projects": true,
         "education": true,
         "certifications": true,
@@ -346,12 +364,14 @@
         "arch_bc",
         "os_linux_win"
       ],
+      "experience": [
+        "softnotions"
+      ],
       "projects": [
         "will_it_rain",
         "cert_generator",
         "irrigo",
-        "smart_traffic",
-        "texspace"
+        "smart_traffic"
       ],
       "education": "standard",
       "certifications": [
@@ -378,6 +398,7 @@
         "photo": true,
         "summary": true,
         "skills": true,
+        "experience": true,
         "projects": true,
         "education": true,
         "certifications": true,
@@ -395,12 +416,14 @@
         "design_tools",
         "os_linux_win"
       ],
+      "experience": [
+        "softnotions"
+      ],
       "projects": [
         "will_it_rain",
         "droidops",
         "smart_traffic",
-        "cert_generator",
-        "texspace"
+        "cert_generator"
       ],
       "education": "standard",
       "certifications": [
@@ -427,6 +450,7 @@
         "photo": true,
         "summary": true,
         "skills": true,
+        "experience": true,
         "projects": true,
         "education": true,
         "certifications": true,
@@ -442,6 +466,9 @@
         "tools_sys",
         "infra_sys",
         "os_sys"
+      ],
+      "experience": [
+        "softnotions"
       ],
       "projects": [
         "will_it_rain",

@@ -88,6 +88,31 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
         ],
         "focus": "Concentrate ATS keywords here."
       },
+      "experience": {
+        "required": true,
+        "exact_entries": 1,
+        "structure": {
+          "role": true,
+          "company": true,
+          "location": true,
+          "date": true,
+          "highlights": true
+        },
+        "highlights": {
+          "minimum": 3,
+          "maximum": 4
+        },
+        "max_words_per_bullet": 12,
+        "ordering": "Most relevant role first.",
+        "focus": "Current employer and role aligned with the JD.",
+        "rules": [
+          "Use action verbs.",
+          "Include measurable outcomes when possible.",
+          "Mention technologies used.",
+          "Avoid generic descriptions.",
+          "Tailor highlights to JD keywords."
+        ]
+      },
       "projects": {
         "required": true,
         "exact_projects": 5,
@@ -198,6 +223,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
         "Header",
         "Professional Summary",
         "Skills",
+        "Experience",
         "Projects",
         "Education",
         "Certifications",
@@ -271,6 +297,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       ],
       "skill_categories": 6,
       "keywords_per_skill_category": 4,
+      "experience_entries": 1,
       "project_count": 5,
       "project_total_bullets_range": [
         15,
@@ -303,6 +330,7 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
       "Schema preserved exactly \u2014 no extra fields, no missing fields.",
       "Correct assigned PDF selected.",
       "Exactly 6 skill categories.",
+      "Exactly 1 experience entry.",
       "Exactly 5 projects.",
       "Exactly 3 achievements.",
       "Exactly 1 education entry.",
@@ -351,6 +379,15 @@ Copy the content below and paste it into an AI assistant (like ChatGPT, Claude, 
         "Developer Tools": [],
         "Deployment": []
       },
+      "experience": [
+        {
+          "role": "",
+          "company": "",
+          "location": "",
+          "date": "",
+          "highlights": []
+        }
+      ],
       "projects": [
         {
           "name": "",
