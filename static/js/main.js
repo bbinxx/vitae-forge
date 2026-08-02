@@ -26,14 +26,14 @@ window.exportJSON = function() {
 
 window.exportWorkspace = function() {
     const a = document.createElement('a');
-    a.href = '/download-workspace-archive';
+    a.href = '/download-workspace-archive?token=' + localStorage.getItem('token');
     a.download = 'resume_workspace_backup.zip';
     a.click();
 };
 
 window.exportAllPDFs = function() {
     const a = document.createElement('a');
-    a.href = '/download-all-pdfs';
+    a.href = '/download-all-pdfs?token=' + localStorage.getItem('token');
     a.download = 'all_resumes.zip';
     a.click();
 };

@@ -1,215 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resume Studio — Control Center</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/studio.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Studio — Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/studio.css">
 </head>
+
 <body>
 
-<!-- Header -->
-<header class="header">
-  <div class="header-brand">
-    <span class="brand-icon"></span>
-    <span class="brand-name">Resume Studio</span>
-  </div>
-  <button class="hamburger" onclick="toggleHeaderNav()" aria-label="Toggle navigation">
-    <span class="material-symbols-outlined">menu</span>
-  </button>
-  <nav class="header-nav" id="header-nav">
-    <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
-    <button id="tab-tracker"   class="nav-btn"        onclick="window.switchTab('tracker')">Applications</button>
-    <button id="tab-saved-resumes" class="nav-btn"    onclick="window.switchTab('saved-resumes')">Saved Resumes</button>
-    <button id="tab-templates" class="nav-btn"         onclick="window.switchTab('templates')">Templates</button>
-    <button id="tab-library"   class="nav-btn"        onclick="window.switchTab('library')">Library</button>
-    <button id="tab-settings"  class="nav-btn"        onclick="window.switchTab('settings')">Settings</button>
-  </nav>
-  <div class="header-actions" id="header-actions">
-    <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
-    <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-    <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
-  </div>
-</header>
-<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <span class="brand-icon"></span>
+      <span class="brand-name">Resume Studio</span>
+    </div>
+    <button class="hamburger" onclick="toggleHeaderNav()" aria-label="Toggle navigation">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <nav class="header-nav" id="header-nav">
+      <button id="tab-dashboard" class="nav-btn active" onclick="window.switchTab('dashboard')">Dashboard</button>
+      <button id="tab-tracker" class="nav-btn" onclick="window.switchTab('tracker')">Applications</button>
+      <button id="tab-saved-resumes" class="nav-btn" onclick="window.switchTab('saved-resumes')">Saved Resumes</button>
+      <button id="tab-templates" class="nav-btn" onclick="window.switchTab('templates')">Templates</button>
+      <button id="tab-library" class="nav-btn" onclick="window.switchTab('library')">Library</button>
+      <button id="tab-settings" class="nav-btn" onclick="window.switchTab('settings')">Settings</button>
+    </nav>
+    <div class="header-actions" id="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="exportJSON()"><span class="material-symbols-outlined"
+          style="font-size:14px;vertical-align:-2px">data_object</span> Export JSON</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0"><span class="material-symbols-outlined"
+          style="font-size:14px;vertical-align:-2px">upload_file</span> Import JSON<input type="file" accept=".json"
+          onchange="importJSON(event)" style="display:none"></label>
+      <button class="btn btn-ghost btn-sm" onclick="exportWorkspace()"><span class="material-symbols-outlined"
+          style="font-size:14px;vertical-align:-2px">archive</span> Export Backup</button>
+    </div>
+  </header>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
-<main class="main-content">
+  <main class="main-content">
 
-<!-- ═══════════════════ DASHBOARD ═══════════════════ -->
-<div id="dashboard-view" class="view active">
-  <div class="split-layout">
+    <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+    <div id="dashboard-view" class="view active">
+      <div class="split-layout">
 
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <div class="section-title">Build Manager</div>
-        <div id="roles-grid" class="roles-grid"></div>
-        <button class="btn btn-primary w-full mt-2" onclick="runBuild('all')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">play_circle</span> Build All</button>
-        <button class="btn btn-secondary w-full mt-2" onclick="uploadAll()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">cloud_upload</span> Upload All</button>
-        <button class="btn btn-secondary w-full mt-2" onclick="exportAllPDFs()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">archive</span> Download All PDFs</button>
-        <div id="log" class="log-box mt-3">ready.</div>
-        <div class="build-status">
-          <span id="status-dot" class="dot dot-idle"></span>
-          <span id="status-text">IDLE</span>
+        <aside class="sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">Build Manager</div>
+            <div id="roles-grid" class="roles-grid"></div>
+            <button class="btn btn-primary w-full mt-2" onclick="runBuild('all')"><span
+                class="material-symbols-outlined"
+                style="font-size:16px;vertical-align:-3px;margin-right:4px">play_circle</span> Build All</button>
+            <button class="btn btn-secondary w-full mt-2" onclick="uploadAll()"><span class="material-symbols-outlined"
+                style="font-size:16px;vertical-align:-3px;margin-right:4px">cloud_upload</span> Upload All</button>
+            <button class="btn btn-secondary w-full mt-2" onclick="exportAllPDFs()"><span
+                class="material-symbols-outlined"
+                style="font-size:16px;vertical-align:-3px;margin-right:4px">archive</span> Download All PDFs</button>
+            <div id="log" class="log-box mt-3">ready.</div>
+            <div class="build-status">
+              <span id="status-dot" class="dot dot-idle"></span>
+              <span id="status-text">IDLE</span>
+            </div>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="section-title-row">
+              <span class="section-title">Generated Files</span>
+              <button class="link-btn" onclick="refreshSync()"><span class="material-symbols-outlined"
+                  style="font-size:16px;vertical-align:-3px">refresh</span> Refresh</button>
+            </div>
+            <div id="file-list"></div>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="section-title">Photo Manager</div>
+            <p class="hint-text">Upload profile photo. Must match 3:4 aspect ratio.</p>
+            <input type="file" id="photo-upload-input" accept="image/*" class="hidden" onchange="uploadPhoto(event)">
+            <label for="photo-upload-input" class="btn btn-secondary w-full"
+              style="cursor:pointer;text-align:center"><span class="material-symbols-outlined"
+                style="font-size:16px;vertical-align:-3px;margin-right:4px">photo_camera</span> Upload Photo</label>
+          </div>
+        </aside>
+
+        <div class="panel-main">
+          <div class="viewer-bar">
+            <span id="current-filename" class="viewer-filename">No file selected</span>
+            <div id="dash-actions" class="viewer-actions" style="display:none">
+              <button class="btn btn-sm btn-primary" onclick="uploadCurrent()"><span class="material-symbols-outlined"
+                  style="font-size:14px;vertical-align:-2px">cloud_upload</span> Upload</button>
+              <button class="btn btn-sm btn-success" onclick="shareCurrent()"><span class="material-symbols-outlined"
+                  style="font-size:14px;vertical-align:-2px">link</span> Share</button>
+              <button class="btn btn-sm btn-secondary" onclick="downloadCurrent()"><span
+                  class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">picture_as_pdf</span>
+                PDF</button>
+              <button id="btn-dash-bundle" class="btn btn-sm btn-secondary" onclick="downloadCurrentBundle()"><span
+                  class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">folder_zip</span>
+                ZIP</button>
+              <button id="btn-dash-tex" class="btn btn-sm btn-secondary" onclick="downloadCurrentTex()"><span
+                  class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">code</span>
+                LaTeX</button>
+            </div>
+          </div>
+          <div id="viewer-container" class="pdf-viewer">
+            <div class="viewer-placeholder"> PDF VIEWER</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════════════════ APPLICATIONS ═══════════════════ -->
+    <div id="tracker-view" class="view hidden">
+
+      <!-- App Header -->
+      <div class="apps-header">
+        <div class="apps-header-left">
+          <h2 class="apps-title">My Applications</h2>
+          <span id="apps-count-badge" class="apps-count">0</span>
+        </div>
+        <div class="apps-header-right">
+          <input id="app-search" type="text" class="apps-search-input" placeholder="Search applications…"
+            style="max-width: 280px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);">
+          <select id="app-sort" class="apps-search-input"
+            style="max-width: 180px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.7333rem; cursor: pointer;">
+            <option value="updated_desc">Newest First</option>
+            <option value="updated_asc">Oldest First</option>
+            <option value="company_asc">Company A→Z</option>
+            <option value="company_desc">Company Z→A</option>
+            <option value="status_asc">Status A→Z</option>
+            <option value="priority_desc">Priority High→Low</option>
+            <option value="priority_asc">Priority Low→High</option>
+          </select>
+          <span id="tracker-save-indicator" class="save-indicator"></span>
+          <button class="btn btn-primary btn-sm" onclick="window.openNewAppModal()">
+            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">add</span> New
+            Application
+          </button>
         </div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="section-title-row">
-          <span class="section-title">Generated Files</span>
-          <button class="link-btn" onclick="refreshSync()"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">refresh</span> Refresh</button>
+      <!-- Apps Stats -->
+      <div id="apps-stats-container" class="apps-stats"></div>
+
+      <!-- Grid Layout -->
+      <div class="apps-layout">
+        <div id="apps-grid" class="apps-container"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════ SAVED RESUMES ═══════════════════ -->
+    <div id="saved-resumes-view" class="view hidden">
+      <div class="sr-toolbar">
+        <button class="btn btn-primary" onclick="addNewRecipe()">+ Create from Scratch</button>
+        <button class="btn btn-secondary" onclick="addRecipeFromApp()">+ Clone from Application</button>
+        <input type="text" id="sr-filter" placeholder="Filter saved resumes..."
+          style="margin-left:auto;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card);color:var(--text-primary);font-size:12px;width:240px;">
+      </div>
+      <div class="sr-container">
+        <div id="sr-list" class="sr-list"></div>
+        <div id="sr-empty" class="editor-placeholder" style="margin-top:0">No saved resumes found.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ TEMPLATES ═══════════════════ -->
+    <div id="templates-view" class="view hidden">
+      <div class="split-layout">
+
+        <aside class="sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">LaTeX Templates</div>
+            <div id="templates-list" class="roles-list"></div>
+          </div>
+        </aside>
+
+        <div class="panel-main p-6">
+          <div id="template-editor-empty" class="editor-placeholder">Select a template to view</div>
+
+          <div id="template-editor-form" class="editor-form hidden"
+            style="display:flex;flex-direction:column;height:100%">
+            <div id="tpl-tabs" class="tpl-tabs"></div>
+            <div class="tpl-panels" id="tpl-panels"></div>
+          </div>
         </div>
-        <div id="file-list"></div>
-      </div>
 
-      <div class="sidebar-section">
-        <div class="section-title">Photo Manager</div>
-        <p class="hint-text">Upload profile photo. Must match 3:4 aspect ratio.</p>
-        <input type="file" id="photo-upload-input" accept="image/*" class="hidden" onchange="uploadPhoto(event)">
-        <label for="photo-upload-input" class="btn btn-secondary w-full" style="cursor:pointer;text-align:center"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:4px">photo_camera</span> Upload Photo</label>
       </div>
-    </aside>
+    </div>
 
-    <div class="panel-main">
-      <div class="viewer-bar">
-        <span id="current-filename" class="viewer-filename">No file selected</span>
-        <div id="dash-actions" class="viewer-actions" style="display:none">
-          <button class="btn btn-sm btn-primary" onclick="uploadCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">cloud_upload</span> Upload</button>
-          <button class="btn btn-sm btn-success" onclick="shareCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">link</span> Share</button>
-          <button class="btn btn-sm btn-secondary" onclick="downloadCurrent()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">picture_as_pdf</span> PDF</button>
-          <button id="btn-dash-bundle" class="btn btn-sm btn-secondary" onclick="downloadCurrentBundle()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">folder_zip</span> ZIP</button>
-          <button id="btn-dash-tex" class="btn btn-sm btn-secondary" onclick="downloadCurrentTex()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">code</span> LaTeX</button>
+    <!-- ═══════════════════ LIBRARY ═══════════════════ -->
+    <div id="library-view" class="view hidden">
+      <div class="split-layout">
+
+        <aside class="sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">Categories</div>
+            <div id="lib-category-list" class="roles-list"></div>
+          </div>
+        </aside>
+
+        <div class="panel-main p-6">
+          <div id="lib-editor-container" class="library-container"></div>
         </div>
-      </div>
-      <div id="viewer-container" class="pdf-viewer">
-        <div class="viewer-placeholder"> PDF VIEWER</div>
+
       </div>
     </div>
 
-  </div>
-</div>
 
-<!-- ═══════════════════ APPLICATIONS ═══════════════════ -->
-<div id="tracker-view" class="view hidden">
 
-  <!-- App Header -->
-  <div class="apps-header">
-    <div class="apps-header-left">
-      <h2 class="apps-title">My Applications</h2>
-      <span id="apps-count-badge" class="apps-count">0</span>
-    </div>
-    <div class="apps-header-right">
-      <input id="app-search" type="text" class="apps-search-input" placeholder="Search applications…" style="max-width: 280px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);">
-      <select id="app-sort" class="apps-search-input" style="max-width: 180px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.7333rem; cursor: pointer;">
-        <option value="updated_desc">Newest First</option>
-        <option value="updated_asc">Oldest First</option>
-        <option value="company_asc">Company A→Z</option>
-        <option value="company_desc">Company Z→A</option>
-        <option value="status_asc">Status A→Z</option>
-        <option value="priority_desc">Priority High→Low</option>
-        <option value="priority_asc">Priority Low→High</option>
-      </select>
-      <span id="tracker-save-indicator" class="save-indicator"></span>
-      <button class="btn btn-primary btn-sm" onclick="window.openNewAppModal()">
-        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">add</span> New Application
-      </button>
-    </div>
-  </div>
-
-  <!-- Apps Stats -->
-  <div id="apps-stats-container" class="apps-stats"></div>
-
-  <!-- Grid Layout -->
-  <div class="apps-layout">
-    <div id="apps-grid" class="apps-container"></div>
-  </div>
-
-</div>
-
-<!-- ═══════════════════ SAVED RESUMES ═══════════════════ -->
-<div id="saved-resumes-view" class="view hidden">
-  <div class="sr-toolbar">
-    <button class="btn btn-primary" onclick="addNewRecipe()">+ Create from Scratch</button>
-    <button class="btn btn-secondary" onclick="addRecipeFromApp()">+ Clone from Application</button>
-    <input type="text" id="sr-filter" placeholder="Filter saved resumes..." style="margin-left:auto;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card);color:var(--text-primary);font-size:12px;width:240px;">
-  </div>
-  <div class="sr-container">
-    <div id="sr-list" class="sr-list"></div>
-    <div id="sr-empty" class="editor-placeholder" style="margin-top:0">No saved resumes found.</div>
-  </div>
-</div>
-
-<!-- ═══════════════════ TEMPLATES ═══════════════════ -->
-<div id="templates-view" class="view hidden">
-  <div class="split-layout">
-
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <div class="section-title">LaTeX Templates</div>
-        <div id="templates-list" class="roles-list"></div>
-      </div>
-    </aside>
-
-    <div class="panel-main p-6">
-      <div id="template-editor-empty" class="editor-placeholder">Select a template to view</div>
-
-      <div id="template-editor-form" class="editor-form hidden" style="display:flex;flex-direction:column;height:100%">
-        <div id="tpl-tabs" class="tpl-tabs"></div>
-        <div class="tpl-panels" id="tpl-panels"></div>
+    <!-- ═══════════════════ SETTINGS ═══════════════════ -->
+    <div id="settings-view" class="view hidden">
+      <div class="panel-main p-6"
+        style="max-width:800px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:20px;">
+        <div class="editor-form-header">System Settings</div>
+        <div id="settings-container"></div>
       </div>
     </div>
 
-  </div>
-</div>
+  </main>
 
-<!-- ═══════════════════ LIBRARY ═══════════════════ -->
-<div id="library-view" class="view hidden">
-  <div class="split-layout">
+  <!-- Tracker Modal (injected by tracker.js) -->
+  <div id="tracker-modal" class="modal-overlay hidden" onclick="this.style.display='none'"></div>
 
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <div class="section-title">Categories</div>
-        <div id="lib-category-list" class="roles-list"></div>
-      </div>
-    </aside>
-
-    <div class="panel-main p-6">
-      <div id="lib-editor-container" class="library-container"></div>
-    </div>
-
-  </div>
-</div>
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+  <script>
+    window.addEventListener('error', function (e) {
+      const toast = document.createElement('div');
+      toast.style.cssText = 'background:red;color:white;padding:10px;margin-bottom:5px;border-radius:4px;z-index:999999;position:relative;';
+      toast.textContent = 'JS Error: ' + e.message;
+      document.getElementById('toast-container').appendChild(toast);
+    });
+  </script>
 
 
-
-<!-- ═══════════════════ SETTINGS ═══════════════════ -->
-<div id="settings-view" class="view hidden">
-  <div class="panel-main p-6" style="max-width:800px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-top:20px;">
-    <div class="editor-form-header">System Settings</div>
-    <div id="settings-container"></div>
-  </div>
-</div>
-
-</main>
-
-<!-- Tracker Modal (injected by tracker.js) -->
-<div id="tracker-modal" class="modal-overlay hidden" onclick="this.style.display='none'"></div>
-
-<!-- Toast Notification Container -->
-<div id="toast-container"></div>
-<script>
-window.addEventListener('error', function(e) {
-    const toast = document.createElement('div');
-    toast.style.cssText = 'background:red;color:white;padding:10px;margin-bottom:5px;border-radius:4px;z-index:999999;position:relative;';
-    toast.textContent = 'JS Error: ' + e.message;
-    document.getElementById('toast-container').appendChild(toast);
-});
-</script>
-
-
-
-<script type="module" src="/static/js/main.js?v=5"></script>
+  <script src="/static/js/auth_interceptor.js"></script>
+  <script type="module" src="/static/js/main.js?v=4"></script>
 </body>
+
 </html>
