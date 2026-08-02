@@ -94,7 +94,7 @@ def generate_resume(
     config = {**personal, **recipe}
 
     MODULAR_SECTIONS = [
-        "professional_summary", "role_title", "skills", "projects",
+        "professional_summary", "role_title", "skills", "experience", "projects",
         "education", "certifications", "achievements", "additional_info",
     ]
     for section in MODULAR_SECTIONS:
@@ -229,6 +229,33 @@ def generate_resume(
             
         projects_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
     tmpl = tmpl.replace("<<PROJECTS>>", projects_tex)
+
+    # ── Experience ─────────────────────────────────────────────────────────────
+    experience_tex = ""
+    for exp in config.get("experience", []):
+        if not isinstance(exp, dict) or exp.get("active") is False:
+            continue
+        role     = escape_latex(exp.get("role", exp.get("name", "")))
+        company  = escape_latex(exp.get("company", ""))
+        location = escape_latex(exp.get("location", ""))
+        date     = escape_latex(exp.get("date", ""))
+        
+        date_str = f"\\hfill \\textbf{{ {date} }}" if date else ""
+        company_loc = ", ".join(x for x in [company, location] if x)
+        
+        experience_tex += f"\\textbf{{ {role} }} {date_str}\\\\\n"
+        if company_loc:
+            experience_tex += f"\\textit{{ {company_loc} }}\n"
+        
+        experience_tex += "\\begin{itemize}\n"
+        points = exp.get("points", exp.get("highlights", []))
+        if isinstance(points, list):
+            for pt in points:
+                experience_tex += f"\\item {escape_latex(pt)}\n"
+        elif isinstance(points, str) and points:
+            experience_tex += f"\\item {escape_latex(points)}\n"
+        experience_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
+    tmpl = tmpl.replace("<<EXPERIENCE>>", experience_tex)
 
     # ── Simple table sections ─────────────────────────────────────────────────
     for key, tag in [
