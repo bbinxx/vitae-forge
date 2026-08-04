@@ -231,7 +231,7 @@ function openSrModal(item) {
                             <iframe id="sr-preview-iframe" src="about:blank"></iframe>
                         </div>
                         <div class="modal-tab-pane" id="sr-pane-json">
-                            <textarea class="json-editor" id="sr-json-editor"></textarea>
+                            <div id="sr-json-editor-container" style="height:420px;border-radius:6px;overflow:hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -265,8 +265,17 @@ function openSrModal(item) {
         <button class="btn btn-secondary" onclick="window.srExportBookmark()" style="margin-left:auto"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">bookmark_add</span> Save as Bookmark</button>
     `;
 
-    const editor = document.getElementById('sr-json-editor');
-    editor.value = JSON.stringify(data, null, 2);
+    const jsonContainer = document.getElementById('sr-json-editor-container');
+    if (window.JSONEditor) {
+        jsonContainer.innerHTML = '';
+        window._srJsonEditor = new JSONEditor(jsonContainer, {
+            mode: 'code',
+            modes: ['code', 'tree', 'form']
+        });
+        window._srJsonEditor.set(data);
+    } else {
+        jsonContainer.innerHTML = `<textarea class="json-editor" id="sr-json-editor" style="width:100%;height:100%;font-family:monospace;">${JSON.stringify(data, null, 2)}</textarea>`;
+    }
 
     document.getElementById('sr-preview-iframe').src = 'about:blank';
     overlay.classList.remove('hidden');
@@ -412,10 +421,15 @@ async function srDownloadZip(item) {
     }
 }
 
-async function srExportBookmark(item, editorEl) {
+async function srExportBookmark(item) {
     let data;
     try {
-        data = JSON.parse(editorEl.value);
+        if (window._srJsonEditor) {
+            data = window._srJsonEditor.get();
+        } else {
+            const editorEl = document.getElementById('sr-json-editor');
+            data = JSON.parse(editorEl.value);
+        }
     } catch (e) {
         alert('Invalid JSON in editor. Please fix before saving.');
         return;
