@@ -61,7 +61,9 @@ def build_variant(
     pdf_name   = f"{display_name}{suffix}.pdf"
     print(f"  → Variant: {suffix or 'Standard'}")
 
-    gen_cmd = [sys.executable, str(generate_py), source_role, str(template), tex_name, "--user", user_id]
+    gen_cmd = [sys.executable, str(generate_py), source_role, str(template), tex_name]
+    if user_id:
+        gen_cmd += ["--user", user_id]
     if photo:
         gen_cmd += ["--photo", str(photo)]
     subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
@@ -94,11 +96,11 @@ def build_variant(
         print(f"     {pdf_name} ({pages} page(s))")
 
         # Rename temp → final
-        temp_pdf.rename(DIST_DIR / pdf_name)
+        shutil.move(str(temp_pdf), str(DIST_DIR / pdf_name))
 
         tex_src = ROOT / tex_name
         if tex_src.exists():
-            tex_src.rename(DIST_DIR / f"{display_name}{suffix}.tex")
+            shutil.move(str(tex_src), str(DIST_DIR / f"{display_name}{suffix}.tex"))
 
         for ext in (".aux", ".log", ".out"):
             tmp = DIST_DIR / f"{display_name}{suffix}_temp{ext}"
@@ -200,14 +202,14 @@ def build_all(user_id: str) -> None:
     print("=" * 44)
 
 
-def generate_latex_source(version_data: dict, display_name: str, include_photo: bool) -> str | None:
+def generate_latex_source(version_data: dict, display_name: str, include_photo: bool, user_id: str = None) -> str | None:
     """
     Generate LaTeX source from arbitrary configuration data WITHOUT compiling to PDF.
     Returns the LaTeX source string, or None on failure.
     """
     import tempfile
 
-    main_config = load_resume_config()
+    main_config = get_full_config(user_id) if user_id else load_resume_config()
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
@@ -239,6 +241,8 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         gen_cmd = [sys.executable, str(generate_py), tmp_path, str(template), tex_name]
         if photo:
             gen_cmd += ["--photo", str(photo)]
+        if user_id:
+            gen_cmd += ["--user", user_id]
         subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
 
         tex_src = ROOT / tex_name

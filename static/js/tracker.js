@@ -1021,11 +1021,7 @@ export async function openAppStudio(appId = null) {
                 </div>
                 <!-- Dynamic Section Toggles Toolbar -->
                 <div id="section-toggles-bar" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:5px 8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px"></div>
-                <div id="unified-json-error" style="display:none; color: #dc2626; font-size: 10px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 4px;"></div>
-                <textarea id="unified-json-editor" class="input-field textarea" spellcheck="false"
-                    oninput="window.onUnifiedJsonInput(this.value)"
-                    placeholder='Paste AI JSON output here...'
-                    style="flex:1;border:1.5px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;white-space:pre;">${esc(initialJson)}</textarea>
+                <div id="unified-json-editor-container" style="flex:1;min-height:380px;border-radius:6px;overflow:hidden"></div>
             </div>
             <!-- Right: Live PDF Preview -->
             <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
@@ -1305,9 +1301,50 @@ export async function openAppStudio(appId = null) {
         } else {
             window._includePhoto = false;
         }
-        window.onUnifiedJsonInput(document.getElementById('unified-json-editor').value);
+
+        const container = document.getElementById('unified-json-editor-container');
+        if (container && window.JSONEditor) {
+            container.innerHTML = '';
+            window._unifiedJsonEditor = new JSONEditor(container, {
+                mode: 'code',
+                modes: ['code', 'tree', 'form'],
+                onChangeText: (text) => {
+                    try { window.onUnifiedJsonInput(text); } catch(e) {}
+                }
+            });
+            window.setUnifiedJsonValue(initialJson);
+        }
+        window.onUnifiedJsonInput(window.getUnifiedJsonValue());
     }, 100);
 }
+
+window.getUnifiedJsonValue = function() {
+    if (window._unifiedJsonEditor) {
+        try {
+            return JSON.stringify(window._unifiedJsonEditor.get(), null, 2);
+        } catch (e) {
+            return window._unifiedJsonEditor.getText ? window._unifiedJsonEditor.getText() : '';
+        }
+    }
+    const el = document.getElementById('unified-json-editor');
+    return el ? el.value : '';
+};
+
+window.setUnifiedJsonValue = function(val) {
+    if (window._unifiedJsonEditor) {
+        try {
+            const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+            window._unifiedJsonEditor.set(parsed);
+        } catch (e) {
+            if (window._unifiedJsonEditor.setText && typeof val === 'string') {
+                window._unifiedJsonEditor.setText(val);
+            }
+        }
+    } else {
+        const el = document.getElementById('unified-json-editor');
+        if (el) el.value = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
+    }
+};
 
 // ── Scrape Job URL Handler ──────────────────────────────────────────────────
 
@@ -1347,10 +1384,10 @@ window.copyScrapedPrompt = function() {
 
 /** Pull data from JSON editor into the Details form fields */
 window.syncDetailsTabFromJson = function() {
-    const editor = document.getElementById('unified-json-editor');
-    if (!editor) return;
+    const val = window.getUnifiedJsonValue();
+    if (!val) return;
     let payload;
-    try { payload = parseCleanJson(editor.value); } catch { return; }
+    try { payload = parseCleanJson(val); } catch { return; }
     const f = (id) => document.getElementById(id);
     const setVal = (id, val) => { const el = f(id); if (el) el.value = val ?? ''; };
     setVal('dt-company',      payload.company);
@@ -1382,10 +1419,9 @@ window.syncDetailsTabFromJson = function() {
 
 /** Push form field changes back into the JSON editor */
 window.onDetailsFieldChange = function() {
-    const editor = document.getElementById('unified-json-editor');
-    if (!editor) return;
+    const val = window.getUnifiedJsonValue();
     let payload;
-    try { payload = parseCleanJson(editor.value); } catch { payload = {}; }
+    try { payload = parseCleanJson(val); } catch { payload = {}; }
     const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
     payload.company       = g('dt-company');
     payload.role          = g('dt-role');
@@ -1404,8 +1440,8 @@ window.onDetailsFieldChange = function() {
     payload.include_photo = g('dt-include-photo') === 'true';
     payload.notes         = g('dt-notes');
     payload.job_description = g('dt-jd');
-    editor.value = JSON.stringify(payload, null, 2);
-    window.onUnifiedJsonInput(editor.value);
+    window.setUnifiedJsonValue(payload);
+    window.onUnifiedJsonInput(window.getUnifiedJsonValue());
 };
 
 // ── Email Tab Helpers ─────────────────────────────────────────────────────────
@@ -1423,10 +1459,10 @@ function extractRecipientEmail(payload) {
 
 /** Sync email tab fields from the current JSON editor content */
 window.syncEmailTabFromJson = () => {
-    const editorEl = document.getElementById('unified-json-editor');
-    if (!editorEl) return;
+    const val = window.getUnifiedJsonValue();
+    if (!val) return;
     let payload;
-    try { payload = parseCleanJson(editorEl.value); } catch { return; }
+    try { payload = parseCleanJson(val); } catch { return; }
 
     const email = payload.email || {};
     const to    = email.to || extractRecipientEmail(payload);
@@ -1450,10 +1486,10 @@ window.syncEmailTabFromJson = () => {
 
 /** Push email field edits back into JSON editor */
 window.onEmailFieldChange = () => {
-    const editorEl = document.getElementById('unified-json-editor');
-    if (!editorEl) return;
+    const val = window.getUnifiedJsonValue();
+    if (!val) return;
     let payload;
-    try { payload = parseCleanJson(editorEl.value); } catch { return; }
+    try { payload = parseCleanJson(val); } catch { return; }
 
     const subEl = document.getElementById('email-subject');
     const bodEl = document.getElementById('email-body');

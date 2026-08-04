@@ -385,7 +385,7 @@ def view_cloud_pdf(key: str):
 # ── Bookmark Compile / Download ────────────────────────────────────────────────
 
 @router.post("/bookmarks/{bm_id}/compile-pdf")
-def compile_bookmark_pdf(bm_id: str, include_photo: bool = False):
+def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Request = None):
     from src.core.build import build_custom_version
     import re as _re
     bookmarks = _load_bookmarks()
@@ -393,11 +393,12 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False):
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     pdf_name = f"bm_{safe_name}"
     suffix = "_X" if include_photo else ""
 
-    success = build_custom_version(bm["data"], pdf_name, include_photo)
+    success = build_custom_version(bm["data"], pdf_name, include_photo, user_id=user_id)
     if not success:
         raise HTTPException(500, "Failed to compile PDF")
 
@@ -405,7 +406,7 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False):
 
 
 @router.get("/bookmarks/{bm_id}/download-latex")
-def download_bookmark_latex(bm_id: str, include_photo: bool = False):
+def download_bookmark_latex(bm_id: str, include_photo: bool = False, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
     bookmarks = _load_bookmarks()
@@ -413,8 +414,9 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False):
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
-    latex = generate_latex_source(bm["data"], safe_name, include_photo)
+    latex = generate_latex_source(bm["data"], safe_name, include_photo, user_id=user_id)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
 
@@ -428,7 +430,7 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False):
 
 
 @router.get("/bookmarks/{bm_id}/download-zip")
-def download_bookmark_zip(bm_id: str):
+def download_bookmark_zip(bm_id: str, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
     bookmarks = _load_bookmarks()
@@ -436,8 +438,9 @@ def download_bookmark_zip(bm_id: str):
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
-    latex = generate_latex_source(bm["data"], safe_name, include_photo=True)
+    latex = generate_latex_source(bm["data"], safe_name, include_photo=True, user_id=user_id)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
 
