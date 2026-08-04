@@ -711,10 +711,11 @@ export async function loadTracker() {
             window.__PRELOADED_APPS__ = null;
             window.__PRELOADED_FILES__ = null;
         } else {
-            [applications, distFiles] = await Promise.all([
-                trackerApi.list(),
-                fetch('/list-files').then(r => r.json()).catch(() => []),
-            ]);
+            applications = await trackerApi.list();
+            fetch('/list-files')
+                .then(r => r.json())
+                .then(files => { distFiles = files; renderGrid(); })
+                .catch(() => { distFiles = []; });
         }
         const countEl = document.getElementById('apps-count-badge');
         if (countEl) countEl.textContent = applications.length;
