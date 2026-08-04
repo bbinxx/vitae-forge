@@ -31,6 +31,11 @@ window.exportWorkspace = function() {
     a.click();
 };
 
+window.signOut = function() {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+};
+
 window.exportAllPDFs = function() {
     const a = document.createElement('a');
     a.href = '/download-all-pdfs?token=' + localStorage.getItem('token');

@@ -38,7 +38,7 @@ def get_r2_client():
         endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(signature_version="s3v4"),
+        config=Config(signature_version="s3v4", connect_timeout=3, read_timeout=3),
         region_name="auto",
     )
 
@@ -51,23 +51,37 @@ def md5_of_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def list_r2_objects() -> dict[str, str]:
+_r2_cache = None
+_r2_cache_time = 0
+
+def list_r2_objects(ttl: int = 30) -> dict[str, str]:
     """Return {key: etag} for all objects in the R2 bucket."""
+    global _r2_cache, _r2_cache_time
+    import time
+    now = time.time()
+    if _r2_cache is not None and (now - _r2_cache_time) < ttl:
+        return _r2_cache
+
     client = get_r2_client()
     if not client:
         return {}
     try:
         resp = client.list_objects_v2(Bucket=BUCKET)
-        return {
+        res = {
             obj["Key"]: obj["ETag"].strip('"')
             for obj in resp.get("Contents", [])
         }
+        _r2_cache = res
+        _r2_cache_time = now
+        return res
     except Exception:
         return {}
 
 
 def upload_pdf(filename: str) -> dict:
     """Upload a single PDF from DIST_DIR to R2. Returns {ok, error?}."""
+    global _r2_cache
+    _r2_cache = None
     file_path = DIST_DIR / filename
     client = get_r2_client()
     if not client:
