@@ -55,7 +55,10 @@ async def cookie_auth_middleware(request: Request, call_next):
         return await call_next(request)
         
     path = request.url.path
-    if path.startswith("/api/auth/") or path == "/api/preview-pdf" or path.startswith("/static/") or path.startswith("/share/") or path == "/" or path == "/login":
+    if (path.startswith("/api/auth/") or path == "/api/preview-pdf" or 
+        path.startswith("/static/") or path.startswith("/share/") or 
+        path == "/" or path == "/login" or path == "/favicon.ico" or 
+        path.startswith("/.well-known/")):
         return await call_next(request)
         
     auth_header = request.headers.get("Authorization")
@@ -219,7 +222,7 @@ def index():
     
     # Preload data for instant render - disabled or handled via API
     try:
-        script = f"<script>window.__PRELOADED_APPS__ = []; window.__PRELOADED_FILES__ = [];</script>"
+        script = f"<script>window.__PRELOADED_APPS__ = null; window.__PRELOADED_FILES__ = null;</script>"
         html = html.replace("</head>", f"{script}\n</head>")
     except Exception as e:
         print(f"Preload error: {e}")

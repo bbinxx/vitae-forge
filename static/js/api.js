@@ -1,7 +1,7 @@
 export const api = {
     async fetchConfig() {
         const res = await fetch('/get-config');
-        if (res.status === 401) { window.location.reload(); return {}; }
+        if (res.status === 401) { return {}; }
         return await res.json();
     },
     async saveConfig(state) {
@@ -14,7 +14,7 @@ export const api = {
     },
     async fetchFiles() {
         const res = await fetch('/list-files');
-        if (res.status === 401) { window.location.reload(); return []; }
+        if (res.status === 401) { return []; }
         return await res.json();
     },
     async uploadPhoto(file) {

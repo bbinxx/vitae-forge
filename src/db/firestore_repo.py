@@ -12,6 +12,8 @@ class FirestoreRepository(AbstractRepository):
     def __init__(self):
         self._db = None
         self._initialize_firebase()
+        self._apps_cache = {}
+        self._app_versions_cache = {}
 
     def _initialize_firebase(self):
         cred_path = os.environ.get("FIREBASE_CREDENTIALS_PATH")
@@ -97,27 +99,39 @@ class FirestoreRepository(AbstractRepository):
 
     # ── Applications (per-user) ──
     def get_all_applications(self, user_id: str) -> List[Dict[str, Any]]:
+        if user_id in self._apps_cache:
+            return self._apps_cache[user_id]
         docs = self._user_ref(user_id).collection("applications").stream()
-        return [doc.to_dict() for doc in docs]
+        res = [doc.to_dict() for doc in docs]
+        self._apps_cache[user_id] = res
+        return res
 
     def get_application(self, user_id: str, app_id: str) -> Optional[Dict[str, Any]]:
         doc = self._user_ref(user_id).collection("applications").document(app_id).get()
         return doc.to_dict() if doc.exists else None
 
     def save_application(self, user_id: str, app: Dict[str, Any]) -> None:
+        self._apps_cache.pop(user_id, None)
         app_id = app.get("id")
         if not app_id:
             return
         self._user_ref(user_id).collection("applications").document(app_id).set(app)
 
     def delete_application(self, user_id: str, app_id: str) -> None:
+        self._apps_cache.pop(user_id, None)
         self._user_ref(user_id).collection("applications").document(app_id).delete()
 
     def get_app_versions(self, user_id: str, app_id: str) -> List[Dict[str, Any]]:
+        key = (user_id, app_id)
+        if key in self._app_versions_cache:
+            return self._app_versions_cache[key]
         docs = self._user_ref(user_id).collection("applications").document(app_id).collection("versions").stream()
-        return [doc.to_dict() for doc in docs]
+        res = [doc.to_dict() for doc in docs]
+        self._app_versions_cache[key] = res
+        return res
 
     def save_app_version(self, user_id: str, app_id: str, version_data: Dict[str, Any]) -> None:
+        self._app_versions_cache.pop((user_id, app_id), None)
         v_id = version_data.get("id")
         if not v_id:
             return
@@ -128,6 +142,7 @@ class FirestoreRepository(AbstractRepository):
         return doc.to_dict() if doc.exists else None
 
     def delete_app_version(self, user_id: str, app_id: str, v_id: str) -> bool:
+        self._app_versions_cache.pop((user_id, app_id), None)
         try:
             self._user_ref(user_id).collection("applications").document(app_id).collection("versions").document(v_id).delete()
             return True
