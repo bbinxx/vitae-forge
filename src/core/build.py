@@ -17,7 +17,7 @@ if str(_project_root) not in sys.path:
 from src.core.config import (
     ROOT, DIST_DIR, LOG_DIR,
     TEMPLATE_PLAIN, TEMPLATE_PHOTO, PROFILE_PHOTO,
-    find_pdflatex,
+    find_pdflatex, load_resume_config,
 )
 from src.services.resume_service import get_full_config
 
@@ -44,6 +44,10 @@ def clean() -> None:
     print(" Clean complete.")
 
 
+CACHE_DIR = DIST_DIR / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
+
+
 def build_variant(
     source_role: str,
     display_name: str,
@@ -54,53 +58,70 @@ def build_variant(
 ) -> bool:
     """
     Generate a single LaTeX variant, compile with pdflatex.
-    Returns True on success.
+    Returns True on success. Uses in-process generation, batchmode, and MD5 caching.
     """
-    generate_py = ROOT / "src" / "core" / "generate.py"
-    tex_name   = f"{display_name}{suffix}_temp.tex"
-    pdf_name   = f"{display_name}{suffix}.pdf"
-    print(f"  → Variant: {suffix or 'Standard'}")
+    import hashlib
+    from src.core.generate import generate_resume
 
-    gen_cmd = [sys.executable, str(generate_py), source_role, str(template), tex_name]
-    if user_id:
-        gen_cmd += ["--user", user_id]
-    if photo:
-        gen_cmd += ["--photo", str(photo)]
-    subprocess.run(gen_cmd, cwd=str(ROOT), check=True)
+    tex_name = f"{display_name}{suffix}_temp.tex"
+    pdf_name = f"{display_name}{suffix}.pdf"
 
-    log_file = LOG_DIR / f"{display_name}{suffix}_build.log"
-    print("  → Compiling with pdflatex...")
-    
-    pdflatex_cmd = find_pdflatex()
-    if not pdflatex_cmd:
-        print("     Error: 'pdflatex' executable not found in PATH.")
-        with open(log_file, "w") as lf:
-            lf.write("Error: 'pdflatex' executable not found in PATH.\n")
-            lf.write("Please install a LaTeX distribution (like TeX Live or MiKTeX) to compile PDFs.\n")
+    # In-process generation to eliminate Python process startup overhead
+    generate_resume(
+        source=source_role,
+        template_path=str(template),
+        output_path=tex_name,
+        photo_path=str(photo) if photo else None,
+        user_id=user_id
+    )
+
+    tex_file = ROOT / tex_name
+    if not tex_file.exists():
         return False
 
+    with open(tex_file, "rb") as tf:
+        tex_bytes = tf.read()
+
+    # MD5 Cache Check
+    cache_key = hashlib.md5(tex_bytes + str(template).encode() + (str(photo).encode() if photo else b"")).hexdigest()
+    cached_pdf = CACHE_DIR / f"{cache_key}.pdf"
+    final_pdf_path = DIST_DIR / pdf_name
+
+    if cached_pdf.exists():
+        shutil.copy(str(cached_pdf), str(final_pdf_path))
+        if tex_file.exists():
+            shutil.move(str(tex_file), str(DIST_DIR / f"{display_name}{suffix}.tex"))
+        return True
+
+    log_file = LOG_DIR / f"{display_name}{suffix}_build.log"
+    pdflatex_cmd = find_pdflatex()
+    if not pdflatex_cmd:
+        with open(log_file, "w") as lf:
+            lf.write("Error: 'pdflatex' executable not found in PATH.\n")
+        return False
+
+    # High-speed compilation using batchmode
     subprocess.run(
-        [pdflatex_cmd, "-interaction=nonstopmode",
+        [pdflatex_cmd, "-interaction=batchmode", "-halt-on-error",
          f"-output-directory={DIST_DIR}", tex_name],
         cwd=str(ROOT), stdout=open(log_file, "w"), stderr=subprocess.STDOUT,
     )
 
-    # Check if the PDF was actually produced (pdflatex may exit non-zero on warnings)
     temp_pdf = DIST_DIR / f"{display_name}{suffix}_temp.pdf"
+    if not temp_pdf.exists():
+        # Fallback to nonstopmode if batchmode encountered an error
+        subprocess.run(
+            [pdflatex_cmd, "-interaction=nonstopmode",
+             f"-output-directory={DIST_DIR}", tex_name],
+            cwd=str(ROOT), stdout=open(log_file, "w"), stderr=subprocess.STDOUT,
+        )
+
     if temp_pdf.exists():
-        pages = "?"
-        with open(log_file, encoding="utf-8", errors="ignore") as lf:
-            m = re.search(r"Output written on.*?\(([0-9]+) page", lf.read())
-            if m:
-                pages = m.group(1)
-        print(f"     {pdf_name} ({pages} page(s))")
+        shutil.copy(str(temp_pdf), str(cached_pdf))
+        shutil.move(str(temp_pdf), str(final_pdf_path))
 
-        # Rename temp → final
-        shutil.move(str(temp_pdf), str(DIST_DIR / pdf_name))
-
-        tex_src = ROOT / tex_name
-        if tex_src.exists():
-            shutil.move(str(tex_src), str(DIST_DIR / f"{display_name}{suffix}.tex"))
+        if tex_file.exists():
+            shutil.move(str(tex_file), str(DIST_DIR / f"{display_name}{suffix}.tex"))
 
         for ext in (".aux", ".log", ".out"):
             tmp = DIST_DIR / f"{display_name}{suffix}_temp{ext}"
@@ -108,7 +129,6 @@ def build_variant(
                 tmp.unlink()
         return True
     else:
-        # Read last 30 lines of log for diagnostics
         try:
             with open(log_file, encoding="utf-8", errors="ignore") as lf:
                 lines = lf.readlines()
@@ -141,26 +161,35 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     import tempfile
     
     # Merge with personal/library from main config to ensure complete data
-    main_config = get_full_config(user_id) if user_id else {}
+    main_config = get_full_config(user_id) if user_id else load_resume_config()
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
     }
     
-    # Recursively merge library so we don't lose un-customized items
-    if "library" in version_data:
-        for lib_type, lib_items in version_data["library"].items():
+    rec_obj = version_data.get("recipe") if (isinstance(version_data, dict) and "recipe" in version_data) else (version_data.get("resume_template") if (isinstance(version_data, dict) and "resume_template" in version_data) else None)
+    if isinstance(rec_obj, dict):
+        v_data = dict(rec_obj)
+        if "cover_letter" not in v_data and "email" in version_data:
+            v_data["cover_letter"] = version_data["email"]
+        elif "cover_letter" in version_data and "cover_letter" not in v_data:
+            v_data["cover_letter"] = version_data["cover_letter"]
+    else:
+        v_data = dict(version_data)
+
+    if "library" in v_data:
+        for lib_type, lib_items in v_data["library"].items():
             if lib_type not in full_config["library"]:
                 full_config["library"][lib_type] = {}
             for item_id, item_data in lib_items.items():
                 full_config["library"][lib_type][item_id] = item_data
         
         # Don't overwrite the whole library dict in the shallow update
-        v_data = dict(version_data)
-        del v_data["library"]
-        full_config.update(v_data)
+        v_data_clean = dict(v_data)
+        del v_data_clean["library"]
+        full_config.update(v_data_clean)
     else:
-        full_config.update(version_data)
+        full_config.update(v_data)
     
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(full_config, tmp)
@@ -215,17 +244,27 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         "library": main_config.get("library", {}),
     }
 
-    if "library" in version_data:
-        for lib_type, lib_items in version_data["library"].items():
+    rec_obj = version_data.get("recipe") if (isinstance(version_data, dict) and "recipe" in version_data) else (version_data.get("resume_template") if (isinstance(version_data, dict) and "resume_template" in version_data) else None)
+    if isinstance(rec_obj, dict):
+        v_data = dict(rec_obj)
+        if "cover_letter" not in v_data and "email" in version_data:
+            v_data["cover_letter"] = version_data["email"]
+        elif "cover_letter" in version_data and "cover_letter" not in v_data:
+            v_data["cover_letter"] = version_data["cover_letter"]
+    else:
+        v_data = dict(version_data)
+
+    if "library" in v_data:
+        for lib_type, lib_items in v_data["library"].items():
             if lib_type not in full_config["library"]:
                 full_config["library"][lib_type] = {}
             for item_id, item_data in lib_items.items():
                 full_config["library"][lib_type][item_id] = item_data
-        v_data = dict(version_data)
-        del v_data["library"]
-        full_config.update(v_data)
+        v_data_clean = dict(v_data)
+        del v_data_clean["library"]
+        full_config.update(v_data_clean)
     else:
-        full_config.update(version_data)
+        full_config.update(v_data)
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(full_config, tmp)

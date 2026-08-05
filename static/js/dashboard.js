@@ -108,9 +108,9 @@ export async function uploadPhoto(event) {
     if (!file) return;
     try {
         const res = await api.uploadPhoto(file);
-        if (res.ok) alert(' ' + res.data.message);
-        else alert(' Upload failed:\n' + (res.data.detail || 'Unknown error'));
-    } catch (e) { alert(' Error uploading photo.'); }
+        if (res.ok) await alert(' ' + res.data.message);
+        else await alert(' Upload failed:\n' + (res.data.detail || 'Unknown error'));
+    } catch (e) { await alert(' Error uploading photo.'); }
     event.target.value = '';
 }
 
@@ -122,13 +122,13 @@ export async function uploadAll() {
         const res = await fetch('/upload-all', { method: 'POST' });
         const data = await res.json();
         if (res.ok && data.ok) {
-            alert(' Success: ' + data.message);
+            await alert(' Success: ' + data.message);
             if (log) log.innerHTML += `<br><span style="color:var(--text-muted)">[${new Date().toLocaleTimeString()}]</span> Upload All Complete: ${data.message}`;
         } else {
-            alert(' Upload All failed:\n' + (data.detail || data.message || 'Unknown error'));
+            await alert(' Upload All failed:\n' + (data.detail || data.message || 'Unknown error'));
         }
     } catch (e) { 
-        alert(' Error uploading files.'); 
+        await alert(' Error uploading files.'); 
     }
 }
 
@@ -160,13 +160,13 @@ window.shareCurrent = async () => {
     
     try {
         await navigator.clipboard.writeText(publicUrl);
-        alert(`Smart Portfolio Link copied to clipboard!\n\n${publicUrl}\n\n(Valid for 7 days)`);
+        await alert(`Smart Portfolio Link copied to clipboard!\n\n${publicUrl}\n\n(Valid for 7 days)`);
     } catch(e) {
-        alert('Failed to copy link.');
+        await alert('Failed to copy link.');
     }
 };
 
-state.subscribe(() => {
+state.subscribe(async () => {
     const rolesGrid = document.getElementById('roles-grid');
     if (rolesGrid) {
         rolesGrid.innerHTML = Object.keys(state.data.recipes).map(r =>

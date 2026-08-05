@@ -1,12 +1,14 @@
 import { state } from './app.js';
+import { openBookmarkEditor } from './version_editor.js';
 
 let bookmarks = [];
 
 function buildItemList() {
     const items = [];
+    const recipes = state.data.recipes || {};
 
-    for (const roleId of Object.keys(state.data.recipes || {})) {
-        const recipe = state.data.recipes[roleId];
+    for (const roleId of Object.keys(recipes)) {
+        const recipe = recipes[roleId];
         const name = recipe.short_name || roleId;
         items.push({
             id: `recipe_${roleId}_nophoto`,
@@ -14,7 +16,12 @@ function buildItemList() {
             source: 'recipe',
             roleId,
             includePhoto: false,
-            getData: () => JSON.parse(JSON.stringify(recipe)),
+            getData: () => {
+                const d = JSON.parse(JSON.stringify(recipes[roleId]));
+                if (!d.sections) d.sections = {};
+                d.sections.photo = false;
+                return d;
+            },
             origin: 'Recipe',
         });
         items.push({
@@ -24,7 +31,7 @@ function buildItemList() {
             roleId,
             includePhoto: true,
             getData: () => {
-                const d = JSON.parse(JSON.stringify(recipe));
+                const d = JSON.parse(JSON.stringify(recipes[roleId]));
                 if (!d.sections) d.sections = {};
                 d.sections.photo = true;
                 return d;
@@ -40,8 +47,8 @@ function buildItemList() {
             name: bm.name,
             source: 'bookmark',
             bmId: bm.id,
-            includePhoto: !!(data.sections && data.sections.photo),
-            getData: () => JSON.parse(JSON.stringify(data)),
+            includePhoto: data.sections && data.sections.photo !== false,
+            getData: function() { return this._customData || JSON.parse(JSON.stringify(data)); },
             origin: 'Bookmark',
             createdAt: bm.created_at,
         });
@@ -106,20 +113,74 @@ export async function loadSavedResumes() {
     renderList(filter);
 }
 
-export function addNewRecipe() {
-    const newId = prompt("Enter new recipe ID (e.g., frontend):");
-    if (!newId) return;
-    if (state.data.recipes[newId]) return alert("Recipe ID already exists");
 
-    state.data.recipes[newId] = {
-        short_name: "NEW",
-        sections: { role_title: true, photo: true, summary: true, skills: true, projects: true, education: true, certifications: true, achievements: true, languages: true },
-        role_title: Object.keys(state.data.library.role_title || {})[0] || "",
-        professional_summary: Object.keys(state.data.library.professional_summary || {})[0] || "",
-        skills: [], projects: [], education: Object.keys(state.data.library.education || {})[0] || "", certifications: [], achievements: [], additional_info: []
-    };
-    state.notify();
-    loadSavedResumes();
+let _jsonImportEditor = null;
+
+export function addRecipeFromJson() {
+    document.getElementById('json-import-name').value = '';
+    document.getElementById('json-import-photo').checked = false;
+    
+    const container = document.getElementById('json-import-editor-container');
+    container.innerHTML = '';
+    
+    if (window.JSONEditor) {
+        _jsonImportEditor = new JSONEditor(container, {
+            mode: 'code',
+            modes: ['code', 'tree', 'form']
+        });
+        _jsonImportEditor.set({});
+    } else {
+        container.innerHTML = '<textarea id="json-import-textarea" class="json-editor" style="width:100%; height:100%; border:none; padding:8px;"></textarea>';
+    }
+    
+    const modal = document.getElementById('json-import-modal');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+export async function submitJsonImport() {
+    let data;
+    if (_jsonImportEditor) {
+        try {
+            data = _jsonImportEditor.get();
+        } catch(e) {
+            return await alert("Invalid JSON format in editor.");
+        }
+    } else {
+        const text = document.getElementById('json-import-textarea').value;
+        try {
+            data = JSON.parse(text);
+        } catch(e) {
+            return await alert("Invalid JSON format.");
+        }
+    }
+    
+    const name = document.getElementById('json-import-name').value.trim();
+    if (!name) return await alert("Please enter a name for the resume.");
+    
+    const includePhoto = document.getElementById('json-import-photo').checked;
+    if (!data.sections) data.sections = {};
+    data.sections.photo = includePhoto;
+    
+    try {
+        const res = await fetch('/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, data, source_app_id: '' })
+        });
+        const result = await res.json();
+        if (result.ok) {
+            const modal = document.getElementById('json-import-modal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            await alert('Resume added successfully!');
+            loadSavedResumes();
+        } else {
+            await alert('Failed to add resume');
+        }
+    } catch (e) {
+        await alert('Error: ' + e.message);
+    }
 }
 
 export async function addRecipeFromApp() {
@@ -131,22 +192,22 @@ export async function addRecipeFromApp() {
     } catch (e) {}
 
     if (apps.length === 0 && bookmarks.length === 0) {
-        return alert("No applications or bookmarks found to clone from.");
+        return await alert("No applications or bookmarks found to clone from.");
     }
     const items = [
         ...apps.map((a, i) => ({ idx: i, label: `${a.company} - ${a.role}`, template: a.resume_template })),
         ...bookmarks.map((b, i) => ({ idx: i + apps.length, label: `[Bookmark] ${b.name}`, template: b.data }))
     ];
     const listStr = items.map(it => `${it.idx}: ${it.label}`).join('\n');
-    const indexStr = prompt(`Enter the index to clone:\n${listStr}`);
+    const indexStr = await prompt(`Enter the index to clone:\n${listStr}`);
     if (!indexStr || isNaN(indexStr)) return;
     const idx = parseInt(indexStr);
     const item = items[idx];
-    if (!item || !item.template) return alert("Selected item has no resume template.");
+    if (!item || !item.template) return await alert("Selected item has no resume template.");
 
-    const newId = prompt("Enter ID for the cloned recipe:");
+    const newId = await prompt("Enter ID for the cloned recipe:");
     if (!newId) return;
-    if (state.data.recipes[newId]) return alert("Recipe ID already exists");
+    if (state.data.recipes[newId]) return await alert("Recipe ID already exists");
 
     state.data.recipes[newId] = JSON.parse(JSON.stringify(item.template));
     state.data.recipes[newId].short_name = "CLONED";
@@ -161,15 +222,15 @@ export async function bookmarkAppResume(appId) {
         const data = await res.json();
         const apps = data.applications || [];
         const app = apps.find(a => a.id === appId);
-        if (!app) { alert('Application not found'); return; }
+        if (!app) { await alert('Application not found'); return; }
 
         const template = app.resume_template;
         if (!template || Object.keys(template).length === 0) {
-            alert('This application has no resume template to bookmark.');
+            await alert('This application has no resume template to bookmark.');
             return;
         }
 
-        const name = prompt('Name this saved resume:', `${app.company} - ${app.role}`);
+        const name = await prompt('Name this saved resume:', `${app.company} - ${app.role}`);
         if (!name) return;
 
         const bmRes = await fetch('/bookmarks', {
@@ -179,33 +240,116 @@ export async function bookmarkAppResume(appId) {
         });
         const bmData = await bmRes.json();
         if (bmData.ok) {
-            alert('Resume bookmarked successfully!');
+            await alert('Resume bookmarked successfully!');
             loadSavedResumes();
         } else {
-            alert('Failed to bookmark resume.');
+            await alert('Failed to bookmark resume.');
         }
     } catch (e) {
-        alert('Error bookmarking resume: ' + e.message);
+        await alert('Error bookmarking resume: ' + e.message);
     }
 }
 
 export async function deleteBookmarkItem(bmId) {
-    if (!confirm('Delete this bookmark?')) return;
+    if (!await confirm('Delete this bookmark?')) return;
     try {
         await fetch(`/bookmarks/${bmId}`, { method: 'DELETE' });
         loadSavedResumes();
     } catch (e) {
-        alert('Error deleting bookmark: ' + e.message);
+        await alert('Error deleting bookmark: ' + e.message);
     }
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
 
 let _srModalCurrentItem = null;
+let _srPreviewType = 'resume';
+let _srIncludePhoto = false;
+let _srDebounceTimer = null;
+let _srCompiledPdf = null;
+
+window.srHasCoverLetter = function(data) {
+    if (!data || typeof data !== 'object') return false;
+    const cl = data.cover_letter || data.email || (data.resume_template && (data.resume_template.cover_letter || data.resume_template.email)) || (data.recipe && (data.recipe.cover_letter || data.recipe.email));
+    return !!(cl && String(cl).trim());
+};
+
+window.srUpdateToggleUI = function() {
+    const rBtn = document.getElementById('sr-type-resume');
+    const cBtn = document.getElementById('sr-type-cover');
+    const pBtn = document.getElementById('sr-type-photo');
+
+    const item = _srModalCurrentItem;
+    const data = item ? item.getData() : null;
+    const hasCL = window.srHasCoverLetter(data);
+
+    if (cBtn) {
+        if (!hasCL) {
+            cBtn.style.display = 'none';
+            if (_srPreviewType === 'cover_letter') {
+                _srPreviewType = 'resume';
+            }
+        } else {
+            cBtn.style.display = 'inline-flex';
+        }
+    }
+
+    if (rBtn && cBtn) {
+        if (_srPreviewType === 'resume') {
+            rBtn.style.background = 'var(--accent)';
+            rBtn.style.color = 'white';
+            cBtn.style.background = 'transparent';
+            cBtn.style.color = 'inherit';
+        } else {
+            cBtn.style.background = 'var(--accent)';
+            cBtn.style.color = 'white';
+            rBtn.style.background = 'transparent';
+            rBtn.style.color = 'inherit';
+        }
+    }
+    if (pBtn) {
+        if (_srIncludePhoto) {
+            pBtn.style.background = 'var(--accent)';
+            pBtn.style.color = 'white';
+        } else {
+            pBtn.style.background = 'transparent';
+            pBtn.style.color = 'inherit';
+        }
+    }
+};
+
+window.srSetPreviewType = function(type) {
+    _srPreviewType = type;
+    window.srUpdateToggleUI();
+    refreshPreview();
+};
+
+window.srTogglePhoto = function() {
+    _srIncludePhoto = !_srIncludePhoto;
+    window.srUpdateToggleUI();
+    refreshPreview();
+};
+
+window.srOnJsonInput = function(text) {
+    try {
+        const item = _srModalCurrentItem;
+        if (item) {
+            item._customData = JSON.parse(text);
+            window.srUpdateToggleUI();
+            const saveStatus = document.getElementById('sr-save-status');
+            if (saveStatus) saveStatus.innerHTML = '<span class="material-symbols-outlined spinning" style="font-size:12px;vertical-align:-2px">sync</span> Saving...';
+
+            if (_srDebounceTimer) clearTimeout(_srDebounceTimer);
+            _srDebounceTimer = setTimeout(() => {
+                refreshPreview();
+                window.srSaveToBackend();
+            }, 600);
+        }
+    } catch(e) {}
+};
 
 function openSrModal(item) {
     _srModalCurrentItem = item;
-
     const data = item.getData();
     const hasPhoto = item.includePhoto;
     const name = item.name;
@@ -216,22 +360,75 @@ function openSrModal(item) {
         overlay.id = 'sr-modal';
         overlay.className = 'modal-overlay hidden';
         overlay.innerHTML = `
+            <style>
+              #sr-modal .modal-box {
+                width: 95vw;
+                max-width: 1400px;
+                height: 88vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+              }
+              .sr-split-body {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                flex: 1;
+                min-height: 0;
+                padding: 16px 20px;
+                background: var(--bg-main);
+              }
+              @media (max-width: 900px) {
+                .sr-split-body {
+                  grid-template-columns: 1fr;
+                  overflow-y: auto;
+                }
+              }
+            </style>
             <div class="modal-box">
-                <div class="modal-header">
-                    <div class="modal-title" id="sr-modal-title"></div>
+                <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div class="modal-title" id="sr-modal-title"></div>
+                        <div id="sr-save-status" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+                            <span class="material-symbols-outlined" style="font-size:14px;color:var(--success)">check_circle</span> Saved
+                        </div>
+                    </div>
                     <button class="modal-close material-symbols-outlined" onclick="document.getElementById('sr-modal').classList.add('hidden')">close</button>
                 </div>
-                <div class="modal-tabs" id="sr-modal-tabs">
-                    <button class="modal-tab active" data-tab="preview"><span class="material-symbols-outlined" style="font-size:14px">visibility</span> Preview</button>
-                    <button class="modal-tab" data-tab="json"><span class="material-symbols-outlined" style="font-size:14px">code</span> JSON Edit</button>
-                </div>
-                <div class="modal-body">
-                    <div class="modal-tab-content">
-                        <div class="modal-tab-pane active" id="sr-pane-preview">
-                            <iframe id="sr-preview-iframe" src="about:blank"></iframe>
+                <div class="sr-split-body">
+                    <!-- Left Column: JSON Editor -->
+                    <div style="display:flex;flex-direction:column;gap:8px;min-height:0">
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+                            <span style="font-size:11px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:4px">
+                                <span class="material-symbols-outlined" style="font-size:1.1em">code</span> Application JSON
+                            </span>
+                            <span style="font-size:10px;color:var(--text-muted)">Realtime sync enabled</span>
                         </div>
-                        <div class="modal-tab-pane" id="sr-pane-json">
-                            <div id="sr-json-editor-container" style="height:420px;border-radius:6px;overflow:hidden"></div>
+                        <div id="sr-json-editor-container" style="flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--border)"></div>
+                    </div>
+
+                    <!-- Right Column: Live PDF Preview -->
+                    <div style="display:flex;flex-direction:column;gap:8px;min-height:0">
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
+                            <span id="sr-preview-status" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+                                <span class="material-symbols-outlined" style="font-size:1.1em">description</span> Live PDF Preview
+                            </span>
+                            <div style="display:flex;gap:4px;align-items:center">
+                                <button id="sr-type-resume" class="btn btn-ghost" style="font-size:10px;padding:2px 8px;background:var(--accent);color:white" onclick="window.srSetPreviewType('resume')">Resume</button>
+                                <button id="sr-type-cover" class="btn btn-ghost" style="font-size:10px;padding:2px 8px" onclick="window.srSetPreviewType('cover_letter')">Cover Letter</button>
+                                <span style="width:1px;height:16px;background:var(--border);margin:0 2px"></span>
+                                <button id="sr-type-photo" class="btn btn-ghost" style="font-size:10px;padding:2px 8px" onclick="window.srTogglePhoto()" title="Include photo">
+                                    <span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px">photo_camera</span> Photo
+                                </button>
+                            </div>
+                        </div>
+                        <div style="flex:1;position:relative;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#525659">
+                            <div id="sr-preview-loading" class="sr-loading-overlay hidden">
+                                <div class="sr-spinner"></div>
+                                <div id="sr-loading-pct" style="font-size:16px;font-weight:700;color:#818cf8;margin-top:4px">0%</div>
+                                <span style="font-size:12px;font-weight:500;color:#e2e8f0">Compiling PDF preview...</span>
+                            </div>
+                            <iframe id="sr-preview-iframe" src="about:blank" style="width:100%;height:100%;border:none;transition:opacity 0.2s ease"></iframe>
                         </div>
                     </div>
                 </div>
@@ -239,30 +436,16 @@ function openSrModal(item) {
             </div>
         `;
         document.body.appendChild(overlay);
-
-        overlay.querySelectorAll('.modal-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                overlay.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-                overlay.querySelectorAll('.modal-tab-pane').forEach(p => p.classList.remove('active'));
-                tab.classList.add('active');
-                const pane = document.getElementById('sr-pane-' + tab.dataset.tab);
-                if (pane) pane.classList.add('active');
-
-                if (tab.dataset.tab === 'preview') {
-                    refreshPreview();
-                }
-            });
-        });
     }
 
     document.getElementById('sr-modal-title').textContent = name;
 
     const footer = document.getElementById('sr-modal-footer');
     footer.innerHTML = `
-        <button class="btn btn-primary" onclick="window.srDownloadPdf()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">picture_as_pdf</span> Download PDF</button>
+        <button class="btn btn-secondary" onclick="window.srEditVisually()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">edit</span> Visual Edit</button>
+        <button class="btn btn-primary" onclick="window.srManualSave()" style="background-color: var(--accent); border-color: var(--accent);"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">save</span> Save</button>
+        <button class="btn btn-secondary" onclick="window.srDownloadPdf()" style="margin-left:auto"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">picture_as_pdf</span> Download PDF</button>
         <button class="btn btn-secondary" onclick="window.srDownloadLatex()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">description</span> Download LaTeX</button>
-        ${hasPhoto ? `<button class="btn btn-secondary" onclick="window.srDownloadZip()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">folder_zip</span> Download ZIP</button>` : ''}
-        <button class="btn btn-secondary" onclick="window.srExportBookmark()" style="margin-left:auto"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">bookmark_add</span> Save as Bookmark</button>
     `;
 
     const jsonContainer = document.getElementById('sr-json-editor-container');
@@ -270,14 +453,31 @@ function openSrModal(item) {
         jsonContainer.innerHTML = '';
         window._srJsonEditor = new JSONEditor(jsonContainer, {
             mode: 'code',
-            modes: ['code', 'tree', 'form']
+            modes: ['code', 'tree', 'form'],
+            onChangeText: (text) => {
+                try {
+                    const parsed = JSON.parse(text);
+                    item._customData = parsed;
+                    const saveStatus = document.getElementById('sr-save-status');
+                    if (saveStatus) saveStatus.innerHTML = '<span class="material-symbols-outlined spinning" style="font-size:12px;vertical-align:-2px">sync</span> Saving...';
+
+                    if (_srDebounceTimer) clearTimeout(_srDebounceTimer);
+                    _srDebounceTimer = setTimeout(() => {
+                        refreshPreview();
+                        window.srSaveToBackend();
+                    }, 600);
+                } catch(e) {}
+            }
         });
         window._srJsonEditor.set(data);
     } else {
-        jsonContainer.innerHTML = `<textarea class="json-editor" id="sr-json-editor" style="width:100%;height:100%;font-family:monospace;">${JSON.stringify(data, null, 2)}</textarea>`;
+        jsonContainer.innerHTML = `<textarea class="json-editor" id="sr-json-editor" style="width:100%;height:100%;font-family:monospace;" oninput="window.srOnJsonInput(this.value)">${JSON.stringify(data, null, 2)}</textarea>`;
     }
 
     document.getElementById('sr-preview-iframe').src = 'about:blank';
+    _srIncludePhoto = !!item.includePhoto;
+    _srPreviewType = 'resume';
+    window.srUpdateToggleUI();
     overlay.classList.remove('hidden');
 
     window.srDownloadPdf = () => srDownloadPdf(item);
@@ -285,28 +485,92 @@ function openSrModal(item) {
     window.srDownloadZip = () => srDownloadZip(item);
     window.srExportBookmark = () => srExportBookmark(item, editor);
 
-    const previewTab = overlay.querySelector('[data-tab="preview"]');
-    if (previewTab.classList.contains('active')) {
-        refreshPreview();
-    }
+    refreshPreview();
 }
 
-let _srCompiledPdf = null;
+window.srSaveToBackend = async function() {
+    const item = _srModalCurrentItem;
+    if (!item || item.source !== 'bookmark') return;
+    const saveStatus = document.getElementById('sr-save-status');
+    if (saveStatus) saveStatus.innerHTML = '<span class="material-symbols-outlined spinning" style="font-size:12px;vertical-align:-2px">sync</span> Saving...';
+    try {
+        const res = await fetch(`/bookmarks/${item.bmId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: item.name, data: item.getData(), source_app_id: item.appId || "" })
+        });
+        const result = await res.json();
+        if (result.ok) {
+            if (saveStatus) saveStatus.innerHTML = '<span class="material-symbols-outlined" style="font-size:12px;color:var(--success);vertical-align:-2px">check_circle</span> Saved';
+        } else {
+            if (saveStatus) saveStatus.innerHTML = '<span style="color:var(--error)">Save failed</span>';
+        }
+    } catch(e) {
+        if (saveStatus) saveStatus.innerHTML = '<span style="color:var(--error)">Save error</span>';
+    }
+};
+
+window.srManualSave = async function() {
+    const saveBtn = document.querySelector('#sr-modal-footer .btn-primary');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-symbols-outlined spinning" style="font-size:14px;vertical-align:-2px">sync</span> Saving...'; }
+    await window.srSaveToBackend();
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">save</span> Save'; }
+};
+
+let _srProgressInterval = null;
+
+function startPreviewProgress() {
+    if (_srProgressInterval) clearInterval(_srProgressInterval);
+    const pctEl = document.getElementById('sr-loading-pct');
+    const status = document.getElementById('sr-preview-status');
+    let pct = 10;
+    if (pctEl) pctEl.textContent = `${pct}%`;
+    if (status) status.innerHTML = `<span class="material-symbols-outlined spinning" style="font-size:1.1em;vertical-align:middle;line-height:1">hourglass_empty</span> Compiling preview (${pct}%)...`;
+
+    _srProgressInterval = setInterval(() => {
+        if (pct < 50) {
+            pct += Math.floor(Math.random() * 8) + 6;
+        } else if (pct < 85) {
+            pct += Math.floor(Math.random() * 6) + 3;
+        } else if (pct < 95) {
+            pct += 1;
+        }
+        if (pct > 95) pct = 95;
+        if (pctEl) pctEl.textContent = `${pct}%`;
+        if (status) status.innerHTML = `<span class="material-symbols-outlined spinning" style="font-size:1.1em;vertical-align:middle;line-height:1">hourglass_empty</span> Compiling preview (${pct}%)...`;
+    }, 120);
+}
+
+function stopPreviewProgress(success = true) {
+    if (_srProgressInterval) {
+        clearInterval(_srProgressInterval);
+        _srProgressInterval = null;
+    }
+    const pctEl = document.getElementById('sr-loading-pct');
+    if (pctEl) pctEl.textContent = success ? '100%' : '0%';
+}
 
 async function refreshPreview() {
     const item = _srModalCurrentItem;
     if (!item) return;
 
     const iframe = document.getElementById('sr-preview-iframe');
-    iframe.src = 'about:blank';
+    const loading = document.getElementById('sr-preview-loading');
+    const status = document.getElementById('sr-preview-status');
+
+    if (loading) loading.classList.remove('hidden');
+    startPreviewProgress();
+    if (iframe) iframe.style.opacity = '0.3';
 
     try {
         const data = item.getData();
         const name = item.name.replace(/[^\w\-_]/g, '_');
+        const photo = _srIncludePhoto;
+        const type = _srPreviewType;
 
         let pdfFile;
-        const photo = !!item.includePhoto;
-        if (item.source === 'bookmark') {
+
+        if (item.source === 'bookmark' && type === 'resume' && photo === !!item.includePhoto && !item._customData) {
             const res = await fetch(`/bookmarks/${item.bmId}/compile-pdf?include_photo=${photo}`, { method: 'POST' });
             const result = await res.json();
             pdfFile = result.pdf;
@@ -314,18 +578,32 @@ async function refreshPreview() {
             const res = await fetch('/compile-direct', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ config: data, name, include_photo: photo })
+                body: JSON.stringify({ config: data, name: name, pdf_name: name, type: type, include_photo: photo })
             });
             const result = await res.json();
-            pdfFile = result.pdf;
+            pdfFile = result.pdf || (result.path ? result.path.split('/').pop() : null);
         }
 
         if (pdfFile) {
             _srCompiledPdf = pdfFile;
             iframe.src = `/pdf/${pdfFile}`;
+            iframe.onload = () => {
+                stopPreviewProgress(true);
+                if (loading) loading.classList.add('hidden');
+                if (status) status.innerHTML = '<span class="material-symbols-outlined" style="font-size:1.1em;color:var(--success);vertical-align:middle">check_circle</span> Live PDF Preview';
+                if (iframe) iframe.style.opacity = '1';
+            };
+        } else {
+            stopPreviewProgress(false);
+            if (loading) loading.classList.add('hidden');
+            if (status) status.innerHTML = '<span class="material-symbols-outlined" style="font-size:1.1em;color:var(--error);vertical-align:middle">error</span> Compilation failed';
+            if (iframe) iframe.style.opacity = '1';
         }
     } catch (e) {
-        iframe.src = 'about:blank';
+        stopPreviewProgress(false);
+        if (loading) loading.classList.add('hidden');
+        if (status) status.innerHTML = '<span class="material-symbols-outlined" style="font-size:1.1em;color:var(--error);vertical-align:middle">error</span> Error generating preview';
+        if (iframe) iframe.style.opacity = '1';
     }
 }
 
@@ -357,7 +635,7 @@ async function srDownloadPdf(item) {
             a.click();
         }
     } catch (e) {
-        alert('Failed to compile PDF: ' + e.message);
+        await alert('Failed to compile PDF: ' + e.message);
     }
 }
 
@@ -388,7 +666,7 @@ async function srDownloadLatex(item) {
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {
-        alert('Failed to download LaTeX: ' + e.message);
+        await alert('Failed to download LaTeX: ' + e.message);
     }
 }
 
@@ -417,7 +695,7 @@ async function srDownloadZip(item) {
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {
-        alert('Failed to download ZIP: ' + e.message);
+        await alert('Failed to download ZIP: ' + e.message);
     }
 }
 
@@ -431,11 +709,11 @@ async function srExportBookmark(item) {
             data = JSON.parse(editorEl.value);
         }
     } catch (e) {
-        alert('Invalid JSON in editor. Please fix before saving.');
+        await alert('Invalid JSON in editor. Please fix before saving.');
         return;
     }
 
-    const name = prompt('Name this bookmark:', item.name);
+    const name = await prompt('Name this bookmark:', item.name);
     if (!name) return;
 
     try {
@@ -446,27 +724,65 @@ async function srExportBookmark(item) {
         });
         const result = await res.json();
         if (result.ok) {
-            alert('Saved as bookmark!');
+            await alert('Saved as bookmark!');
             loadSavedResumes();
         }
     } catch (e) {
-        alert('Error saving bookmark: ' + e.message);
+        await alert('Error saving bookmark: ' + e.message);
     }
 }
 
 window.deleteBookmarkItem = deleteBookmarkItem;
-window.addNewRecipe = addNewRecipe;
 window.addRecipeFromApp = addRecipeFromApp;
+window.addRecipeFromJson = addRecipeFromJson;
+window.submitJsonImport = submitJsonImport;
 window.bookmarkAppResume = bookmarkAppResume;
 
-document.addEventListener('input', (e) => {
+document.addEventListener('input', async (e) => {
     if (e.target.id === 'sr-filter') {
         renderList(e.target.value);
     }
 });
 
-state.subscribe(() => {
+state.subscribe(async () => {
     const el = document.getElementById('sr-list');
     if (el) loadSavedResumes();
 });
 
+
+
+window.srEditVisually = function() {
+    const item = _srModalCurrentItem;
+    if (!item || item.source !== 'bookmark') {
+        alert("Visual Edit is only supported for bookmarks.");
+        return;
+    }
+    document.getElementById('sr-modal').classList.add('hidden');
+    openBookmarkEditor(item.bmId, item.getData(), item.name, async (updatedRecipe) => {
+        const originalData = item.getData();
+        let payloadData;
+        if (originalData && originalData.recipe) {
+            payloadData = { ...originalData, recipe: updatedRecipe };
+        } else if (originalData && originalData.resume_template) {
+            payloadData = { ...originalData, resume_template: updatedRecipe };
+        } else {
+            payloadData = updatedRecipe;
+        }
+        try {
+            const res = await fetch(`/bookmarks/${item.bmId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: item.name, data: payloadData, source_app_id: item.appId || "" })
+            });
+            const result = await res.json();
+            if (result.ok) {
+                alert('Bookmark saved successfully!');
+                loadSavedResumes();
+            } else {
+                alert('Failed to save bookmark');
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    });
+}

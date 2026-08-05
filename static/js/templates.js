@@ -76,7 +76,7 @@ async function loadAllTemplates() {
         for (const r of results) loadedContent[r.id] = r.content;
         return true;
     } catch (e) {
-        alert('Failed to load templates: ' + e.message);
+        await alert('Failed to load templates: ' + e.message);
         return false;
     }
 }

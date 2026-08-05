@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from jose import jwt, JWTError
@@ -57,6 +57,7 @@ async def cookie_auth_middleware(request: Request, call_next):
     path = request.url.path
     if (path.startswith("/api/auth/") or path == "/api/preview-pdf" or 
         path.startswith("/static/") or path.startswith("/share/") or 
+        path.startswith("/pdf/") or
         path == "/" or path == "/login" or path == "/favicon.ico" or 
         path.startswith("/.well-known/")):
         return await call_next(request)
@@ -65,23 +66,28 @@ async def cookie_auth_middleware(request: Request, call_next):
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
-    elif request.query_params.get("token"):
-        token = request.query_params.get("token")
-        
-    if token:
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            request.state.user_id = payload.get("sub")
-            return await call_next(request)
-        except JWTError:
-            pass
-            
-    # For HTML requests, redirect to login might be handled by frontend
-    return Response(content="Unauthorized", status_code=401)
+    else:
+        token = request.cookies.get("auth_token")
 
-# ── Static mounts ─────────────────────────────────────────────────────────────
-if DIST_DIR.exists():
-    app.mount("/pdf", StaticFiles(directory=str(DIST_DIR)), name="pdf")
+    if not token:
+        # For API requests, return 401. For page requests, redirect.
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+        return RedirectResponse("/login")
+        
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        request.state.user_id = payload.get("sub")
+    except JWTError:
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Invalid or expired token"}, status_code=401)
+        return RedirectResponse("/login")
+
+    return await call_next(request)
+
+# Ensure dist directory exists before mounting
+DIST_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/pdf", StaticFiles(directory=str(DIST_DIR)), name="pdf")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
