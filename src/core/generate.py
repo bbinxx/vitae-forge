@@ -86,7 +86,15 @@ def generate_resume(
             else:
                 with open(config_file) as f:
                     master_config = json.load(f)
-            recipe = data
+            rec_obj = data.get("recipe") if (isinstance(data, dict) and "recipe" in data) else (data.get("resume_template") if (isinstance(data, dict) and "resume_template" in data) else None)
+            if isinstance(rec_obj, dict):
+                recipe = dict(rec_obj)
+                if "cover_letter" not in recipe and "email" in data:
+                    recipe["cover_letter"] = data["email"]
+                elif "cover_letter" in data and "cover_letter" not in recipe:
+                    recipe["cover_letter"] = data["cover_letter"]
+            else:
+                recipe = data
     else:
         if user_id:
             from src.services.resume_service import get_full_config
@@ -126,20 +134,37 @@ def generate_resume(
     with open(template_path) as f:
         tmpl = f.read()
 
-    # ── Simple replacements ───────────────────────────────────────────────────
-    tmpl = tmpl.replace("<<NAME>>",       escape_latex(config.get("name", "")))
-    tmpl = tmpl.replace("<<ROLE_TITLE>>", escape_latex(config.get("role_title", "")))
-    tmpl = tmpl.replace("<<COMPANY_NAME>>", escape_latex(config.get("company", config.get("company_name", ""))))
+    # Helper to safely extract string from possible dict/list/string values
+    def _str_field(val, preferred_keys=None):
+        if not val:
+            return ""
+        if isinstance(val, str):
+            return val
+        if isinstance(val, dict) and preferred_keys:
+            for k in preferred_keys:
+                if val.get(k) and isinstance(val.get(k), str):
+                    return val.get(k)
+        return ""
+
+    tmpl = tmpl.replace("<<NAME>>",       escape_latex(_str_field(config.get("name"), ["name"])))
+    tmpl = tmpl.replace("<<ROLE_TITLE>>", escape_latex(_str_field(config.get("role_title"), ["role_title", "title", "role"])))
+    tmpl = tmpl.replace("<<COMPANY_NAME>>", escape_latex(_str_field(config.get("company", config.get("company_name")), ["name", "company"])))
     
     import datetime
     tmpl = tmpl.replace("<<DATE>>",       datetime.datetime.now().strftime("%B %d, %Y"))
     
-    tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(config.get("email", "")))
-    tmpl = tmpl.replace("<<PHONE>>",      escape_latex(config.get("phone", "")))
-    tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(config.get("linkedin", "")))
-    tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(config.get("github", "")))
+    tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(_str_field(config.get("email"), ["email", "address"])))
+    tmpl = tmpl.replace("<<PHONE>>",      escape_latex(_str_field(config.get("phone"), ["phone", "number"])))
+    tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(_str_field(config.get("linkedin"), ["linkedin", "url"])))
+    tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(_str_field(config.get("github"), ["github", "url"])))
     # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)
     summary_text = config.get("professional_summary") or config.get("summary", "")
+    if isinstance(summary_text, dict):
+        summary_text = summary_text.get("text") or summary_text.get("content") or summary_text.get("summary") or ""
+    elif isinstance(summary_text, list):
+        summary_text = " ".join(str(s) for s in summary_text)
+    elif not isinstance(summary_text, str):
+        summary_text = str(summary_text) if summary_text else ""
     tmpl = tmpl.replace("<<SUMMARY>>", escape_latex(summary_text))
     
     projects = config.get("projects", [])
@@ -156,7 +181,20 @@ def generate_resume(
     relevant_skills = escape_latex(", ".join(skill_words[:5]) if skill_words else "various modern tools")
     tmpl = tmpl.replace("<<RELEVANT_SKILLS>>", relevant_skills)
     
-    cover_letter = escape_latex(config.get("cover_letter", ""))
+    raw_cl = config.get("cover_letter", "")
+    if isinstance(raw_cl, dict):
+        raw_cl = raw_cl.get("body") or raw_cl.get("content") or raw_cl.get("letter") or ""
+    elif isinstance(raw_cl, list):
+        parts = []
+        for item in raw_cl:
+            if isinstance(item, dict):
+                parts.append(item.get("body") or item.get("content") or item.get("text") or "")
+            elif isinstance(item, str):
+                parts.append(item)
+        raw_cl = "\n\n".join(filter(None, parts))
+    elif not isinstance(raw_cl, str):
+        raw_cl = str(raw_cl) if raw_cl else ""
+    cover_letter = escape_latex(raw_cl)
     # Normalize line endings and convert to LaTeX paragraph breaks
     # Collapse 3+ newlines into one blank line, then ensure every \n becomes \n\n
     cover_letter = re.sub(r'\r\n', '\n', cover_letter)
@@ -348,6 +386,29 @@ def generate_resume(
     # ── Photo path ────────────────────────────────────────────────────────────
     if photo_path:
         tmpl = tmpl.replace("<<PHOTO_PATH>>", photo_path)
+
+    # ── Auto-hide sections if missing/empty in JSON ───────────────────────────
+    if "sections" not in config:
+        config["sections"] = {}
+        
+    if not config.get("projects"):
+        config["sections"]["projects"] = False
+    if not config.get("experience"):
+        config["sections"]["experience"] = False
+    if not config.get("skills"):
+        config["sections"]["skills"] = False
+    if not config.get("education"):
+        config["sections"]["education"] = False
+    if not config.get("certifications"):
+        config["sections"]["certifications"] = False
+    if not config.get("achievements"):
+        config["sections"]["achievements"] = False
+    if not config.get("role_title"):
+        config["sections"]["role_title"] = False
+        
+    summary_val = config.get("professional_summary") or config.get("summary")
+    if not summary_val:
+        config["sections"]["summary"] = False
 
     # ── Section toggling ──────────────────────────────────────────────────────
     for sec_name, is_active in config.get("sections", {}).items():

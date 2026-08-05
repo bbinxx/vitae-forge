@@ -2293,3 +2293,38 @@ select.ad-input   { cursor: pointer; }
   .panel-main { overflow: visible; }
 }
 
+/* ── Saved Resume Loading Overlay & Spinner ─────────────────────────────── */
+.sr-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #ffffff;
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+.sr-loading-overlay.hidden {
+  display: none !important;
+}
+.sr-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent, #6366f1);
+  border-radius: 50%;
+  animation: sr-spin 0.8s linear infinite;
+}
+.spinning {
+  animation: sr-spin 1s linear infinite;
+  display: inline-block;
+}
+@keyframes sr-spin {
+  to { transform: rotate(360deg); }
+}
+

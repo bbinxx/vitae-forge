@@ -32,7 +32,6 @@
       <button id="tab-tracker" class="nav-btn" onclick="window.switchTab('tracker')">Applications</button>
       <button id="tab-saved-resumes" class="nav-btn" onclick="window.switchTab('saved-resumes')">Saved Resumes</button>
       <button id="tab-templates" class="nav-btn" onclick="window.switchTab('templates')">Templates</button>
-      <button id="tab-library" class="nav-btn" onclick="window.switchTab('library')">Library</button>
       <button id="tab-settings" class="nav-btn" onclick="window.switchTab('settings')">Settings</button>
     </nav>
     <div class="header-actions" id="header-actions">
@@ -163,7 +162,7 @@
     <!-- ═══════════════════ SAVED RESUMES ═══════════════════ -->
     <div id="saved-resumes-view" class="view hidden">
       <div class="sr-toolbar">
-        <button class="btn btn-primary" onclick="addNewRecipe()">+ Create from Scratch</button>
+        <button class="btn btn-secondary" onclick="addRecipeFromJson()">+ Create from JSON</button>
         <button class="btn btn-secondary" onclick="addRecipeFromApp()">+ Clone from Application</button>
         <input type="text" id="sr-filter" placeholder="Filter saved resumes..."
           style="margin-left:auto;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card);color:var(--text-primary);font-size:12px;width:240px;">
@@ -198,24 +197,6 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ LIBRARY ═══════════════════ -->
-    <div id="library-view" class="view hidden">
-      <div class="split-layout">
-
-        <aside class="sidebar">
-          <div class="sidebar-section">
-            <div class="section-title">Categories</div>
-            <div id="lib-category-list" class="roles-list"></div>
-          </div>
-        </aside>
-
-        <div class="panel-main p-6">
-          <div id="lib-editor-container" class="library-container"></div>
-        </div>
-
-      </div>
-    </div>
-
 
 
     <!-- ═══════════════════ SETTINGS ═══════════════════ -->
@@ -232,6 +213,31 @@
   <!-- Tracker Modal (injected by tracker.js) -->
   <div id="tracker-modal" class="modal-overlay hidden" onclick="this.style.display='none'"></div>
 
+  <!-- JSON Import Modal -->
+  <div id="json-import-modal" class="modal-overlay hidden" style="z-index:9000; display:none; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:var(--bg-card); max-width: 800px; width: 90%; height: 80vh; display: flex; flex-direction: column; border:1px solid var(--border); border-radius:var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
+      <div class="modal-header" style="padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size: 16px; font-weight: 500; color:var(--text-primary);">Create Resume from JSON</h3>
+        <button class="material-symbols-outlined" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;" onclick="document.getElementById('json-import-modal').classList.add('hidden');document.getElementById('json-import-modal').style.display='none'">close</button>
+      </div>
+      <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow: hidden; background:var(--bg-main);">
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <label style="font-size: 13px; color: var(--text-secondary); white-space:nowrap;">Resume Name:</label>
+            <input type="text" id="json-import-name" class="form-control" style="flex:1; background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); padding:8px; border-radius:var(--radius);" placeholder="E.g. Frontend Developer">
+            <label style="font-size: 13px; color: var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="json-import-photo"> Include Photo
+            </label>
+        </div>
+        <div style="font-size: 13px; color: var(--text-secondary);">Paste your JSON configuration data below:</div>
+        <div id="json-import-editor-container" style="flex: 1; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;"></div>
+      </div>
+      <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary" onclick="document.getElementById('json-import-modal').classList.add('hidden');document.getElementById('json-import-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-primary" onclick="window.submitJsonImport()">Save Resume</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
   <script>
@@ -243,7 +249,7 @@
     });
   </script>
 
-
+  <script src="/static/js/custom_dialogs.js"></script>
   <script src="/static/js/auth_interceptor.js"></script>
   <script type="module" src="/static/js/main.js?v=4"></script>
 </body>

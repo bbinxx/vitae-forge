@@ -1,6 +1,6 @@
 import { ui, state } from './app.js';
 import './dashboard.js?v=3';
-import './library.js?v=3';
+
 import { loadSettings } from './settings.js';
 import { loadTracker, initTracker } from './tracker.js?v=4';
 import { loadSavedResumes } from './saved_resumes.js?v=1';
@@ -47,13 +47,13 @@ window.importJSON = function(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         try {
             state.data = JSON.parse(e.target.result);
-            alert('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Configuration loaded locally (Click Save to Server to persist)');
+            await alert('<span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">check</span> Configuration loaded locally (Click Save to Server to persist)');
             state.notify();
         } catch(err) {
-            alert('Invalid JSON file');
+            await alert('Invalid JSON file');
         }
     };
     reader.readAsText(file);
