@@ -76,27 +76,27 @@ window.saveSettings = async function() {
             body: JSON.stringify({ always_cloud_mode, backup_frequency_hours, export_folder, file_name_prefix })
         });
         if (res.ok) {
-            alert('Settings saved to Firebase successfully!');
+            await alert('Settings saved to Firebase successfully!');
         } else {
-            alert('Failed to save settings.');
+            await alert('Failed to save settings.');
         }
     } catch (e) {
-        alert('Error saving settings.');
+        await alert('Error saving settings.');
     }
 };
 
 window.triggerManualR2Backup = async function() {
-    alert("Triggering manual backup to R2... This might take a moment.");
+    await alert("Triggering manual backup to R2... This might take a moment.");
     try {
         const res = await fetch('/api/r2-backup', { method: 'POST' });
         const data = await res.json();
         if (data.ok) {
-            alert(`Backup successful! Archive saved to R2 as: ${data.filename}`);
+            await alert(`Backup successful! Archive saved to R2 as: ${data.filename}`);
         } else {
-            alert(`Backup failed: ${data.detail || data.error}`);
+            await alert(`Backup failed: ${data.detail || data.error}`);
         }
     } catch (e) {
-        alert('Error communicating with server for backup.');
+        await alert('Error communicating with server for backup.');
     }
 };
 

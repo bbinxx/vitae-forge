@@ -25,10 +25,10 @@ export function selectRole(roleId) {
     renderRoleEditor();
 }
 
-export function addNewRole() {
-    const newId = prompt("Enter new role ID (e.g., frontend):");
+export async function addNewRole() {
+    const newId = await prompt("Enter new role ID (e.g., frontend):");
     if (!newId) return;
-    if (state.data.recipes[newId]) return alert("Role ID already exists");
+    if (state.data.recipes[newId]) return await alert("Role ID already exists");
     
     state.data.recipes[newId] = {
         short_name: "NEW",
@@ -40,24 +40,24 @@ export function addNewRole() {
     selectRole(newId);
 }
 
-export function addRoleFromApp() {
+export async function addRoleFromApp() {
     if(!state.trackerData || !state.trackerData.applications || state.trackerData.applications.length === 0) {
-        return alert("No applications found in Tracker.");
+        return await alert("No applications found in Tracker.");
     }
     const apps = state.trackerData.applications;
     let appList = apps.map((app, i) => `${i}: ${app.company} - ${app.role}`).join('\n');
-    const indexStr = prompt(`Enter the index of the application to clone:\n${appList}`);
+    const indexStr = await prompt(`Enter the index of the application to clone:\n${appList}`);
     if(!indexStr || isNaN(indexStr)) return;
     
     const appIndex = parseInt(indexStr);
-    if(appIndex < 0 || appIndex >= apps.length) return alert("Invalid index");
+    if(appIndex < 0 || appIndex >= apps.length) return await alert("Invalid index");
     
     const app = apps[appIndex];
-    if(!app.resume_template) return alert("This application does not have a resume template to clone.");
+    if(!app.resume_template) return await alert("This application does not have a resume template to clone.");
     
-    const newId = prompt("Enter ID for the cloned role (e.g., " + app.company.toLowerCase() + "_role):");
+    const newId = await prompt("Enter ID for the cloned role (e.g., " + app.company.toLowerCase() + "_role):");
     if (!newId) return;
-    if (state.data.recipes[newId]) return alert("Role ID already exists");
+    if (state.data.recipes[newId]) return await alert("Role ID already exists");
     
     state.data.recipes[newId] = JSON.parse(JSON.stringify(app.resume_template));
     state.data.recipes[newId].short_name = app.role;
@@ -66,11 +66,11 @@ export function addRoleFromApp() {
     state.notify();
 }
 
-export function duplicateCurrentRole() {
+export async function duplicateCurrentRole() {
     if (!state.currentEditingRole) return;
-    const newId = prompt("Enter ID for the duplicated role (e.g., " + state.currentEditingRole + "_v2):");
+    const newId = await prompt("Enter ID for the duplicated role (e.g., " + state.currentEditingRole + "_v2):");
     if (!newId) return;
-    if (state.data.recipes[newId]) return alert("Role ID already exists");
+    if (state.data.recipes[newId]) return await alert("Role ID already exists");
     
     // Deep copy the current role
     state.data.recipes[newId] = JSON.parse(JSON.stringify(state.data.recipes[state.currentEditingRole]));
@@ -82,8 +82,8 @@ export function duplicateCurrentRole() {
     state.notify(); // Re-render dashboard
 }
 
-export function deleteCurrentRole() {
-    if (!confirm("Are you sure you want to delete this role?")) return;
+export async function deleteCurrentRole() {
+    if (!await confirm("Are you sure you want to delete this role?")) return;
     delete state.data.recipes[state.currentEditingRole];
     state.currentEditingRole = null;
     renderRoleEditor();
@@ -162,7 +162,7 @@ window.updateRoleSection = updateRoleSection;
 window.toggleRoleArrayItem = toggleRoleArrayItem;
 window.saveConfigToServer = () => state.saveConfig();
 
-state.subscribe(() => {
+state.subscribe(async () => {
     // Re-render when config loads
     renderRoleEditor();
 });

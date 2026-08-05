@@ -15,10 +15,19 @@ TEMPLATES_DIR = ROOT / "templates"
 TEX_DIR     = TEMPLATES_DIR / "tex"
 STATIC_DIR  = ROOT / "static"
 
-# ── Well-known Files ──────────────────────────────────────────────────────────
-RESUME_CONFIG    = CONFIGS_DIR / "resume_config.template.json"
-ENV_FILE         = ROOT / ".env"
-PROFILE_PHOTO    = ASSETS_DIR / "profile-photo.jpg"
+RESUME_CONFIG          = CONFIGS_DIR / "resume_config.json"
+RESUME_CONFIG_TEMPLATE = CONFIGS_DIR / "resume_config.template.json"
+ENV_FILE               = ROOT / ".env"
+PROFILE_PHOTO          = ASSETS_DIR / "profile-photo.jpg"
+
+def load_resume_config() -> dict:
+    if RESUME_CONFIG.exists():
+        with open(RESUME_CONFIG) as f:
+            return json.load(f)
+    elif RESUME_CONFIG_TEMPLATE.exists():
+        with open(RESUME_CONFIG_TEMPLATE) as f:
+            return json.load(f)
+    return {}
 
 # ── LaTeX Templates ───────────────────────────────────────────────────────────
 TEMPLATE_PLAIN = TEX_DIR / "template.tex"

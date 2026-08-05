@@ -32,34 +32,34 @@ export async function loadCheckpoints() {
 }
 
 window.restoreCheckpoint = async function(name) {
-    if (!confirm(`Are you sure you want to restore ${name}? This will overwrite your current configuration.`)) return;
+    if (!await confirm(`Are you sure you want to restore ${name}? This will overwrite your current configuration.`)) return;
     try {
         const res = await fetch(`/checkpoints/${name}/restore`, { method: 'POST' });
         const data = await res.json();
         if (data.ok) {
-            alert(`Checkpoint restored from ${data.source}! Reloading application...`);
+            await alert(`Checkpoint restored from ${data.source}! Reloading application...`);
             window.location.reload();
         } else {
-            alert('Failed to restore checkpoint.');
+            await alert('Failed to restore checkpoint.');
         }
     } catch (e) {
-        alert('Error restoring checkpoint.');
+        await alert('Error restoring checkpoint.');
     }
 };
 
 window.deleteCheckpoint = async function(name) {
-    if (!confirm(`Delete checkpoint ${name}?`)) return;
+    if (!await confirm(`Delete checkpoint ${name}?`)) return;
     try {
         await fetch(`/checkpoints/${name}`, { method: 'DELETE' });
         loadCheckpoints();
     } catch (e) {
-        alert('Error deleting checkpoint.');
+        await alert('Error deleting checkpoint.');
     }
 };
 
 // Override the createCheckpoint from main.js to reload the list
 window.createCheckpoint = async function() {
-    const customName = prompt("Enter a name for this checkpoint (or leave blank for default timestamp):");
+    const customName = await prompt("Enter a name for this checkpoint (or leave blank for default timestamp):");
     if (customName === null) return; // User cancelled
     
     try {
@@ -70,10 +70,10 @@ window.createCheckpoint = async function() {
         });
         const data = await res.json();
         if(data.ok) {
-            alert(`Checkpoint created successfully!\nSaved as: ${data.name}`);
+            await alert(`Checkpoint created successfully!\nSaved as: ${data.name}`);
             loadCheckpoints();
         }
     } catch(e) {
-        alert('Failed to create checkpoint.');
+        await alert('Failed to create checkpoint.');
     }
 };
