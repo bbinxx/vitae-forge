@@ -3,15 +3,18 @@ from typing import Dict, Any, Optional
 
 def get_full_config(user_id: str) -> Dict[str, Any]:
     """Merge personal, library, and recipes into the full config format."""
-    personal = db.get_personal(user_id)
-    library = db.get_library(user_id)
-    recipes = db.get_recipes(user_id)
-    
-    return {
-        "personal": personal,
-        "library": library,
-        "recipes": recipes
-    }
+    try:
+        personal = db.get_personal(user_id)
+        library = db.get_library(user_id)
+        recipes = db.get_recipes(user_id)
+        return {
+            "personal": personal,
+            "library": library,
+            "recipes": recipes
+        }
+    except Exception:
+        from src.core.config import load_resume_config
+        return load_resume_config()
 
 def save_full_config(user_id: str, data: Dict[str, Any]) -> None:
     """Split full config into its components and save."""

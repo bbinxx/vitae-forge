@@ -74,6 +74,18 @@ def create_bookmark(req: BookmarkCreate):
     _save_bookmarks(bookmarks)
     return {"ok": True, "bookmark": new_bm}
 
+@router.put("/bookmarks/{bm_id}")
+def update_bookmark(bm_id: str, req: BookmarkCreate):
+    bookmarks = _load_bookmarks()
+    for bm in bookmarks:
+        if bm.get("id") == bm_id:
+            bm["name"] = req.name
+            bm["data"] = req.data
+            bm["updated_at"] = datetime.now().isoformat()
+            _save_bookmarks(bookmarks)
+            return {"ok": True, "bookmark": bm}
+    raise HTTPException(404, "Bookmark not found")
+
 @router.delete("/bookmarks/{bm_id}")
 def delete_bookmark(bm_id: str):
     bookmarks = _load_bookmarks()
@@ -84,27 +96,80 @@ def delete_bookmark(bm_id: str):
 
 class DirectCompileRequest(BaseModel):
     config: dict
-    name: str
+    name: str = "resume"
+    pdf_name: str | None = None
+    type: str = "resume"
     include_photo: bool = False
 
 @router.post("/compile-direct")
-def compile_direct(req: DirectCompileRequest):
-    from src.core.build import build_custom_version
+def compile_direct(req: DirectCompileRequest, request: Request = None):
+    from src.core.build import build_variant
+    from src.core.config import load_resume_config, TEMPLATE_PHOTO, TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
     import re as _re
-    safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
-    suffix = "_X" if req.include_photo else ""
-    success = build_custom_version(req.config, safe_name, req.include_photo)
-    if not success:
-        raise HTTPException(500, "Failed to compile PDF")
-    return {"pdf": f"{safe_name}{suffix}.pdf"}
+    import tempfile, json, os
+    from pathlib import Path
+
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+    raw_name = req.pdf_name or req.name or "resume"
+    safe_name = _re.sub(r'[^\w\-_]', '_', raw_name)
+
+    if req.type == "cover_letter":
+        template = TEMPLATE_COVER_LETTER
+        suffix = "_Cover_Letter"
+        photo_to_use = None
+    else:
+        template = TEMPLATE_PHOTO if req.include_photo else TEMPLATE_PLAIN
+        suffix = "_X" if req.include_photo else ""
+        photo_to_use = PROFILE_PHOTO if req.include_photo else None
+
+    if user_id:
+        from src.services.resume_service import get_full_config
+        main_config = get_full_config(user_id)
+    else:
+        main_config = load_resume_config()
+
+    full_config = {
+        "personal": dict(main_config.get("personal", {})),
+        "library": dict(main_config.get("library", {})),
+    }
+
+    rec_obj = req.config.get("recipe") if (isinstance(req.config, dict) and "recipe" in req.config) else (req.config.get("resume_template") if (isinstance(req.config, dict) and "resume_template" in req.config) else None)
+    if isinstance(rec_obj, dict):
+        v_data = dict(rec_obj)
+        if "cover_letter" not in v_data and "email" in req.config:
+            v_data["cover_letter"] = req.config["email"]
+        elif "cover_letter" in req.config and "cover_letter" not in v_data:
+            v_data["cover_letter"] = req.config["cover_letter"]
+    else:
+        v_data = dict(req.config)
+
+    if "personal" in req.config and isinstance(req.config["personal"], dict):
+        full_config["personal"].update(req.config["personal"])
+    elif "personal" in v_data and isinstance(v_data["personal"], dict):
+        full_config["personal"].update(v_data["personal"])
+
+    full_config.update(v_data)
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(full_config, tmp)
+        tmp_path = tmp.name
+
+    try:
+        success = build_variant(tmp_path, safe_name, template, suffix, photo_to_use, user_id=user_id)
+        if not success:
+            raise HTTPException(500, "Failed to compile PDF")
+        return {"pdf": f"{safe_name}{suffix}.pdf"}
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 @router.post("/download-latex-direct")
-def download_latex_direct(req: DirectCompileRequest):
+def download_latex_direct(req: DirectCompileRequest, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
     suffix = "_X" if req.include_photo else ""
-    latex = generate_latex_source(req.config, safe_name, req.include_photo)
+    latex = generate_latex_source(req.config, safe_name, req.include_photo, user_id=user_id)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
     return StreamingResponse(
@@ -114,11 +179,12 @@ def download_latex_direct(req: DirectCompileRequest):
     )
 
 @router.post("/download-zip-direct")
-def download_zip_direct(req: DirectCompileRequest):
+def download_zip_direct(req: DirectCompileRequest, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
+    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
-    latex = generate_latex_source(req.config, safe_name, include_photo=True)
+    latex = generate_latex_source(req.config, safe_name, include_photo=True, user_id=user_id)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
     latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")

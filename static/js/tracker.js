@@ -1636,7 +1636,7 @@ export function openAppEditor(appId) {
 // ── Delete Application ────────────────────────────────────────────────────────
 export async function deleteApp(appId) {
     const app = applications.find(a => a.id === appId);
-    if (!app || !confirm(`Delete application: ${app.company} - ${app.role}?\n\nThis cannot be undone.`)) return;
+    if (!app || !await confirm(`Delete application: ${app.company} - ${app.role}?\n\nThis cannot be undone.`)) return;
     
     setSaveIndicator('saving');
     await trackerApi.delete(appId);
@@ -1822,6 +1822,19 @@ window.onUnifiedJsonInput = (val) => {
         payload = parseCleanJson(val);
         if (errorDiv) errorDiv.style.display = 'none';
         window.renderSectionToggleButtons(payload);
+
+        // Check if cover letter exists
+        const cl = payload.cover_letter || payload.email || (payload.resume_template && (payload.resume_template.cover_letter || payload.resume_template.email)) || (payload.recipe && (payload.recipe.cover_letter || payload.recipe.email));
+        const hasCL = !!(cl && String(cl).trim());
+        const covBtn = document.getElementById('preview-type-cover');
+        if (covBtn) {
+            if (!hasCL) {
+                covBtn.style.display = 'none';
+                if (window._previewType === 'cover_letter') window._previewType = 'resume';
+            } else {
+                covBtn.style.display = 'inline-flex';
+            }
+        }
     } catch (e) {
         if (errorDiv) {
             errorDiv.textContent = `JSON Error: ${e.message}`;
