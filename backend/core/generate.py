@@ -14,7 +14,7 @@ _project_root = Path(__file__).resolve().parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from backend.core.config import RESUME_CONFIG
+from backend.core.config import load_resume_config
 
 
 _LATEX_ESCAPE = {
@@ -65,8 +65,6 @@ def generate_resume(
     Generate a .tex file by filling `template_path` with data from
     `source` (a role_id string or a path to a JSON config file).
     """
-    config_file = str(RESUME_CONFIG)
-
     if os.path.isfile(source):
         with open(source) as f:
             data = json.load(f)
@@ -84,8 +82,7 @@ def generate_resume(
                 from backend.services.resume_service import get_full_config
                 master_config = get_full_config(user_id)
             else:
-                with open(config_file) as f:
-                    master_config = json.load(f)
+                master_config = load_resume_config()
             rec_obj = data.get("recipe") if (isinstance(data, dict) and "recipe" in data) else (data.get("resume_template") if (isinstance(data, dict) and "resume_template" in data) else None)
             if isinstance(rec_obj, dict):
                 recipe = dict(rec_obj)
@@ -100,16 +97,29 @@ def generate_resume(
             from backend.services.resume_service import get_full_config
             master_config = get_full_config(user_id)
         else:
-            with open(config_file) as f:
-                master_config = json.load(f)
+            master_config = load_resume_config()
         recipe = master_config.get("recipes", {}).get(source, {})
         if not recipe:
             raise ValueError(f"Role ID '{source}' not found in config.")
 
-    personal = master_config.get("personal", {}).copy()
-    if "personal" in recipe and isinstance(recipe["personal"], dict):
-        personal.update(recipe["personal"])
-        
+    personal = {}
+    if isinstance(master_config, dict) and "personal" in master_config and isinstance(master_config["personal"], dict):
+        personal.update(master_config["personal"])
+
+    if 'data' in locals() and isinstance(data, dict):
+        if "personal" in data and isinstance(data["personal"], dict):
+            personal.update(data["personal"])
+        for pfield in ("name", "email", "phone", "linkedin", "github"):
+            if data.get(pfield):
+                personal[pfield] = data[pfield]
+
+    if isinstance(recipe, dict):
+        if "personal" in recipe and isinstance(recipe["personal"], dict):
+            personal.update(recipe["personal"])
+        for pfield in ("name", "email", "phone", "linkedin", "github"):
+            if recipe.get(pfield):
+                personal[pfield] = recipe[pfield]
+
     library  = master_config.get("library", {})
     if "library" in recipe and isinstance(recipe["library"], dict):
         # Merge recipe's library over master_config's library
@@ -123,6 +133,9 @@ def generate_resume(
         library = merged_lib
 
     config = {**personal, **recipe}
+    for pfield in ("name", "email", "phone", "linkedin", "github"):
+        if personal.get(pfield):
+            config[pfield] = personal[pfield]
 
     MODULAR_SECTIONS = [
         "professional_summary", "role_title", "skills", "experience", "projects",
@@ -153,10 +166,46 @@ def generate_resume(
     import datetime
     tmpl = tmpl.replace("<<DATE>>",       datetime.datetime.now().strftime("%B %d, %Y"))
     
-    tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(_str_field(config.get("email"), ["email", "address"])))
-    tmpl = tmpl.replace("<<PHONE>>",      escape_latex(_str_field(config.get("phone"), ["phone", "number"])))
-    tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(_str_field(config.get("linkedin"), ["linkedin", "url"])))
-    tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(_str_field(config.get("github"), ["github", "url"])))
+    email_val = _str_field(config.get("email"), ["email", "address"])
+    phone_val = _str_field(config.get("phone"), ["phone", "number"])
+    
+    raw_linkedin = _str_field(config.get("linkedin"), ["linkedin", "url"])
+    clean_linkedin = raw_linkedin.replace("https://", "").replace("http://", "").replace("www.", "").strip()
+    if clean_linkedin.startswith("linkedin.com/in/"):
+        clean_linkedin = clean_linkedin[len("linkedin.com/in/"):]
+    elif clean_linkedin.startswith("linkedin.com/"):
+        clean_linkedin = clean_linkedin[len("linkedin.com/"):]
+
+    raw_github = _str_field(config.get("github"), ["github", "url"])
+    clean_github = raw_github.replace("https://", "").replace("http://", "").replace("www.", "").strip()
+    if clean_github.startswith("github.com/"):
+        clean_github = clean_github[len("github.com/"):]
+
+    if email_val == "your.email@example.com" and (phone_val or clean_linkedin or clean_github):
+        email_val = ""
+
+    # Construct clean contact line (horizontal with pipes)
+    contact_parts = []
+    if email_val:
+        contact_parts.append(f"\\href{{mailto:{email_val}}}{{{escape_latex(email_val)}}}")
+    if phone_val:
+        import re as _re
+        clean_tel = _re.sub(r'[^\d+]', '', phone_val)
+        contact_parts.append(f"\\href{{tel:{clean_tel}}}{{{escape_latex(phone_val)}}}")
+    if clean_linkedin:
+        contact_parts.append(f"\\href{{https://linkedin.com/in/{clean_linkedin}}}{{linkedin.com/in/{escape_latex(clean_linkedin)}}}")
+    if clean_github:
+        contact_parts.append(f"\\href{{https://github.com/{clean_github}}}{{github.com/{escape_latex(clean_github)}}}")
+
+    contact_line = " ~$\\|$~ ".join(contact_parts)
+    contact_stack = "\\\\[3pt]\n".join(contact_parts)
+
+    tmpl = tmpl.replace("<<CONTACT_LINE>>", contact_line)
+    tmpl = tmpl.replace("<<CONTACT_STACK>>", contact_stack)
+    tmpl = tmpl.replace("<<EMAIL>>",      escape_latex(email_val))
+    tmpl = tmpl.replace("<<PHONE>>",      escape_latex(phone_val))
+    tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(clean_linkedin))
+    tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(clean_github))
     # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)
     summary_text = config.get("professional_summary") or config.get("summary", "")
     if isinstance(summary_text, dict):

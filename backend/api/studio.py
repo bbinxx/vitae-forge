@@ -153,6 +153,12 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
     elif isinstance(v_data.get("personal"), dict):
         full_config["personal"].update(v_data["personal"])
 
+    for pfield in ("name", "email", "phone", "linkedin", "github"):
+        if req.config.get(pfield):
+            full_config["personal"][pfield] = req.config[pfield]
+        elif v_data.get(pfield):
+            full_config["personal"][pfield] = v_data[pfield]
+
     full_config.update(v_data)
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
