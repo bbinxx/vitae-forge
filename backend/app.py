@@ -71,19 +71,7 @@ def startup_event():
 
 @app.middleware("http")
 async def cookie_auth_middleware(request: Request, call_next):
-    passcode_hash = os.environ.get("PASSCODE_HASH")
-    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower()
-    if not passcode_hash or passcode_enabled == "false":
-        return await call_next(request)
-        
-    path = request.url.path
-    if (path.startswith("/api/auth/") or path == "/api/preview-pdf" or 
-        path.startswith("/assets/") or path.startswith("/share/") or 
-        path.startswith("/pdf/") or
-        path == "/" or path == "/login" or path == "/favicon.ico" or 
-        path.startswith("/.well-known/")):
-        return await call_next(request)
-        
+    # 1. Extract Bearer token or cookie token if present
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -91,25 +79,46 @@ async def cookie_auth_middleware(request: Request, call_next):
     else:
         token = request.cookies.get("auth_token")
 
-    is_api = (
-        path.startswith("/api/") or
-        "application/json" in request.headers.get("accept", "").lower() or
-        request.headers.get("x-requested-with") == "XMLHttpRequest" or
-        path in {"/list-files", "/get-config", "/applications", "/bookmarks", "/compile-direct", "/save-config", "/download-all-pdfs", "/download-workspace-archive", "/snapshot-resume"} or
-        path.startswith("/bookmarks/") or path.startswith("/applications/") or path.startswith("/snapshot-resume/")
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            request.state.user_id = payload.get("sub")
+        except JWTError:
+            pass
+
+    # 2. Determine if strict authentication is required for this route
+    passcode_hash = os.environ.get("PASSCODE_HASH")
+    passcode = os.environ.get("PASSCODE")
+    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower() == "true"
+    auth_required = os.environ.get("AUTH_REQUIRED", "false").lower() == "true"
+
+    is_strict = (auth_required or (passcode_enabled and bool(passcode_hash or passcode)))
+
+    if not is_strict:
+        return await call_next(request)
+
+    path = request.url.path
+    is_public = (
+        path.startswith("/api/auth/") or 
+        path == "/api/preview-pdf" or 
+        path.startswith("/assets/") or 
+        path.startswith("/user-assets/") or 
+        path.startswith("/share/") or 
+        path.startswith("/pdf/") or
+        path in {"/", "/login", "/favicon.ico"} or 
+        path.startswith("/.well-known/")
     )
 
-    if not token:
+    if not is_public and not getattr(request.state, "user_id", None):
+        is_api = (
+            path.startswith("/api/") or
+            "application/json" in request.headers.get("accept", "").lower() or
+            request.headers.get("x-requested-with") == "XMLHttpRequest" or
+            path in {"/list-files", "/get-config", "/applications", "/bookmarks", "/compile-direct", "/save-config", "/download-all-pdfs", "/download-workspace-archive", "/snapshot-resume"} or
+            path.startswith("/bookmarks/") or path.startswith("/applications/") or path.startswith("/snapshot-resume/")
+        )
         if is_api:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
-        return RedirectResponse("/login")
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        request.state.user_id = payload.get("sub")
-    except JWTError:
-        if is_api:
-            return JSONResponse({"detail": "Invalid or expired token"}, status_code=401)
         return RedirectResponse("/login")
 
     return await call_next(request)
