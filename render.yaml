@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vitae-forge
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 5050
+      - key: AUTH_REQUIRED
+        value: "false"
+      - key: DEFAULT_USER_ID
+        value: default_user
