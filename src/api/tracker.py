@@ -7,30 +7,25 @@ Key design decisions:
   - Resume versions are stored as subcollections inside applications.
   - Built PDFs and photos are uploaded to R2 and their URLs/keys are saved.
 """
-import sys
 import csv
 import uuid
 import re
-import subprocess
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from src.core.config import ROOT, DIST_DIR
+from src.core.config import ROOT, DIST_DIR, LOG_DIR
 from src.db import db
-from src.core.upload import upload_pdf, BUCKET
 
 def get_user_id(request: Request) -> str:
     user_id = getattr(request.state, "user_id", None)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user_id
-from src.core.upload import upload_pdf, BUCKET
 
 router = APIRouter(prefix="/applications", tags=["tracker"])
 
@@ -44,7 +39,6 @@ PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 
 from src.services.tracker_service import (
     timeline_event,
-    sanitize_filename,
     build_display_name,
     default_app
 )
@@ -80,8 +74,7 @@ async def create_application(request: Request):
             from src.core.build import build_custom_version
             success = build_custom_version(new_app['resume_template'], display_name, False, user_id=user_id)
             if success:
-                suffix_str = "_X" if include_photo else ""
-                new_app['assigned_pdf'] = f"{display_name}{suffix_str}.pdf"
+                new_app['assigned_pdf'] = f"{display_name}.pdf"
         except Exception as e:
             print(f"Error compiling new application resume for {app_id}: {e}")
     db.save_application(user_id, new_app)
@@ -571,7 +564,7 @@ async def compile_pdf(app_id: str, request: Request):
         
         if not success:
             # Read build log to surface actual error
-            log_dir = ROOT / "logs"
+            log_dir = LOG_DIR
             log_pattern = f"{pdf_name}_build.log"
             log_files = list(log_dir.glob(log_pattern)) if log_dir.exists() else []
             log_tail = ""
@@ -626,7 +619,6 @@ def scrape_job_url(req: ScrapeRequest):
     Fetch a job posting URL, extract visible text, and return it
     along with a ready-to-copy AI prompt.
     """
-    import re
     import requests
     from bs4 import BeautifulSoup
 

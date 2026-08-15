@@ -5,20 +5,19 @@ All routers are registered here. Run via:
     uvicorn src.app:app --host 127.0.0.1 --port 5050 --reload
 """
 import os
-import secrets
 import json
-import io
 import tempfile
 import subprocess
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from jose import jwt, JWTError
 
-from src.core.config import DIST_DIR, STATIC_DIR, ROOT, ensure_dirs, find_pdflatex
+from src.core.config import (
+    DIST_DIR, STATIC_DIR, ASSETS_DIR, ROOT, ensure_dirs, find_pdflatex, PROFILE_PHOTO,
+)
 from src.api.auth import SECRET_KEY, ALGORITHM
 from src.services.resume_service import get_full_config
 
@@ -35,13 +34,38 @@ app = FastAPI(
     version="7.0.0",
 )
 
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"ok": False, "detail": exc.detail, "error_type": "http_error", "code": exc.status_code}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    msg = errors[0].get("msg") if errors else "Invalid request payload"
+    field = ".".join([str(loc) for loc in errors[0].get("loc", [])]) if errors else ""
+    detail = f"Validation Warning ({field}): {msg}" if field else f"Validation Warning: {msg}"
+    return JSONResponse(
+        status_code=422,
+        content={"ok": False, "detail": detail, "errors": errors, "error_type": "validation_warning", "code": 422}
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"ok": False, "detail": f"Server Exception: {str(exc)}", "error_type": "server_error", "code": 500}
+    )
+
 @app.on_event("startup")
 def startup_event():
     print("🚀 Resume Studio Starting Up...")
-    # Trigger DB initialization
     from src.db import db
     try:
-        # Just a ping to ensure initialization
         db.list_users()
         print("🔥 DB connected successfully! Cloud sync is ACTIVE.")
     except Exception as e:
@@ -69,17 +93,24 @@ async def cookie_auth_middleware(request: Request, call_next):
     else:
         token = request.cookies.get("auth_token")
 
+    is_api = (
+        path.startswith("/api/") or
+        "application/json" in request.headers.get("accept", "").lower() or
+        request.headers.get("x-requested-with") == "XMLHttpRequest" or
+        path in {"/list-files", "/get-config", "/applications", "/bookmarks", "/compile-direct", "/save-config", "/download-all-pdfs", "/download-workspace-archive", "/snapshot-resume"} or
+        path.startswith("/bookmarks/") or path.startswith("/applications/") or path.startswith("/snapshot-resume/")
+    )
+
     if not token:
-        # For API requests, return 401. For page requests, redirect.
-        if path.startswith("/api/"):
+        if is_api:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
         return RedirectResponse("/login")
-        
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         request.state.user_id = payload.get("sub")
     except JWTError:
-        if path.startswith("/api/"):
+        if is_api:
             return JSONResponse({"detail": "Invalid or expired token"}, status_code=401)
         return RedirectResponse("/login")
 
@@ -91,31 +122,38 @@ app.mount("/pdf", StaticFiles(directory=str(DIST_DIR)), name="pdf")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
 from src.api.auth import router as auth_router
 from src.api.studio  import router as studio_router
 from src.api.tracker import router as tracker_router
 from src.api.library import router as library_router
+from src.api.checkpoints import router as checkpoints_router
 
 app.include_router(auth_router)
 app.include_router(studio_router)
 app.include_router(tracker_router)
 app.include_router(library_router)
+app.include_router(checkpoints_router)
 
 # ── Live PDF Preview Endpoint ──────────────────────────────────────────────────
 
 @app.post("/api/preview-pdf")
 async def preview_pdf(request: Request):
     """Generate a temporary preview PDF from a JSON config (no file save)."""
+    from src.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER
+
     try:
         body = await request.json()
         config = body.get("config", {})
         pdf_name = body.get("pdf_name", "preview.pdf")
         preview_type = body.get("type", "resume")
         include_photo = body.get("include_photo", False)
-        
+
         if not config:
             raise HTTPException(400, "Missing 'config' in request body")
-        
+
         # Need user_id for preview, try to get from header
         user_id = None
         auth_header = request.headers.get("Authorization")
@@ -125,95 +163,78 @@ async def preview_pdf(request: Request):
                 user_id = payload.get("sub")
             except JWTError:
                 pass
-                
+
         if not user_id:
             raise HTTPException(401, "Not authenticated")
-            
-        from src.core.config import TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER
-        
+
         main_config = get_full_config(user_id)
-        
+
         full_config = {
             "personal": main_config.get("personal", {}),
             "library": main_config.get("library", {}),
         }
-        
+
         # Recursively merge library from custom config
         if "library" in config:
             for lib_type, lib_items in config.get("library", {}).items():
                 if lib_type not in full_config["library"]:
                     full_config["library"][lib_type] = {}
                 full_config["library"][lib_type].update(lib_items)
-        
+
         # Merge everything else
         v_data = {k: v for k, v in config.items() if k != "library"}
         full_config.update(v_data)
-        
-        # Write temp JSON config
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
-            json.dump(full_config, tmp)
-            tmp_config_path = tmp.name
-        
-        # Build PDF to temp file
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
-            tmp_pdf_path = tmp_pdf.name
-        
-        try:
-            if preview_type == "cover_letter":
-                template = TEMPLATE_COVER_LETTER
-            elif include_photo:
-                template = TEMPLATE_PHOTO
-            else:
-                template = TEMPLATE_PLAIN
-            
-            from src.core.generate import generate_resume
-            
-            with tempfile.NamedTemporaryFile("w", suffix=".tex", delete=False, dir=Path(tmp_pdf_path).parent) as tmp_tex:
-                tmp_tex_path = tmp_tex.name
-                
+
+        if preview_type == "cover_letter":
+            template = TEMPLATE_COVER_LETTER
+        elif include_photo:
+            template = TEMPLATE_PHOTO
+        else:
+            template = TEMPLATE_PLAIN
+
+        pdflatex_cmd = find_pdflatex()
+        if not pdflatex_cmd:
+            raise HTTPException(
+                status_code=400,
+                detail="LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or compile downloaded TeX bundle in Overleaf."
+            )
+
+        from src.core.generate import generate_resume
+
+        # All temp artefacts live in one directory so cleanup is complete.
+        with tempfile.TemporaryDirectory(prefix="resume_preview_") as tmp_dir:
+            tmp_dir_path = Path(tmp_dir)
+            tmp_config_path = tmp_dir_path / "config.json"
+            tmp_tex_path = tmp_dir_path / "resume.tex"
+
+            with open(tmp_config_path, "w") as f:
+                json.dump(full_config, f)
+
             generate_resume(
-                tmp_config_path, str(template), tmp_tex_path,
+                str(tmp_config_path), str(template), str(tmp_tex_path),
                 photo_path=str(PROFILE_PHOTO) if include_photo else None,
             )
-            
-            # Compile TeX to PDF
-            pdflatex_cmd = find_pdflatex()
-            if not pdflatex_cmd:
-                raise HTTPException(
-                    status_code=400,
-                    detail="LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or compile downloaded TeX bundle in Overleaf."
-                )
 
-            try:
-                subprocess.run(
-                    [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", str(Path(tmp_pdf_path).parent), tmp_tex_path],
-                    capture_output=True,
-                    timeout=30
-                )
-                pdf_file = Path(tmp_tex_path).with_suffix(".pdf")
-                if pdf_file.exists():
-                    # Stream the PDF back
-                    def iterfile():
-                        with open(pdf_file, "rb") as f:
-                            for chunk in iter(lambda: f.read(8192), b""):
-                                yield chunk
-                    
-                    return StreamingResponse(
-                        iterfile(),
-                        media_type="application/pdf",
-                        headers={"Content-Disposition": f"inline; filename={pdf_name}"}
-                    )
-            except Exception as e:
-                print(f"LaTeX compilation error: {e}")
-                raise HTTPException(500, f"PDF generation failed: {str(e)}")
-        finally:
-            try:
-                os.unlink(tmp_config_path)
-                if Path(tmp_pdf_path).exists():
-                    os.unlink(tmp_pdf_path)
-            except Exception:
-                pass
-    
+            proc = subprocess.run(
+                [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", tmp_dir, str(tmp_tex_path)],
+                capture_output=True, timeout=30,
+            )
+
+            pdf_file = tmp_tex_path.with_suffix(".pdf")
+            if not pdf_file.exists():
+                detail = "PDF compilation failed."
+                log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore") if tmp_tex_path.with_suffix(".log").exists() else "")
+                if proc.returncode != 0 and log:
+                    tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
+                    detail = f"{detail} {tail}"
+                raise HTTPException(500, detail)
+
+            return Response(
+                content=pdf_file.read_bytes(),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{pdf_name}"'},
+            )
+
     except json.JSONDecodeError:
         raise HTTPException(400, "Invalid JSON in request body")
     except Exception as e:
@@ -224,16 +245,7 @@ async def preview_pdf(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    html = _HTML_FILE.read_text()
-    
-    # Preload data for instant render - disabled or handled via API
-    try:
-        script = f"<script>window.__PRELOADED_APPS__ = null; window.__PRELOADED_FILES__ = null;</script>"
-        html = html.replace("</head>", f"{script}\n</head>")
-    except Exception as e:
-        print(f"Preload error: {e}")
-        
-    return html
+    return _HTML_FILE.read_text()
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page():

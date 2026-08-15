@@ -28,6 +28,7 @@ test*.json
 test*.pdf
 *_old.js
 *version_editor.js
+!static/js/version_editor.js
 
 # Editor/System temp files
 *.swp

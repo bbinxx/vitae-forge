@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request
-from typing import Dict, Any
 
 from src.services.resume_service import (
     get_library_section,

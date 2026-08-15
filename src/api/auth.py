@@ -2,9 +2,9 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from jose import jwt, JWTError
+from jose import jwt
 
 from src.services.user_service import authenticate_user, create_user, get_user_by_id
 

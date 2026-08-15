@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from src.core.config import RESUME_CONFIG
 from src.db import db
 
 def seed_new_user(user_id: str, db):
