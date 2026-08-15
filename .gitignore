@@ -1,9 +1,30 @@
+# ── Environment & Secrets ──
 .env
+
+# ── Backend (Python / FastAPI) ──
 venv/
 __pycache__/
 *.pyc
+logs/
+.pytest_cache/
 
-# LaTeX artifacts (build files)
+# ── Frontend (React / Vite) ──
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.eslintcache
+
+# ── Build & Generated Artifacts ──
+dist/
+*.temp.tex
+**/*.temp.tex
+*_temp.tex
+**/*_temp.tex
+
+# ── LaTeX Compilation Files ──
 **/*.aux
 **/*.log
 **/*.out
@@ -12,34 +33,19 @@ __pycache__/
 **/*.synctex.gz
 **/*.synctex(busy)
 
-# Project-specific generated artifacts
-dist/
-logs/
-*.temp.tex
-**/*.temp.tex
-*_temp.tex
-**/*_temp.tex
-
-# Test/Scratch scripts and backups
-temp*.mjs
-test*.mjs
-test*.js
-test*.json
-test*.pdf
-*_old.js
-*version_editor.js
-!static/js/version_editor.js
-
-# Editor/System temp files
+# ── Editor & OS ──
+.DS_Store
+.vscode/
+.idea/
 *.swp
 *~
-.DS_Store
-.idea/
-.vscode/
 
-# Keep configs and templates!
+# ── Preserve Important Configuration & Templates ──
 !configs/*.json
 !templates/tex/*.tex
-!src/*.py
-!src/*.sh
 configs/bookmarks.json
+
+# ── User Uploads ──
+assets/*
+!assets/.gitkeep
+
