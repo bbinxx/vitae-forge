@@ -400,10 +400,11 @@ function openSrModal(item) {
                     <div style="display:flex;flex-direction:column;gap:8px;min-height:0">
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px">
                             <span style="font-size:11px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:4px">
-                                <span class="material-symbols-outlined" style="font-size:1.1em">code</span> Application JSON
+                                <span class="material-symbols-outlined" style="font-size:1.1em">code</span> Resume JSON
                             </span>
                             <span style="font-size:10px;color:var(--text-muted)">Realtime sync enabled</span>
                         </div>
+                        <div id="sr-sec-toggle-bar" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;"></div>
                         <div id="sr-json-editor-container" style="flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--border)"></div>
                     </div>
 
@@ -448,6 +449,8 @@ function openSrModal(item) {
         <button class="btn btn-secondary" onclick="window.srDownloadLatex()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">description</span> Download LaTeX</button>
     `;
 
+    renderSrSectionToggleButtons(data);
+
     const jsonContainer = document.getElementById('sr-json-editor-container');
     if (window.JSONEditor) {
         jsonContainer.innerHTML = '';
@@ -458,6 +461,7 @@ function openSrModal(item) {
                 try {
                     const parsed = JSON.parse(text);
                     item._customData = parsed;
+                    renderSrSectionToggleButtons(parsed);
                     const saveStatus = document.getElementById('sr-save-status');
                     if (saveStatus) saveStatus.innerHTML = '<span class="material-symbols-outlined spinning" style="font-size:12px;vertical-align:-2px">sync</span> Saving...';
 
@@ -785,4 +789,77 @@ window.srEditVisually = function() {
             alert('Error: ' + e.message);
         }
     });
+};
+
+function renderSrSectionToggleButtons(data) {
+    const bar = document.getElementById('sr-sec-toggle-bar');
+    if (!bar) return;
+
+    let sectionsObj = {};
+    if (data.sections && typeof data.sections === 'object') {
+        sectionsObj = data.sections;
+    } else if (data.resume_template && data.resume_template.sections && typeof data.resume_template.sections === 'object') {
+        sectionsObj = data.resume_template.sections;
+    }
+
+    const defaultKeys = [
+        'role_title', 'photo', 'summary', 'skills', 'experience', 
+        'projects', 'education', 'certifications', 'achievements', 
+        'areas_of_interest', 'languages', 'additional_info', 'cover_letter'
+    ];
+
+    const detectedKeys = new Set(defaultKeys);
+    Object.keys(sectionsObj).forEach(k => detectedKeys.add(k));
+
+    const formatLabel = (key) => {
+        const labels = {
+            role_title: 'Role Title',
+            photo: 'Photo',
+            summary: 'Summary',
+            skills: 'Skills',
+            experience: 'Experience',
+            projects: 'Projects',
+            education: 'Education',
+            certifications: 'Certifications',
+            achievements: 'Achievements',
+            areas_of_interest: 'Areas of Interest',
+            languages: 'Languages',
+            additional_info: 'Additional Info',
+            cover_letter: 'Cover Letter'
+        };
+        if (labels[key]) return labels[key];
+        return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    };
+
+    const buttonsHtml = Array.from(detectedKeys).map(secKey => {
+        const isEnabled = sectionsObj[secKey] !== false;
+        const activeCls = isEnabled ? 'active' : 'disabled';
+        const title = isEnabled ? `Click to disable ${formatLabel(secKey)} section in PDF` : `Click to enable ${formatLabel(secKey)} section in PDF`;
+        return `<button type="button" class="sec-toggle-btn ${activeCls}" data-section="${secKey}" title="${title}" onclick="window.toggleSrResumeSection('${secKey}')">${formatLabel(secKey)}</button>`;
+    }).join('');
+
+    bar.innerHTML = `<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-right:2px">PDF Sections:</span>${buttonsHtml}`;
 }
+
+window.toggleSrResumeSection = function(secKey) {
+    if (!_srModalCurrentItem) return;
+    let data = _srModalCurrentItem.getData();
+    if (!data) return;
+
+    if (data.sections && typeof data.sections === 'object') {
+        data.sections[secKey] = data.sections[secKey] === false ? true : false;
+    } else if (data.resume_template) {
+        if (!data.resume_template.sections) data.resume_template.sections = {};
+        data.resume_template.sections[secKey] = data.resume_template.sections[secKey] === false ? true : false;
+    } else {
+        data.sections = { [secKey]: false };
+    }
+
+    _srModalCurrentItem._customData = data;
+    if (window._srJsonEditor) {
+        window._srJsonEditor.set(data);
+    }
+    renderSrSectionToggleButtons(data);
+    refreshPreview();
+    window.srSaveToBackend();
+};
