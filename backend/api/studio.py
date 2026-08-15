@@ -31,16 +31,23 @@ router = APIRouter()
 BUILD_PY = ROOT / "src" / "core" / "build.py"
 
 # ── Bookmarks (Saved Resumes) ─────────────────────────────────────────────────
-BOOKMARKS_FILE = ROOT / "configs" / "bookmarks.json"
 
-def _load_bookmarks():
-    if BOOKMARKS_FILE.exists():
-        return json.loads(BOOKMARKS_FILE.read_text())
-    return []
+def _load_bookmarks(user_id: str | None = None) -> list:
+    if not user_id:
+        return []
+    cps = db.list_checkpoints(user_id)
+    bms = []
+    for cp_id in cps:
+        if cp_id.startswith("bm_"):
+            doc = db.get_checkpoint(user_id, cp_id)
+            if doc and "bookmark" in doc:
+                bms.append(doc["bookmark"])
+    return sorted(bms, key=lambda x: x.get("created_at", ""), reverse=True)
 
-def _save_bookmarks(bookmarks):
-    BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=4))
+def _save_bookmark_doc(user_id: str, bm: dict):
+    bm_id = bm.get("id")
+    if user_id and bm_id:
+        db.save_checkpoint(user_id, f"bm_{bm_id}", {"bookmark": bm, "created_at": bm.get("created_at")})
 
 def _bundle_instructions() -> str:
     return (
@@ -53,8 +60,9 @@ def _bundle_instructions() -> str:
     )
 
 @router.get("/bookmarks")
-def list_bookmarks():
-    return {"bookmarks": _load_bookmarks()}
+def list_bookmarks(request: Request):
+    user_id = get_optional_user_id(request)
+    return {"bookmarks": _load_bookmarks(user_id)}
 
 class BookmarkCreate(BaseModel):
     name: str
@@ -62,37 +70,37 @@ class BookmarkCreate(BaseModel):
     source_app_id: str = ""
 
 @router.post("/bookmarks")
-def create_bookmark(req: BookmarkCreate):
+def create_bookmark(req: BookmarkCreate, request: Request):
     import uuid
-    bookmarks = _load_bookmarks()
+    user_id = get_user_id(request)
+    bm_id = str(uuid.uuid4())
     new_bm = {
-        "id": str(uuid.uuid4()),
+        "id": bm_id,
         "name": req.name,
         "data": req.data,
         "source_app_id": req.source_app_id,
         "created_at": datetime.now().isoformat(),
     }
-    bookmarks.append(new_bm)
-    _save_bookmarks(bookmarks)
+    _save_bookmark_doc(user_id, new_bm)
     return {"ok": True, "bookmark": new_bm}
 
 @router.put("/bookmarks/{bm_id}")
-def update_bookmark(bm_id: str, req: BookmarkCreate):
-    bookmarks = _load_bookmarks()
-    for bm in bookmarks:
-        if bm.get("id") == bm_id:
-            bm["name"] = req.name
-            bm["data"] = req.data
-            bm["updated_at"] = datetime.now().isoformat()
-            _save_bookmarks(bookmarks)
-            return {"ok": True, "bookmark": bm}
+def update_bookmark(bm_id: str, req: BookmarkCreate, request: Request):
+    user_id = get_user_id(request)
+    doc = db.get_checkpoint(user_id, f"bm_{bm_id}")
+    if doc and "bookmark" in doc:
+        bm = doc["bookmark"]
+        bm["name"] = req.name
+        bm["data"] = req.data
+        bm["updated_at"] = datetime.now().isoformat()
+        _save_bookmark_doc(user_id, bm)
+        return {"ok": True, "bookmark": bm}
     raise HTTPException(404, "Bookmark not found")
 
 @router.delete("/bookmarks/{bm_id}")
-def delete_bookmark(bm_id: str):
-    bookmarks = _load_bookmarks()
-    bookmarks = [b for b in bookmarks if b.get("id") != bm_id]
-    _save_bookmarks(bookmarks)
+def delete_bookmark(bm_id: str, request: Request):
+    user_id = get_user_id(request)
+    db.delete_checkpoint(user_id, f"bm_{bm_id}")
     return {"ok": True}
 
 
@@ -585,12 +593,12 @@ def download_workspace_archive(request: Request):
 def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Request = None):
     from backend.core.build import build_custom_version
     import re as _re
-    bookmarks = _load_bookmarks()
+    user_id = get_optional_user_id(request)
+    bookmarks = _load_bookmarks(user_id)
     bm = next((b for b in bookmarks if b["id"] == bm_id), None)
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
-    user_id = get_optional_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     pdf_name = f"bm_{safe_name}"
     suffix = "_X" if include_photo else ""
@@ -606,12 +614,12 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Reque
 def download_bookmark_latex(bm_id: str, include_photo: bool = False, request: Request = None):
     from backend.core.build import generate_latex_source
     import re as _re
-    bookmarks = _load_bookmarks()
+    user_id = get_optional_user_id(request)
+    bookmarks = _load_bookmarks(user_id)
     bm = next((b for b in bookmarks if b["id"] == bm_id), None)
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
-    user_id = get_optional_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     latex = generate_latex_source(bm["data"], safe_name, include_photo, user_id=user_id)
     if not latex:
