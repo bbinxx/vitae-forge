@@ -1048,8 +1048,9 @@ export async function openAppStudio(appId = null) {
                 </div>
                 ${appId ? `
                 <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
-                    <button class="btn btn-danger" onclick="window.deleteApp('${appId}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">delete</span> Delete App</button>
+                    <button class="btn btn-secondary" onclick="window.bookmarkCurrentApplicationResume()" title="Bookmark this application resume into Saved Resumes library"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">bookmark_add</span> Save to Saved Resumes</button>
                     <button class="btn btn-secondary" onclick="window.exportToLocalFolder()" title="Export PDF to local folder"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">folder</span> Save to Folder</button>
+                    <button class="btn btn-danger" onclick="window.deleteApp('${appId}'); window.closeModal();"><span class="material-symbols-outlined" style="font-size:1.1em;vertical-align:middle;line-height:1">delete</span> Delete App</button>
                 </div>` : ''}
             </div>
         </div>`;
@@ -1343,6 +1344,35 @@ window.setUnifiedJsonValue = function(val) {
     } else {
         const el = document.getElementById('unified-json-editor');
         if (el) el.value = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
+    }
+};
+
+window.bookmarkCurrentApplicationResume = async function() {
+    try {
+        const val = window.getUnifiedJsonValue();
+        if (!val) return;
+        const payload = parseCleanJson(val);
+        const company = payload.company || 'Application';
+        const role = payload.role || 'Resume';
+        const name = `${company} - ${role}`;
+
+        const res = await fetch('/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, data: payload, source_app_id: window._currentEditingApp?.id || '' })
+        });
+        const result = await res.json();
+        if (result.ok) {
+            if (window.notify) {
+                window.notify.success(`"${name}" saved to Saved Resumes!`, 'Bookmark Saved');
+            } else {
+                toast(`"${name}" saved to Saved Resumes!`, 'success');
+            }
+        } else {
+            toast('Failed to save bookmark', 'error');
+        }
+    } catch(e) {
+        toast('Error saving bookmark: ' + e.message, 'error');
     }
 };
 

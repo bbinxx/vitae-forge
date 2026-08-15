@@ -338,31 +338,50 @@ function renderSkills() {
     const skEl = document.getElementById('ve-skills');
     if (!skEl) return;
     
-    if (editorState.mergedRecipe.skills === undefined) {
+    const skills = editorState.mergedRecipe.skills;
+    if (!skills) {
         skEl.style.display = 'none';
         return;
     }
     skEl.style.display = 'block';
     
-    const skills = editorState.mergedRecipe.skills;
     let html = `<div class="ve-section-title">Skills</div>`;
     
-    skills.forEach((skData, sIdx) => {
-        const name = escapeHtml(skData.name || skId);
-        const kws = escapeHtml(skData.keywords || '');
-        
-        html += `
-            <div class="ve-item">
-                <div class="ve-controls">
-                    <button class="ve-btn" onclick="moveArrayItem('skills', ${sIdx}, -1)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">arrow_drop_up</span></button>
-                    <button class="ve-btn" onclick="moveArrayItem('skills', ${sIdx}, 1)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">arrow_drop_down</span></button>
-                    <button class="ve-btn" style="color:var(--error)" onclick="veRemoveSkill(${sIdx})"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span> Remove</button>
+    if (Array.isArray(skills)) {
+        skills.forEach((skData, sIdx) => {
+            if (typeof skData === 'string') {
+                html += `<div class="ve-item"><input type="text" class="ve-input" value="${escapeHtml(skData)}" onchange="updateRecipeField('skills[${sIdx}]', this.value)"></div>`;
+            } else if (typeof skData === 'object' && skData !== null) {
+                const name = escapeHtml(skData.name || skData.title || `Skill Group ${sIdx+1}`);
+                const kws = escapeHtml(skData.keywords || (Array.isArray(skData.items) ? skData.items.join(', ') : skData.items) || '');
+                html += `
+                    <div class="ve-item">
+                        <div class="ve-controls">
+                            <button class="ve-btn" onclick="moveArrayItem('skills', ${sIdx}, -1)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">arrow_drop_up</span></button>
+                            <button class="ve-btn" onclick="moveArrayItem('skills', ${sIdx}, 1)"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">arrow_drop_down</span></button>
+                            <button class="ve-btn" style="color:var(--error)" onclick="veRemoveSkill(${sIdx})"><span class="material-symbols-outlined" style="font-size: 1.1em; vertical-align: middle; line-height: 1;">close</span> Remove</button>
+                        </div>
+                        <input type="text" class="ve-input" style="font-weight:bold" value="${name}" onchange="updateLibraryItemField('skills', ${sIdx}, 'name', this.value)">
+                        <textarea class="ve-textarea" onchange="updateLibraryItemField('skills', ${sIdx}, 'keywords', this.value)">${kws}</textarea>
+                    </div>
+                `;
+            }
+        });
+    } else if (typeof skills === 'object') {
+        Object.keys(skills).forEach((skKey) => {
+            const item = skills[skKey];
+            const name = escapeHtml(typeof item === 'object' ? (item.name || skKey) : skKey);
+            const kws = escapeHtml(typeof item === 'object' ? (item.keywords || (Array.isArray(item.items) ? item.items.join(', ') : item.items) || JSON.stringify(item)) : String(item));
+            html += `
+                <div class="ve-item">
+                    <input type="text" class="ve-input" style="font-weight:bold" value="${name}" readonly>
+                    <textarea class="ve-textarea" readonly>${kws}</textarea>
                 </div>
-                <input type="text" class="ve-input" style="font-weight:bold" value="${name}" onchange="updateLibraryItemField('skills', '${skId}', 'name', this.value)">
-                <textarea class="ve-textarea" onchange="updateLibraryItemField('skills', '${skId}', 'keywords', this.value)">${kws}</textarea>
-            </div>
-        `;
-    });
+            `;
+        });
+    } else if (typeof skills === 'string') {
+        html += `<div class="ve-item"><textarea class="ve-textarea" onchange="updateRecipeField('skills', this.value)">${escapeHtml(skills)}</textarea></div>`;
+    }
     
     html += `<button class="ve-btn-primary" onclick="veAddSkill()" style="margin-top:8px">+ Add Skill</button>`;
     

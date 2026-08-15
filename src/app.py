@@ -34,13 +34,38 @@ app = FastAPI(
     version="7.0.0",
 )
 
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"ok": False, "detail": exc.detail, "error_type": "http_error", "code": exc.status_code}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    msg = errors[0].get("msg") if errors else "Invalid request payload"
+    field = ".".join([str(loc) for loc in errors[0].get("loc", [])]) if errors else ""
+    detail = f"Validation Warning ({field}): {msg}" if field else f"Validation Warning: {msg}"
+    return JSONResponse(
+        status_code=422,
+        content={"ok": False, "detail": detail, "errors": errors, "error_type": "validation_warning", "code": 422}
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"ok": False, "detail": f"Server Exception: {str(exc)}", "error_type": "server_error", "code": 500}
+    )
+
 @app.on_event("startup")
 def startup_event():
     print("🚀 Resume Studio Starting Up...")
-    # Trigger DB initialization
     from src.db import db
     try:
-        # Just a ping to ensure initialization
         db.list_users()
         print("🔥 DB connected successfully! Cloud sync is ACTIVE.")
     except Exception as e:
@@ -68,17 +93,24 @@ async def cookie_auth_middleware(request: Request, call_next):
     else:
         token = request.cookies.get("auth_token")
 
+    is_api = (
+        path.startswith("/api/") or
+        "application/json" in request.headers.get("accept", "").lower() or
+        request.headers.get("x-requested-with") == "XMLHttpRequest" or
+        path in {"/list-files", "/get-config", "/applications", "/bookmarks", "/compile-direct", "/save-config", "/download-all-pdfs", "/download-workspace-archive", "/snapshot-resume"} or
+        path.startswith("/bookmarks/") or path.startswith("/applications/") or path.startswith("/snapshot-resume/")
+    )
+
     if not token:
-        # For API requests, return 401. For page requests, redirect.
-        if path.startswith("/api/"):
+        if is_api:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
         return RedirectResponse("/login")
-        
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         request.state.user_id = payload.get("sub")
     except JWTError:
-        if path.startswith("/api/"):
+        if is_api:
             return JSONResponse({"detail": "Invalid or expired token"}, status_code=401)
         return RedirectResponse("/login")
 
