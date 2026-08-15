@@ -1,91 +1,96 @@
-# Antigravity Resume Studio
+# Vitae Forge
 
-> A high-automation, modular LaTeX resume system and application tracker designed for a SaaS-like multi-tenant architecture. Features concurrent compilation, centralized cloud data, professional SDLC processes, and zero-touch deployment.
-
----
-
-## System Architecture
-
-The application has been refactored from a single-user local file system approach to a robust, multi-tenant cloud application. 
-
-### Core Pillars
-1. **Multi-Tenant Design**: User data is isolated and loaded securely via authentication states.
-2. **Database Agnostic**: The backend utilizes the Repository Pattern (Controller-Service-Repository), making it trivial to switch between Firebase Firestore, local JSON, MongoDB, or PostgreSQL.
-3. **Dual-Template Strategy**: Every role generates two variants automatically:
-    - Standard (`.pdf`): Clean, minimalist, and ATS-friendly.
-    - Modern (`_X.pdf`): A professional layout including profile photos, optimized for networking.
-4. **Elastic Single-Page Guarantee**: Dynamic rubber-length spacing (using LaTeX `plus` and `minus` parameters) and margin-overflow limits stretch seamlessly to fill empty space.
+> **Master ATS Resume Compiler, Studio & Job Application Tracker**  
+> A high-automation, single-page ATS-optimized LaTeX resume system, interactive visual studio, role recipe manager, and application tracker. Powered by a modern React SPA frontend, a high-performance FastAPI backend, and a TeX Live compilation engine.
 
 ---
 
-## SDLC & Professional Workflows
+## 🚀 Key Features
 
-This repository implements a professional Software Development Life Cycle (SDLC):
-
-### Continuous Integration (CI)
-Automated GitHub Actions (`ci.yml`) run on every Pull Request and push to `main`:
-- Validates code formatting and syntax using `flake8`.
-- Ensures no breaking code changes are merged into production.
-
-### Continuous Deployment (CD)
-Automated GitHub Actions (`cd.yml`) trigger on version tags (e.g. `v1.0.0`):
-- Builds the optimized Docker image.
-- Pushes to GitHub Container Registry (`ghcr.io`).
-- Ready for zero-downtime deployment to target cloud platforms (Cloud Run, ECS, etc).
-
-### Production Docker Environment
-The `Dockerfile` is optimized using `python:3.11-slim`, installing only the required `texlive` dependencies to keep the image lightweight while guaranteeing LaTeX compilation capabilities in the cloud.
+- **Modern React SPA Studio**: Fast, flat, solid-color UI built with React & Vite.
+- **Instant Client-Side Caching**: Uses `localStorage` state caching for 0ms instant tab switching and background data revalidation.
+- **ATS-Optimized Single-Page Engine**: Dynamic rubber-length LaTeX spacing (`plus`/`minus` geometry tuning) ensuring resumes fill exactly 1 page with zero overflow.
+- **Click-to-Call & Clean Headers**: Dynamic contact header builder with sanitized URLs (no duplicate prefixes) and click-to-call `tel:` links.
+- **Saved Resumes Studio (Full CRUD)**: Create, rename, duplicate, delete, and edit saved resume snapshots in a live browser editor with real-time PDF previews.
+- **Templates & Role Recipes (Full CRUD)**: Customize role target presets (`Software Engineer`, `Backend Lead`, etc.) and inspect raw LaTeX template sources (`template.tex`, `template_photo.tex`, `cover_letter.tex`).
+- **Job Application Control Center**: Track application status (`APPLIED`, `INTERVIEW`, `OFFER`, `REJECTED`), custom company notes, and single-use tailored resume versions.
+- **Unified Single-Container Deployment**: Built for instant deployment on **Docker**, **Render**, **Cloud Run**, **Railway**, or **Heroku** using a multi-stage Dockerfile and `render.yaml`.
 
 ---
 
-## How it Works
+## 🏗️ Architecture & Project Structure
 
-### 1. Data Models
-Data is structured dynamically per user:
-*   **Settings**: Stores custom prefixes, export folders, and configuration preferences.
-*   **Library**: A flattened database of all reusable content pieces (projects, skills, certifications).
-*   **Recipes**: Defines each resume role variation by linking to items in the Library.
-*   **Applications**: The Job Tracker database logging timelines, interview rounds, and dynamically generated single-use resumes.
-
-### 2. High-Performance Build Engine
-The build orchestrator (`src/core/build.py`) utilizes a Concurrent Thread Pool. The engine triggers the heavy `pdflatex` processes simultaneously across CPU cores, cutting build times drastically. Built artifacts are pushed directly to a Cloudflare R2 bucket.
+```
+vitae_forge/
+├── backend/                  # FastAPI Application Code & Compilation Engine
+│   ├── api/                  # REST Routers (auth, studio, tracker, library, checkpoints)
+│   ├── core/                 # Config defaults, PDF build orchestrator, LaTeX generator
+│   ├── db/                   # Repository abstractions (Firestore / Local fallback)
+│   ├── templates/tex/        # LaTeX source templates (template.tex, template_photo.tex)
+│   └── app.py                # Primary FastAPI application entrypoint & static mounts
+├── frontend/                 # Modern React SPA (Vite + Vanilla CSS)
+│   ├── src/
+│   │   ├── components/       # UI Components (LivePdfPreview, JsonEditor, SectionToggleBar)
+│   │   ├── pages/            # View Pages (SavedResumes, Templates, Applications, Login)
+│   │   ├── services/         # API fetch abstractions & auth interceptors
+│   │   └── App.jsx           # Client router & navigation bar
+│   ├── dist/                 # Built production assets (generated by Vite)
+│   └── package.json
+├── prompts/                  # AI ATS prompt generator guidelines (ATS_Prompt.md)
+├── Dockerfile                # Production multi-stage Docker build
+├── render.yaml               # Render Cloud deployment blueprint
+└── requirements.txt          # Python dependencies
+```
 
 ---
 
-## Usage & Operations
+## 💻 Local Development Setup
 
-### Unified Control Center
-The system is managed through a menu-driven CLI or Docker:
+### 1. Backend Setup
 ```bash
-./run.sh
-```
-This script handles:
-- Starting the Resume Studio (FastAPI dashboard)
-- Building all variants concurrently
-- Targeting specific roles
-- Cleaning workspace
-- Syncing to Cloud (Cloudflare R2)
+# Create virtual environment and install dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
-### Resume Studio (Visual Dashboard)
-Accessible locally at `http://localhost:5050` or via your deployed domain. 
-- **Live Preview**: View generated PDFs instantly in the browser.
-- **Application Tracker**: Track your entire job pipeline. Create status timelines, log salaries, and automatically map exact resume PDF versions to specific companies.
-- **Snapshot Builder**: Create a highly customized, one-off resume clone tailored for a specific job application without mutating your base recipes.
-- **Cloud Sync**: Batch operations upload all resumes to an R2 bucket, supplying pre-signed URLs for easy sharing.
+# Start FastAPI dev server
+uvicorn backend.app:app --host 127.0.0.1 --port 5050 --reload
+```
+
+### 2. Frontend Setup
+```bash
+# Navigate to frontend and start Vite dev server
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` for Vite HMR or `http://localhost:5050` for the unified server.
 
 ---
 
-## Repository Structure
-```
-.
-├── .github/workflows/       # CI/CD pipelines
-├── src/                     # Python logic (Controllers, Services, Repositories)
-├── templates/               # LaTeX (.tex) and Dashboard (.html) templates
-├── assets/                  # Default profile photos and static assets
-├── logs/                    # Build logs
-├── Dockerfile               # Production container image
-└── requirements.txt         # Dependencies
+## 🐳 Single Container Production Deployment (Docker & Render)
+
+Vitae Forge is configured to run as a single container serving both the static React SPA frontend and the FastAPI backend with TeX Live installed.
+
+### Docker Run
+```bash
+# Build the multi-stage Docker image
+docker build -t vitae-forge .
+
+# Run container on port 5050
+docker run -p 5050:5050 vitae-forge
 ```
 
+### 1-Click Render Deployment
+Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` automatically builds the React SPA and provisions Python 3.11 with TeX Live packages (`texlive-latex-base`, `texlive-fonts-recommended`, `texlive-fonts-extra`, `texlive-latex-extra`, `cm-super`).
+
 ---
-*Built with Python, FastAPI, React, and LaTeX | Status: Production Ready*
+
+## 📄 Master Resume JSON Specification
+
+Vitae Forge uses a structured JSON schema for generating resumes, cover letters, and email application drafts. See [`prompts/ATS_Prompt.md`](file:///mnt/MY_UNIVERSE/DEV/RSM/vitae_forge/prompts/ATS_Prompt.md) for the AI system prompt to turn any Job Description into an importable application package.
+
+---
+
+*Built with Python, FastAPI, React, Vite, and LaTeX | Status: Production Ready*
