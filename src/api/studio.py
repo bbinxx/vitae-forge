@@ -6,6 +6,8 @@ photo upload, and resume snapshot (custom one-off recipe) endpoints.
 import sys
 import io
 import copy
+import json
+import tempfile
 import zipfile
 import subprocess
 from datetime import datetime
@@ -14,17 +16,14 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
-from PIL import Image
 
 from src.core.config import (
-    ROOT, DIST_DIR, ASSETS_DIR, PROFILE_PHOTO,
+    ROOT, DIST_DIR, ASSETS_DIR, PROFILE_PHOTO, load_resume_config,
 )
-from src.core.upload import md5_of_file, list_r2_objects, upload_pdf, BUCKET
-from src.core.build import build_role, build_all, clean
+from src.core.upload import list_r2_objects, upload_pdf, get_r2_client, BUCKET
 
 from src.db import db
 from src.services.resume_service import get_full_config, save_full_config
-import src.services.checkpoint_service as cps
 
 def get_user_id(request: Request) -> str:
     user_id = getattr(request.state, "user_id", None)
@@ -40,15 +39,23 @@ BUILD_PY = ROOT / "src" / "core" / "build.py"
 BOOKMARKS_FILE = ROOT / "configs" / "bookmarks.json"
 
 def _load_bookmarks():
-    import json
     if BOOKMARKS_FILE.exists():
         return json.loads(BOOKMARKS_FILE.read_text())
     return []
 
 def _save_bookmarks(bookmarks):
-    import json
     BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
     BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=4))
+
+def _bundle_instructions() -> str:
+    return (
+        "Resume LaTeX Bundle\n"
+        "===================\n"
+        "1. Open https://www.overleaf.com and create a New Blank Project.\n"
+        "2. Upload resume.tex and profile.jpg (if present) into the project.\n"
+        "3. Set the compiler to pdfLaTeX (Menu > Compiler > pdfLaTeX).\n"
+        "4. Recompile — the generated PDF is ready to download.\n"
+    )
 
 @router.get("/bookmarks")
 def list_bookmarks():
@@ -101,15 +108,18 @@ class DirectCompileRequest(BaseModel):
     type: str = "resume"
     include_photo: bool = False
 
+
+def _request_user_id(request: Request) -> str | None:
+    return getattr(request.state, "user_id", None) if request else None
+
+
 @router.post("/compile-direct")
 def compile_direct(req: DirectCompileRequest, request: Request = None):
     from src.core.build import build_variant
-    from src.core.config import load_resume_config, TEMPLATE_PHOTO, TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
+    from src.core.config import TEMPLATE_PHOTO, TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER
     import re as _re
-    import tempfile, json, os
-    from pathlib import Path
 
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+    user_id = _request_user_id(request)
     raw_name = req.pdf_name or req.name or "resume"
     safe_name = _re.sub(r'[^\w\-_]', '_', raw_name)
 
@@ -122,18 +132,14 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
         suffix = "_X" if req.include_photo else ""
         photo_to_use = PROFILE_PHOTO if req.include_photo else None
 
-    if user_id:
-        from src.services.resume_service import get_full_config
-        main_config = get_full_config(user_id)
-    else:
-        main_config = load_resume_config()
+    main_config = get_full_config(user_id) if user_id else load_resume_config()
 
     full_config = {
         "personal": dict(main_config.get("personal", {})),
         "library": dict(main_config.get("library", {})),
     }
 
-    rec_obj = req.config.get("recipe") if (isinstance(req.config, dict) and "recipe" in req.config) else (req.config.get("resume_template") if (isinstance(req.config, dict) and "resume_template" in req.config) else None)
+    rec_obj = req.config.get("recipe") if "recipe" in req.config else req.config.get("resume_template")
     if isinstance(rec_obj, dict):
         v_data = dict(rec_obj)
         if "cover_letter" not in v_data and "email" in req.config:
@@ -143,9 +149,9 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
     else:
         v_data = dict(req.config)
 
-    if "personal" in req.config and isinstance(req.config["personal"], dict):
+    if isinstance(req.config.get("personal"), dict):
         full_config["personal"].update(req.config["personal"])
-    elif "personal" in v_data and isinstance(v_data["personal"], dict):
+    elif isinstance(v_data.get("personal"), dict):
         full_config["personal"].update(v_data["personal"])
 
     full_config.update(v_data)
@@ -166,7 +172,8 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
 def download_latex_direct(req: DirectCompileRequest, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+
+    user_id = _request_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
     suffix = "_X" if req.include_photo else ""
     latex = generate_latex_source(req.config, safe_name, req.include_photo, user_id=user_id)
@@ -182,7 +189,8 @@ def download_latex_direct(req: DirectCompileRequest, request: Request = None):
 def download_zip_direct(req: DirectCompileRequest, request: Request = None):
     from src.core.build import generate_latex_source
     import re as _re
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+
+    user_id = _request_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
     latex = generate_latex_source(req.config, safe_name, include_photo=True, user_id=user_id)
     if not latex:
@@ -251,14 +259,24 @@ def pick_folder_route():
 
 @router.post("/api/export-pdf-local")
 async def export_pdf_local_route(request: Request):
+    import re as _re
+    import shutil
+    import tempfile
+    import subprocess
+    from src.core.config import (
+        TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
+        find_pdflatex,
+    )
+    from src.core.generate import generate_resume
+
+    user_id = get_user_id(request)
     data = await request.json()
     config = data.get("config")
     pdf_name = data.get("pdf_name", "")
     preview_type = data.get("type", "resume")
     include_photo = data.get("include_photo", False)
 
-    from src.core.firebase import get_settings
-    settings = get_settings()
+    settings = db.get_settings(user_id) or {}
     export_folder = settings.get("export_folder")
 
     if not export_folder:
@@ -268,13 +286,10 @@ async def export_pdf_local_route(request: Request):
         raise HTTPException(400, "Missing config in request body")
 
     if not pdf_name:
-        prefix = settings.get("file_name_prefix", "BIBIN_RAJU-") if isinstance(settings, dict) else "BIBIN_RAJU-"
-        role = config.get("role_title", "")
-        import re
-        safe_role = re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
+        prefix = settings.get("file_name_prefix", "BIBIN_RAJU-")
+        role = config.get("role_title", "") if isinstance(config, dict) else ""
+        safe_role = _re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
         pdf_name = f"{prefix}{safe_role}"
-
-    from pathlib import Path
 
     if not pdf_name.endswith(".pdf"):
         pdf_name = f"{pdf_name}.pdf"
@@ -283,18 +298,7 @@ async def export_pdf_local_route(request: Request):
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / pdf_name
 
-    import shutil
-    import json
-    import tempfile
-    import subprocess
-    import os
-    from src.core.config import (
-        TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
-        PROFILE_PHOTO, DIST_DIR, load_resume_config,
-    )
-    from src.core.generate import generate_resume
-
-    main_config = load_resume_config()
+    main_config = get_full_config(user_id)
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
@@ -308,14 +312,14 @@ async def export_pdf_local_route(request: Request):
     v_data = {k: v for k, v in config.items() if k != "library"}
     full_config.update(v_data)
 
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
-        json.dump(full_config, tmp)
-        tmp_config_path = tmp.name
+    with tempfile.TemporaryDirectory(prefix="resume_export_") as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        tmp_config_path = tmp_dir_path / "config.json"
+        tmp_tex_path = tmp_dir_path / "resume.tex"
 
-    tmp_dir = Path(tmp_config_path).parent
-    tmp_tex_path = str(tmp_dir / f"export_{os.getpid()}.tex")
+        with open(tmp_config_path, "w") as f:
+            json.dump(full_config, f)
 
-    try:
         if preview_type == "cover_letter":
             template = TEMPLATE_COVER_LETTER
         elif include_photo:
@@ -324,33 +328,34 @@ async def export_pdf_local_route(request: Request):
             template = TEMPLATE_PLAIN
 
         generate_resume(
-            tmp_config_path, str(template), tmp_tex_path,
+            str(tmp_config_path), str(template), str(tmp_tex_path),
             photo_path=str(PROFILE_PHOTO) if include_photo else None,
         )
 
-        from src.core.config import find_pdflatex
         pdflatex_cmd = find_pdflatex()
         if not pdflatex_cmd:
             raise HTTPException(400, "LaTeX compiler 'pdflatex' not found.")
 
-        subprocess.run(
+        proc = subprocess.run(
             [pdflatex_cmd, "-interaction=nonstopmode",
-             "-output-directory", str(tmp_dir), tmp_tex_path],
+             "-output-directory", tmp_dir, str(tmp_tex_path)],
             capture_output=True, timeout=60,
         )
 
-        pdf_file = Path(tmp_tex_path).with_suffix(".pdf")
+        pdf_file = tmp_tex_path.with_suffix(".pdf")
         if not pdf_file.exists():
-            raise HTTPException(500, "PDF compilation failed.")
+            detail = "PDF compilation failed."
+            log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore")
+                   if tmp_tex_path.with_suffix(".log").exists() else "")
+            if proc.returncode != 0 and log:
+                tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
+                detail = f"{detail} {tail}"
+            raise HTTPException(500, detail)
 
         shutil.copy2(str(pdf_file), str(target_path))
         shutil.copy2(str(pdf_file), str(DIST_DIR / pdf_name))
 
         return {"ok": True, "path": str(target_path)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"Failed to copy to export folder: {str(e)}")
 
 @router.get("/api/template/{filename}")
 def get_template(filename: str):
@@ -390,16 +395,25 @@ def trigger_r2_backup():
 @router.get("/list-files")
 def list_files(request: Request):
     user_id = get_user_id(request)
-    
+
     r2_objects = list_r2_objects()
     files = []
-    
+
+    # Local files (DIST_DIR) first
+    for pdf in DIST_DIR.glob("*.pdf"):
+        files.append({
+            "name": pdf.name,
+            "path": pdf.name,
+            "sync_status": "synced" if pdf.name in r2_objects else "new",
+            "type": "local",
+        })
+
     # Cloud files (R2)
     # Build a lookup map from r2_key -> {company, version_name}
     key_to_meta = {}
     try:
         apps = db.get_all_applications(user_id)
-        
+
         # We fetch all versions iteratively instead of collection group to stay db-agnostic
         for app in apps:
             app_id = app["id"]
@@ -413,7 +427,7 @@ def list_files(request: Request):
         print(f"Failed to load apps for list-files: {e}")
 
     for key in r2_objects:
-        if key.endswith(".pdf"):
+        if key.endswith(".pdf") and not key.endswith("/"):
             display_name = key.split("/")[-1]
             if key in key_to_meta:
                 display_name = f"{key_to_meta[key]}.pdf"
@@ -428,13 +442,12 @@ def list_files(request: Request):
                 "sync_status": "synced",
                 "type": "cloud"
             })
-            
-    return sorted(files, key=lambda x: x["name"])
+
+    return sorted(files, key=lambda x: x["name"].lower())
 
 
 @router.get("/cloud-pdf/{key:path}")
 def view_cloud_pdf(key: str):
-    from src.core.upload import get_r2_client, BUCKET
     from fastapi.responses import RedirectResponse
     client = get_r2_client()
     if not client:
@@ -448,6 +461,133 @@ def view_cloud_pdf(key: str):
         raise HTTPException(500, str(e))
 
 
+# ── Photo upload ───────────────────────────────────────────────────────────────
+
+@router.post("/upload-photo")
+async def upload_photo(file: UploadFile = File(...)):
+    """Save the uploaded profile photo locally (and to R2 if configured)."""
+    from PIL import Image
+
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+
+    try:
+        data = await file.read()
+    except Exception as e:
+        raise HTTPException(400, f"Failed to read upload: {e}")
+
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = ASSETS_DIR / "profile-photo_upload.jpg"
+    tmp_path.write_bytes(data)
+
+    try:
+        # Re-encode to a well-formed JPEG and validate it is an image
+        with Image.open(tmp_path) as img:
+            img = img.convert("RGB")
+            img.save(str(PROFILE_PHOTO), "JPEG", quality=92)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise HTTPException(400, "Uploaded file is not a valid image.")
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    # Sync to R2 when available so the photo survives across instances
+    client = get_r2_client()
+    if client:
+        try:
+            client.upload_file(
+                str(PROFILE_PHOTO), BUCKET, "profile-photo.jpg",
+                ExtraArgs={"ContentType": "image/jpeg"},
+            )
+        except Exception as e:
+            print(f"R2 photo sync failed: {e}")
+
+    return {"ok": True, "message": "Photo updated"}
+
+
+# ── Local file downloads ───────────────────────────────────────────────────────
+
+def _safe_dist_path(name: str) -> Path:
+    """Resolve a filename strictly inside DIST_DIR (blocks path traversal)."""
+    if not name:
+        raise HTTPException(400, "Missing filename")
+    target = (DIST_DIR / name).resolve()
+    if DIST_DIR.resolve() not in target.parents and target != DIST_DIR.resolve():
+        raise HTTPException(400, "Invalid path")
+    return target
+
+
+@router.get("/download/{filename:path}")
+def download_file(filename: str):
+    target = _safe_dist_path(filename)
+    if not target.is_file():
+        raise HTTPException(404, "File not found")
+    return FileResponse(str(target), filename=target.name)
+
+
+@router.get("/download-bundle/{filename:path}")
+def download_bundle(filename: str):
+    """Download a .tex + profile photo as a zip bundle (for Overleaf)."""
+    target = _safe_dist_path(filename)
+    if not target.is_file():
+        raise HTTPException(404, "File not found")
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED, False) as zf:
+        zf.write(str(target), arcname="resume.tex")
+        if PROFILE_PHOTO.exists():
+            zf.write(str(PROFILE_PHOTO), "profile.jpg")
+        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
+    zip_buf.seek(0)
+
+    stem = target.stem
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f'attachment; filename="{stem}.zip"'},
+    )
+
+
+@router.get("/download-all-pdfs")
+def download_all_pdfs(request: Request):
+    get_user_id(request)
+    pdfs = sorted(DIST_DIR.glob("*.pdf"), key=lambda p: p.name)
+    if not pdfs:
+        raise HTTPException(404, "No PDFs available")
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED, False) as zf:
+        for pdf in pdfs:
+            zf.write(str(pdf), arcname=pdf.name)
+    zip_buf.seek(0)
+
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": 'attachment; filename="all_resumes.zip"'},
+    )
+
+
+@router.get("/download-workspace-archive")
+def download_workspace_archive(request: Request):
+    get_user_id(request)
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED, False) as zf:
+        for f in (ROOT / "configs").glob("*"):
+            if f.is_file():
+                zf.write(str(f), arcname=f"configs/{f.name}")
+        for f in (ROOT / "templates").glob("*"):
+            if f.is_file():
+                zf.write(str(f), arcname=f"templates/{f.name}")
+    zip_buf.seek(0)
+
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": 'attachment; filename="resume_workspace_backup.zip"'},
+    )
+
+
 # ── Bookmark Compile / Download ────────────────────────────────────────────────
 
 @router.post("/bookmarks/{bm_id}/compile-pdf")
@@ -459,7 +599,7 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Reque
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+    user_id = _request_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     pdf_name = f"bm_{safe_name}"
     suffix = "_X" if include_photo else ""
@@ -480,7 +620,7 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False, request: Re
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+    user_id = _request_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     latex = generate_latex_source(bm["data"], safe_name, include_photo, user_id=user_id)
     if not latex:
@@ -504,7 +644,7 @@ def download_bookmark_zip(bm_id: str, request: Request = None):
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
-    user_id = getattr(request.state, "user_id", None) if request and hasattr(request, "state") else None
+    user_id = _request_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
     latex = generate_latex_source(bm["data"], safe_name, include_photo=True, user_id=user_id)
     if not latex:
@@ -525,13 +665,6 @@ def download_bookmark_zip(bm_id: str, request: Request = None):
         media_type="application/x-zip-compressed",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}.zip"'},
     )
-
-
-# ── Downloads ─────────────────────────────────────────────────────────────────
-
-
-
-
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -6,6 +7,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 from src.db.repository import AbstractRepository
+
+_CACHE_TTL_SECONDS = 30
 
 
 class FirestoreRepository(AbstractRepository):
@@ -99,11 +102,12 @@ class FirestoreRepository(AbstractRepository):
 
     # ── Applications (per-user) ──
     def get_all_applications(self, user_id: str) -> List[Dict[str, Any]]:
-        if user_id in self._apps_cache:
-            return self._apps_cache[user_id]
+        cached = self._apps_cache.get(user_id)
+        if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
+            return cached[1]
         docs = self._user_ref(user_id).collection("applications").stream()
         res = [doc.to_dict() for doc in docs]
-        self._apps_cache[user_id] = res
+        self._apps_cache[user_id] = (time.time(), res)
         return res
 
     def get_application(self, user_id: str, app_id: str) -> Optional[Dict[str, Any]]:
@@ -123,11 +127,12 @@ class FirestoreRepository(AbstractRepository):
 
     def get_app_versions(self, user_id: str, app_id: str) -> List[Dict[str, Any]]:
         key = (user_id, app_id)
-        if key in self._app_versions_cache:
-            return self._app_versions_cache[key]
+        cached = self._app_versions_cache.get(key)
+        if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
+            return cached[1]
         docs = self._user_ref(user_id).collection("applications").document(app_id).collection("versions").stream()
         res = [doc.to_dict() for doc in docs]
-        self._app_versions_cache[key] = res
+        self._app_versions_cache[key] = (time.time(), res)
         return res
 
     def save_app_version(self, user_id: str, app_id: str, version_data: Dict[str, Any]) -> None:
