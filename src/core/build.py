@@ -6,7 +6,6 @@ import sys
 import json
 import shutil
 import subprocess
-import re
 from pathlib import Path
 
 # Add project root to sys.path to allow running the script directly
