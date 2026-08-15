@@ -13,6 +13,7 @@ LOG_DIR     = Path("/tmp/resume_logs")
 ASSETS_DIR  = ROOT / "assets"
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 TEX_DIR     = TEMPLATES_DIR / "tex"
+PROFILE_PHOTO = ASSETS_DIR / "profile-photo.jpg"
 
 DEFAULT_STARTER_CONFIG = {
   "personal": {
