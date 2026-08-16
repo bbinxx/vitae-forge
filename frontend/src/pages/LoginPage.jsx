@@ -4,6 +4,7 @@ export default function LoginPage({ onLoginSuccess }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -106,7 +107,7 @@ export default function LoginPage({ onLoginSuccess }) {
             Vitae Forge
           </h1>
           <p style={{ margin: 0, fontSize: '14px', color: '#9ca3af' }}>
-            {mode === 'login' ? 'Enter credentials or passcode to sign in' : 'Create an account to manage your resumes'}
+            {mode === 'login' ? 'Enter credentials to sign in to your account' : 'Create an account to manage your resumes'}
           </p>
         </div>
 
@@ -203,7 +204,7 @@ export default function LoginPage({ onLoginSuccess }) {
               color: '#d1d5db',
               marginBottom: '6px',
             }}>
-              Username <span style={{ color: '#6b7280', fontWeight: '400' }}>(Optional for passcode)</span>
+              Username
             </label>
             <div style={{ position: 'relative' }}>
               <span className="material-symbols-outlined" style={{
@@ -218,9 +219,10 @@ export default function LoginPage({ onLoginSuccess }) {
               </span>
               <input
                 type="text"
+                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin or username"
+                placeholder="e.g. alex_dev"
                 style={{
                   width: '100%',
                   padding: '12px 12px 12px 40px',
@@ -244,7 +246,7 @@ export default function LoginPage({ onLoginSuccess }) {
               color: '#d1d5db',
               marginBottom: '6px',
             }}>
-              Password / Passcode
+              Password
             </label>
             <div style={{ position: 'relative' }}>
               <span className="material-symbols-outlined" style={{
@@ -258,14 +260,14 @@ export default function LoginPage({ onLoginSuccess }) {
                 lock
               </span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
                   width: '100%',
-                  padding: '12px 12px 12px 40px',
+                  padding: '12px 40px 12px 40px',
                   background: '#1f2937',
                   border: '1px solid #374151',
                   borderRadius: '8px',
@@ -275,6 +277,28 @@ export default function LoginPage({ onLoginSuccess }) {
                   boxSizing: 'border-box',
                 }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ca3af',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
             </div>
           </div>
 
