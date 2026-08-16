@@ -195,3 +195,41 @@ body {
   animation: srSpin 0.8s linear infinite;
 }
 @keyframes srSpin { to { transform: rotate(360deg); } }
+
+/* ── Mobile Responsiveness Rules ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  html, body {
+    overflow-y: auto !important;
+  }
+
+  .header {
+    height: auto !important;
+    padding: 10px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .header-brand {
+    margin-bottom: 2px;
+  }
+
+  .header-nav {
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header-actions {
+    margin-left: auto;
+  }
+
+  .main-content {
+    padding: 12px !important;
+  }
+
+  .search-input, .input-field {
+    width: 100% !important;
+  }
+}

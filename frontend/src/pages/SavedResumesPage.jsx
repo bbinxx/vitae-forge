@@ -19,6 +19,7 @@ export default function SavedResumesPage() {
   const [jsonData, setJsonData] = useState({});
   const [previewType, setPreviewType] = useState('resume');
   const [includePhoto, setIncludePhoto] = useState(true);
+  const [activeMobileTab, setActiveMobileTab] = useState('editor');
 
   // Modal States for Create / Rename
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -287,29 +288,50 @@ export default function SavedResumesPage() {
       {/* Editor Modal */}
       {selectedItem && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: 'var(--bg-card)', width: '94%', height: '90vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-card)', width: '96%', height: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{selectedItem.name}</h3>
+
+              {/* Mobile View Switcher Tabs */}
+              <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                <button
+                  className={`btn btn-sm ${activeMobileTab === 'editor' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setActiveMobileTab('editor')}
+                >
+                  📝 Editor
+                </button>
+                <button
+                  className={`btn btn-sm ${activeMobileTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setActiveMobileTab('preview')}
+                >
+                  📄 Preview
+                </button>
+              </div>
+
               <button className="btn btn-ghost" onClick={() => setSelectedItem(null)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', flex: 1, padding: '16px', minHeight: 0 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0, flex: 1 }}>
-                <SectionToggleBar sections={jsonData.sections || (jsonData.resume_template && jsonData.resume_template.sections)} onToggleSection={handleToggleSection} />
-                <div style={{ flex: 1, minHeight: 0, position: 'relative', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
-                  <JsonEditor value={jsonData} onChange={setJsonData} />
+            <div className="studio-modal-grid" style={{ display: 'grid', gridTemplateColumns: activeMobileTab === 'editor' && activeMobileTab === 'preview' ? '1fr 1fr' : '1fr', gap: '16px', flex: 1, padding: '16px', minHeight: 0, overflowY: 'auto' }}>
+              {(activeMobileTab === 'editor' || window.innerWidth >= 768) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0, flex: 1, height: '100%' }}>
+                  <SectionToggleBar sections={jsonData.sections || (jsonData.resume_template && jsonData.resume_template.sections)} onToggleSection={handleToggleSection} />
+                  <div style={{ flex: 1, minHeight: '300px', position: 'relative', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                    <JsonEditor value={jsonData} onChange={setJsonData} />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <LivePdfPreview
-                jsonPayload={jsonData}
-                previewType={previewType}
-                includePhoto={includePhoto}
-                onToggleType={setPreviewType}
-                onTogglePhoto={setIncludePhoto}
-              />
+              {(activeMobileTab === 'preview' || window.innerWidth >= 768) && (
+                <LivePdfPreview
+                  jsonPayload={jsonData}
+                  previewType={previewType}
+                  includePhoto={includePhoto}
+                  onToggleType={setPreviewType}
+                  onTogglePhoto={setIncludePhoto}
+                />
+              )}
             </div>
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
