@@ -369,6 +369,18 @@ def get_template(filename: str):
         raise HTTPException(404, "Template not found")
     return {"content": tpl_path.read_text(), "filename": filename}
 
+class SaveTemplateRequest(BaseModel):
+    content: str
+
+@router.put("/api/template/{filename}")
+def save_template(filename: str, req: SaveTemplateRequest):
+    tpl_path = TEMPLATES_DIR / "tex" / filename
+    if not filename.endswith(".tex"):
+        raise HTTPException(400, "Invalid file extension")
+    tpl_path.parent.mkdir(parents=True, exist_ok=True)
+    tpl_path.write_text(req.content)
+    return {"ok": True, "filename": filename}
+
 @router.post("/api/r2-backup")
 def trigger_r2_backup():
     from backend.core.upload import get_r2_client, BUCKET
