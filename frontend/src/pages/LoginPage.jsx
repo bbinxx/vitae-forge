@@ -106,7 +106,7 @@ export default function LoginPage({ onLoginSuccess }) {
             Vitae Forge
           </h1>
           <p style={{ margin: 0, fontSize: '14px', color: '#9ca3af' }}>
-            {mode === 'login' ? 'Enter credentials or passcode to sign in' : 'Create an account to manage your resumes'}
+            {mode === 'login' ? 'Enter credentials to sign in to your account' : 'Create an account to manage your resumes'}
           </p>
         </div>
 
@@ -203,7 +203,7 @@ export default function LoginPage({ onLoginSuccess }) {
               color: '#d1d5db',
               marginBottom: '6px',
             }}>
-              Username <span style={{ color: '#6b7280', fontWeight: '400' }}>(Optional for passcode)</span>
+              Username
             </label>
             <div style={{ position: 'relative' }}>
               <span className="material-symbols-outlined" style={{
@@ -218,9 +218,10 @@ export default function LoginPage({ onLoginSuccess }) {
               </span>
               <input
                 type="text"
+                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin or username"
+                placeholder="e.g. alex_dev"
                 style={{
                   width: '100%',
                   padding: '12px 12px 12px 40px',
@@ -244,7 +245,7 @@ export default function LoginPage({ onLoginSuccess }) {
               color: '#d1d5db',
               marginBottom: '6px',
             }}>
-              Password / Passcode
+              Password
             </label>
             <div style={{ position: 'relative' }}>
               <span className="material-symbols-outlined" style={{

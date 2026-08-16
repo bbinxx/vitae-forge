@@ -87,14 +87,8 @@ async def cookie_auth_middleware(request: Request, call_next):
             pass
 
     # 2. Determine if strict authentication is required for this route
-    passcode_hash = os.environ.get("PASSCODE_HASH")
-    passcode = os.environ.get("PASSCODE")
-    passcode_enabled = os.environ.get("PASSCODE_ENABLED", "true").lower() == "true"
     auth_required = os.environ.get("AUTH_REQUIRED", "false").lower() == "true"
-
-    is_strict = (auth_required or (passcode_enabled and bool(passcode_hash or passcode)))
-
-    if not is_strict:
+    if not auth_required:
         return await call_next(request)
 
     path = request.url.path
