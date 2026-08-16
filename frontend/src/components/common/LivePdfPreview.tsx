@@ -26,10 +26,25 @@ export default function LivePdfPreview({
   const elapsedTimerRef = useRef<any>(null);
   const lastCompiledPayloadRef = useRef<string>('');
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [localIncludePhoto, setLocalIncludePhoto] = useState(includePhoto);
+
+  useEffect(() => {
+    setLocalIncludePhoto(includePhoto);
+  }, [includePhoto]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleCompile = async (force = false) => {
     if (!jsonPayload) return;
     
-    const payloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto });
+    const payloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto: localIncludePhoto });
     if (!force && lastCompiledPayloadRef.current === payloadStr) {
       // Avoid compiling again if payload did not change
       return;
@@ -66,7 +81,7 @@ export default function LivePdfPreview({
         },
         body: JSON.stringify({
           config: typeof jsonPayload === 'string' ? JSON.parse(jsonPayload) : jsonPayload,
-          include_photo: includePhoto,
+          include_photo: localIncludePhoto,
           type: previewType
         })
       });
@@ -103,7 +118,7 @@ export default function LivePdfPreview({
       if (timerRef.current) clearInterval(timerRef.current);
       if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
-  }, [jsonPayload, previewType, includePhoto]);
+  }, [jsonPayload, previewType, localIncludePhoto]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -159,10 +174,14 @@ export default function LivePdfPreview({
             style={{ 
               fontSize: '10px', 
               padding: '4px 10px', 
-              background: includePhoto ? 'var(--accent-dim)' : 'transparent', 
-              color: includePhoto ? 'var(--accent)' : 'var(--text-muted)' 
+              background: localIncludePhoto ? 'var(--accent-dim)' : 'transparent', 
+              color: localIncludePhoto ? 'var(--accent)' : 'var(--text-muted)' 
             }}
-            onClick={() => onTogglePhoto && onTogglePhoto(!includePhoto)}
+            onClick={() => {
+              const newVal = !localIncludePhoto;
+              setLocalIncludePhoto(newVal);
+              if (onTogglePhoto) onTogglePhoto(newVal);
+            }}
             title="Include photo in compilation"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '14px', marginRight: '4px' }}>photo_camera</span>

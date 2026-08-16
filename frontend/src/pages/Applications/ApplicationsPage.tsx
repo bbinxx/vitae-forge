@@ -423,10 +423,10 @@ export default function ApplicationsPage() {
               {/* Mobile tabs switch buttons */}
               <div className="mobile-only" style={{ gap: '4px', background: 'var(--bg-surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border)' }}>
                 <button className={`btn btn-sm ${activeMobileTab === 'editor' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('editor')}>
-                  📝 Editor
+                  Editor
                 </button>
                 <button className={`btn btn-sm ${activeMobileTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('preview')}>
-                  📄 Preview
+                  Preview
                 </button>
               </div>
 

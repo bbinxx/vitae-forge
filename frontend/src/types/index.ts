@@ -41,6 +41,7 @@ export interface Setting {
   editor_word_wrap?: boolean;
   editor_minimap?: boolean;
   editor_theme?: string;
+  photo_r2_key?: string;
 }
 
 export interface SystemStatus {
