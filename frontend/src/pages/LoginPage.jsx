@@ -4,6 +4,7 @@ export default function LoginPage({ onLoginSuccess }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -259,14 +260,14 @@ export default function LoginPage({ onLoginSuccess }) {
                 lock
               </span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
                   width: '100%',
-                  padding: '12px 12px 12px 40px',
+                  padding: '12px 40px 12px 40px',
                   background: '#1f2937',
                   border: '1px solid #374151',
                   borderRadius: '8px',
@@ -276,6 +277,28 @@ export default function LoginPage({ onLoginSuccess }) {
                   boxSizing: 'border-box',
                 }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ca3af',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
             </div>
           </div>
 
