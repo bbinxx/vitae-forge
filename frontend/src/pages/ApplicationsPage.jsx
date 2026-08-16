@@ -16,6 +16,8 @@ export default function ApplicationsPage() {
 
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortField, setSortField] = useState('date'); // 'date' | 'company' | 'role' | 'status' | 'priority'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' | 'desc'
   const [selectedApp, setSelectedApp] = useState(null);
   const [jsonData, setJsonData] = useState({});
   const [previewType, setPreviewType] = useState('resume');
@@ -26,6 +28,7 @@ export default function ApplicationsPage() {
   const [newCompany, setNewCompany] = useState('');
   const [newRole, setNewRole] = useState('');
   const [newStatus, setNewStatus] = useState('APPLIED');
+  const [newPriority, setNewPriority] = useState('Medium');
 
   useEffect(() => {
     loadApplications();
@@ -54,6 +57,7 @@ export default function ApplicationsPage() {
           company: newCompany.trim(),
           role: newRole.trim(),
           status: newStatus,
+          priority: newPriority,
           date_applied: new Date().toISOString().split('T')[0],
           resume_template: baseConfig,
         }),
@@ -126,6 +130,16 @@ export default function ApplicationsPage() {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Filter & Sort Logic
   const filteredApps = applications.filter((app) => {
     const matchesSearch =
       (app.company || '').toLowerCase().includes(filterText.toLowerCase()) ||
@@ -134,24 +148,55 @@ export default function ApplicationsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const statusPriorityMap = { 'OFFER': 4, 'INTERVIEW': 3, 'APPLIED': 2, 'REJECTED': 1 };
+  const priorityRankMap = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+
+  const sortedApps = [...filteredApps].sort((a, b) => {
+    let result = 0;
+    if (sortField === 'company') {
+      result = (a.company || '').localeCompare(b.company || '');
+    } else if (sortField === 'role') {
+      result = (a.role || '').localeCompare(b.role || '');
+    } else if (sortField === 'status') {
+      const rankA = statusPriorityMap[(a.status || '').toUpperCase()] || 0;
+      const rankB = statusPriorityMap[(b.status || '').toUpperCase()] || 0;
+      result = rankA - rankB;
+    } else if (sortField === 'priority') {
+      const rankA = priorityRankMap[(a.priority || '').toUpperCase()] || 0;
+      const rankB = priorityRankMap[(b.priority || '').toUpperCase()] || 0;
+      result = rankA - rankB;
+    } else if (sortField === 'date') {
+      const dateA = new Date(a.date_applied || a.created_at || 0).getTime();
+      const dateB = new Date(b.date_applied || b.created_at || 0).getTime();
+      result = dateA - dateB;
+    }
+    return sortOrder === 'asc' ? result : -result;
+  });
+
+  const renderSortIndicator = (field) => {
+    if (sortField !== field) return <span style={{ opacity: 0.3, fontSize: '11px', marginLeft: '4px' }}>⇅</span>;
+    return <span style={{ color: 'var(--accent)', fontSize: '11px', marginLeft: '4px' }}>{sortOrder === 'asc' ? '▲' : '▼'}</span>;
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflowY: 'auto', paddingRight: '4px' }}>
       {/* Header Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 600, margin: 0 }}>Job Applications Control Center</h2>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Track, manage, and customize tailored resumes for every application.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="text"
             className="search-input"
             placeholder="Search company or role..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            style={{ width: '200px' }}
+            style={{ width: '190px' }}
           />
+
           <select
             className="input-field"
             value={statusFilter}
@@ -164,32 +209,84 @@ export default function ApplicationsPage() {
             <option value="OFFER">Offer</option>
             <option value="REJECTED">Rejected</option>
           </select>
+
+          <select
+            className="input-field"
+            value={`${sortField}-${sortOrder}`}
+            onChange={(e) => {
+              const [field, order] = e.target.value.split('-');
+              setSortField(field);
+              setSortOrder(order);
+            }}
+            style={{ width: '150px', padding: '6px' }}
+          >
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="company-asc">Company (A-Z)</option>
+            <option value="company-desc">Company (Z-A)</option>
+            <option value="role-asc">Role (A-Z)</option>
+            <option value="status-desc">Status Priority</option>
+            <option value="priority-desc">Priority Level</option>
+          </select>
+
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
             <span className="material-symbols-outlined" style={{ fontSize: '1.1em' }}>add</span> Add Application
           </button>
         </div>
       </div>
 
-      {/* Applications Table */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+      {/* Applications Table Wrapper (Smooth Vertical Scroll + Sticky Header) */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', flex: 1, minHeight: '350px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
-            <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-              <th style={{ padding: '12px 16px' }}>Company</th>
-              <th style={{ padding: '12px 16px' }}>Role</th>
-              <th style={{ padding: '12px 16px' }}>Status</th>
-              <th style={{ padding: '12px 16px' }}>Applied Date</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+            <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', textAlign: 'left', position: 'sticky', top: 0, zIndex: 10 }}>
+              <th onClick={() => handleSort('company')} style={{ padding: '12px 16px', cursor: 'pointer', userSelect: 'none', width: '22%' }}>
+                Company {renderSortIndicator('company')}
+              </th>
+              <th onClick={() => handleSort('role')} style={{ padding: '12px 16px', cursor: 'pointer', userSelect: 'none', width: '25%' }}>
+                Role {renderSortIndicator('role')}
+              </th>
+              <th onClick={() => handleSort('status')} style={{ padding: '12px 16px', cursor: 'pointer', userSelect: 'none', width: '16%' }}>
+                Status {renderSortIndicator('status')}
+              </th>
+              <th onClick={() => handleSort('priority')} style={{ padding: '12px 16px', cursor: 'pointer', userSelect: 'none', width: '14%' }}>
+                Priority {renderSortIndicator('priority')}
+              </th>
+              <th onClick={() => handleSort('date')} style={{ padding: '12px 16px', cursor: 'pointer', userSelect: 'none', width: '13%' }}>
+                Applied Date {renderSortIndicator('date')}
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'right', width: '10%' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredApps.map((app) => (
+            {sortedApps.map((app) => (
               <tr key={app.id} style={{ borderBottom: '1px solid var(--border-soft)' }}>
                 <td style={{ padding: '12px 16px', fontWeight: 600 }}>{app.company}</td>
                 <td style={{ padding: '12px 16px' }}>{app.role}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: 'var(--accent-dim)', color: 'var(--accent)' }}>
+                  <span style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    background: (app.status || '').toUpperCase() === 'OFFER' ? 'rgba(34,197,94,0.15)' :
+                      (app.status || '').toUpperCase() === 'INTERVIEW' ? 'rgba(59,130,246,0.15)' :
+                      (app.status || '').toUpperCase() === 'REJECTED' ? 'rgba(239,68,68,0.15)' : 'var(--accent-dim)',
+                    color: (app.status || '').toUpperCase() === 'OFFER' ? '#22c55e' :
+                      (app.status || '').toUpperCase() === 'INTERVIEW' ? '#3b82f6' :
+                      (app.status || '').toUpperCase() === 'REJECTED' ? '#ef4444' : 'var(--accent)'
+                  }}>
                     {app.status || 'APPLIED'}
+                  </span>
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: (app.priority || '').toUpperCase() === 'HIGH' ? '#ef4444' :
+                      (app.priority || '').toUpperCase() === 'LOW' ? 'var(--text-muted)' : '#f59e0b'
+                  }}>
+                    {app.priority || 'Medium'}
                   </span>
                 </td>
                 <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{app.date_applied || 'Recent'}</td>
@@ -205,9 +302,9 @@ export default function ApplicationsPage() {
                 </td>
               </tr>
             ))}
-            {filteredApps.length === 0 && (
+            {sortedApps.length === 0 && (
               <tr>
-                <td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   No applications found. Click <strong>"Add Application"</strong> to create your first track entry.
                 </td>
               </tr>
@@ -245,14 +342,25 @@ export default function ApplicationsPage() {
               />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Application Status</label>
-              <select className="input-field" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-                <option value="APPLIED">Applied</option>
-                <option value="INTERVIEW">Interview</option>
-                <option value="OFFER">Offer</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Status</label>
+                <select className="input-field" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                  <option value="APPLIED">Applied</option>
+                  <option value="INTERVIEW">Interview</option>
+                  <option value="OFFER">Offer</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Priority</label>
+                <select className="input-field" value={newPriority} onChange={(e) => setNewPriority(e.target.value)}>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
