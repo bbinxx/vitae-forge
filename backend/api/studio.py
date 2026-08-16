@@ -244,6 +244,53 @@ async def save_settings_route(request: Request):
     db.save_settings(user_id, data)
     return {"ok": True}
 
+@router.post("/api/settings/photo")
+async def upload_settings_photo_route(request: Request, file: UploadFile = File(...)):
+    user_id = get_user_id(request)
+    import uuid
+    import tempfile
+    try:
+        content = await file.read()
+        suffix = Path(file.filename).suffix
+        key = f"settings_photos/{user_id}_{uuid.uuid4().hex[:8]}{suffix}"
+        
+        with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+            
+        from backend.core.upload import get_r2_client, BUCKET
+        client = get_r2_client()
+        if not client:
+            raise HTTPException(500, "R2 not configured")
+            
+        client.upload_file(tmp_path, BUCKET, key)
+        Path(tmp_path).unlink()
+        
+        return {"ok": True, "photo_r2_key": key}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@router.get("/api/settings/photo-url")
+def get_settings_photo_url(request: Request):
+    user_id = get_user_id(request)
+    settings = db.get_settings(user_id) or {}
+    photo_r2_key = settings.get("photo_r2_key")
+    if not photo_r2_key:
+        return {"url": None}
+        
+    from backend.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(500, "R2 not configured")
+        
+    try:
+        url = client.generate_presigned_url(
+            'get_object', Params={'Bucket': BUCKET, 'Key': photo_r2_key}, ExpiresIn=3600
+        )
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 @router.get("/api/settings/pick-folder")
 def pick_folder_route():
     import subprocess

@@ -64,14 +64,39 @@ async def create_application(request: Request):
     app_id = str(uuid.uuid4())
     new_app = default_app(app_id, body)
     if new_app.get('resume_template'):
+        custom_photo_path = None
         try:
+            layout = new_app['resume_template'].get("layout", {})
+            sections = new_app['resume_template'].get("sections", {})
+            include_photo = bool(layout.get("photo") or sections.get("photo"))
+
+            if include_photo:
+                settings = db.get_settings(user_id) or {}
+                photo_r2_key = settings.get("photo_r2_key")
+                if photo_r2_key:
+                    from backend.core.upload import get_r2_client, BUCKET
+                    client = get_r2_client()
+                    if client:
+                        try:
+                            suffix = Path(photo_r2_key).suffix
+                            import tempfile
+                            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp_photo:
+                                client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
+                                custom_photo_path = Path(tmp_photo.name)
+                        except Exception as e:
+                            print(f"Error downloading settings photo: {e}")
+
             display_name = build_display_name(user_id, new_app)
             from backend.core.build import build_custom_version
-            success = build_custom_version(new_app['resume_template'], display_name, False, user_id=user_id)
+            success = build_custom_version(new_app['resume_template'], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
             if success:
-                new_app['assigned_pdf'] = f"{display_name}.pdf"
+                suffix_str = "_X" if include_photo else ""
+                new_app['assigned_pdf'] = f"{display_name}{suffix_str}.pdf"
         except Exception as e:
             print(f"Error compiling new application resume for {app_id}: {e}")
+        finally:
+            if custom_photo_path:
+                custom_photo_path.unlink(missing_ok=True)
     db.save_application(user_id, new_app)
     return new_app
 
@@ -92,19 +117,40 @@ async def update_application(app_id: str, request: Request):
 
     # If a custom template is provided, build a custom PDF
     if "resume_template" in body and body["resume_template"]:
+        custom_photo_path = None
         try:
             include_photo = False
             assigned = app.get("assigned_pdf", "")
             if assigned and "_X" in assigned:
                 include_photo = True
+            
+            if include_photo:
+                settings = db.get_settings(user_id) or {}
+                photo_r2_key = settings.get("photo_r2_key")
+                if photo_r2_key:
+                    from backend.core.upload import get_r2_client, BUCKET
+                    client = get_r2_client()
+                    if client:
+                        try:
+                            suffix = Path(photo_r2_key).suffix
+                            import tempfile
+                            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp_photo:
+                                client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
+                                custom_photo_path = Path(tmp_photo.name)
+                        except Exception as e:
+                            print(f"Error downloading settings photo: {e}")
+
             display_name = build_display_name(user_id, app)
             from backend.core.build import build_custom_version
-            success = build_custom_version(app["resume_template"], display_name, include_photo, user_id=user_id)
+            success = build_custom_version(app["resume_template"], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
             if success:
                 suffix_str = "_X" if include_photo else ""
                 app["assigned_pdf"] = f"{display_name}{suffix_str}.pdf"
         except Exception as e:
             print(f"Error compiling custom resume for application {app_id}: {e}")
+        finally:
+            if custom_photo_path:
+                custom_photo_path.unlink(missing_ok=True)
 
     app["updated_at"] = datetime.now().isoformat()
 
@@ -383,16 +429,22 @@ def build_version(app_id: str, v_id: str, request: Request):
         # Fetch photo from R2 if needed
         custom_photo_path = None
         photo_r2_key = version.get("photo_r2_key")
-        if version.get("include_photo") and photo_r2_key:
-            yield "Downloading custom photo from R2...\n"
-            import tempfile
-            from backend.core.upload import get_r2_client, BUCKET
-            client = get_r2_client()
-            if client:
-                suffix = Path(photo_r2_key).suffix
-                with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
-                    client.download_fileobj(BUCKET, photo_r2_key, tmp)
-                    custom_photo_path = Path(tmp.name)
+        if version.get("include_photo"):
+            if not photo_r2_key:
+                # Fallback to settings photo
+                settings = db.get_settings(user_id) or {}
+                photo_r2_key = settings.get("photo_r2_key")
+
+            if photo_r2_key:
+                yield "Downloading custom photo from R2...\n"
+                import tempfile
+                from backend.core.upload import get_r2_client, BUCKET
+                client = get_r2_client()
+                if client:
+                    suffix = Path(photo_r2_key).suffix
+                    with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
+                        client.download_fileobj(BUCKET, photo_r2_key, tmp)
+                        custom_photo_path = Path(tmp.name)
         
         display_name = build_display_name(user_id, app)
         success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
@@ -553,9 +605,35 @@ async def compile_pdf(app_id: str, request: Request):
                 detail="LaTeX compiler 'pdflatex' not found on system. The JSON configuration was saved successfully, but the PDF could not be compiled. Please install a LaTeX distribution (like TeX Live) on this system."
             )
 
-        # 3. Build the custom PDF
-        from backend.core.build import build_custom_version
-        success = build_custom_version(config, pdf_name, include_photo=False, user_id=user_id)
+        # Check settings for custom profile image downloaded from R2
+        custom_photo_path = None
+        layout = config.get("layout", {})
+        sections = config.get("sections", {})
+        include_photo = bool(layout.get("photo") or sections.get("photo"))
+
+        try:
+            if include_photo:
+                settings = db.get_settings(user_id) or {}
+                photo_r2_key = settings.get("photo_r2_key")
+                if photo_r2_key:
+                    from backend.core.upload import get_r2_client, BUCKET
+                    client = get_r2_client()
+                    if client:
+                        try:
+                            suffix = Path(photo_r2_key).suffix
+                            import tempfile
+                            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp_photo:
+                                client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
+                                custom_photo_path = Path(tmp_photo.name)
+                        except Exception as e:
+                            print(f"Error downloading settings photo: {e}")
+
+            # 3. Build the custom PDF
+            from backend.core.build import build_custom_version
+            success = build_custom_version(config, pdf_name, include_photo=include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
+        finally:
+            if custom_photo_path:
+                custom_photo_path.unlink(missing_ok=True)
         
         if not success:
             # Read build log to surface actual error

@@ -7,7 +7,6 @@ interface SectionToggleBarProps {
 
 const DEFAULT_SECTIONS = [
   { key: 'role_title', label: 'Role Title' },
-  { key: 'photo', label: 'Photo' },
   { key: 'summary', label: 'Summary' },
   { key: 'skills', label: 'Skills' },
   { key: 'experience', label: 'Experience' },

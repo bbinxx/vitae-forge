@@ -3,7 +3,7 @@ import { Application, Bookmark, Setting, Recipe } from '../types';
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -59,6 +59,15 @@ export const api = {
   pickFolder: () => apiFetch<{ folder: string }>('/api/settings/pick-folder'),
   getConfig: () => apiFetch<any>('/get-config'),
   saveConfig: (data: any) => apiFetch<{ ok: boolean }>('/save-config', { method: 'POST', body: JSON.stringify(data) }),
+  uploadSettingsPhoto: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<{ ok: boolean; photo_r2_key: string }>('/api/settings/photo', {
+      method: 'POST',
+      body: formData
+    });
+  },
+  getSettingsPhotoUrl: () => apiFetch<{ url: string | null }>('/api/settings/photo-url'),
 
   // LaTeX Templates
   getTemplate: (filename: string) => apiFetch<{ content: string; filename: string }>(`/api/template/${filename}`),
