@@ -1,17 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function JsonEditor({ value, onChange }) {
-  const containerRef = useRef(null);
-  const editorRef = useRef(null);
-  const isLocalUpdateRef = useRef(false);
+interface JsonEditorProps {
+  value: any;
+  onChange: (value: any) => void;
+}
+
+export default function JsonEditor({ value, onChange }: JsonEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<any>(null);
+  const isLocalUpdateRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!containerRef.current || !window.JSONEditor) return;
+    if (!containerRef.current || !(window as any).JSONEditor) return;
 
     const options = {
       mode: 'code',
       modes: ['code', 'tree', 'form'],
-      onChangeText: (text) => {
+      onChangeText: (text: string) => {
         try {
           const parsed = JSON.parse(text);
           isLocalUpdateRef.current = true;
@@ -24,7 +29,7 @@ export default function JsonEditor({ value, onChange }) {
       }
     };
 
-    editorRef.current = new window.JSONEditor(containerRef.current, options);
+    editorRef.current = new (window as any).JSONEditor(containerRef.current, options);
     
     if (value) {
       editorRef.current.set(value);
