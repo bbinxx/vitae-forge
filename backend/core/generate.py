@@ -197,7 +197,7 @@ def generate_resume(
     if clean_github:
         contact_parts.append(f"\\href{{https://github.com/{clean_github}}}{{github.com/{escape_latex(clean_github)}}}")
 
-    contact_line = " ~$\\|$~ ".join(contact_parts)
+    contact_line = " ~$|$~ ".join(contact_parts)
     contact_stack = "\\\\[3pt]\n".join(contact_parts)
 
     tmpl = tmpl.replace("<<CONTACT_LINE>>", contact_line)
