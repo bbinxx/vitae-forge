@@ -10,9 +10,25 @@ def sanitize_filename(value: str, fallback: str = "app") -> str:
     cleaned = re.sub(r"_+", "_", cleaned).strip('_')
     return cleaned or fallback
 
+def _get_name_prefix(user_id: str) -> str:
+    """Resolve file name prefix: settings override > personal name > generic fallback."""
+    try:
+        settings = db.get_settings(user_id) if user_id else {}
+        if isinstance(settings, dict) and settings.get("file_name_prefix"):
+            return settings["file_name_prefix"]
+        # Derive from personal.name
+        personal = db.get_personal(user_id) if user_id else {}
+        name = personal.get("name", "") if isinstance(personal, dict) else ""
+        if name and name not in ("Your Name", "YOUR NAME", ""):
+            safe = sanitize_filename(name, fallback="")
+            if safe:
+                return f"{safe}-"
+    except Exception:
+        pass
+    return "Resume-"
+
 def build_display_name(user_id: str, app: dict) -> str:
-    settings = db.get_settings(user_id)
-    prefix = settings.get('file_name_prefix', 'YOUR_NAME-') if isinstance(settings, dict) else 'YOUR_NAME-'
+    prefix = _get_name_prefix(user_id)
     if not app:
         return f"{prefix}app"
     role = app.get('role', '')
@@ -59,3 +75,4 @@ def default_app(app_id: str, body: dict) -> dict:
         "updated_at":       datetime.now().isoformat(),
         "timeline":         [timeline_event(status, "Application created")],
     }
+

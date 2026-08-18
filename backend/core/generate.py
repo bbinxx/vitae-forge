@@ -145,9 +145,7 @@ def generate_resume(
         config[section] = resolve_modular(config.get(section), section, library)
 
     with open(template_path) as f:
-        tmpl = f.read()
-
-    # Helper to safely extract string from possible dict/list/string values
+        tmpl = f.read()    # Helper to safely extract string from possible dict/list/string values
     def _str_field(val, preferred_keys=None):
         if not val:
             return ""
@@ -159,7 +157,18 @@ def generate_resume(
                     return val.get(k)
         return ""
 
-    tmpl = tmpl.replace("<<NAME>>",       escape_latex(_str_field(config.get("name"), ["name"])))
+    # ── Styling & Preamble Tokens ─────────────────────────────────────────────
+    styling = config.get("styling", {}) if isinstance(config.get("styling"), dict) else {}
+    tmpl = tmpl.replace("<<FONT_SIZE>>",         styling.get("font_size", "10pt"))
+    tmpl = tmpl.replace("<<MARGIN_LEFT>>",       styling.get("margin_left", "0.45in"))
+    tmpl = tmpl.replace("<<MARGIN_RIGHT>>",      styling.get("margin_right", "0.45in"))
+    tmpl = tmpl.replace("<<MARGIN_TOP>>",        styling.get("margin_top", "0.3in"))
+    tmpl = tmpl.replace("<<MARGIN_BOTTOM>>",     styling.get("margin_bottom", "0.3in"))
+    tmpl = tmpl.replace("<<PRIMARY_COLOR_HEX>>", styling.get("primary_color_hex", "000000"))
+    tmpl = tmpl.replace("<<RULE_THICKNESS>>",    styling.get("rule_thickness", "0.5pt"))
+
+    user_name = escape_latex(_str_field(config.get("name"), ["name"]))
+    tmpl = tmpl.replace("<<NAME>>",       user_name)
     tmpl = tmpl.replace("<<ROLE_TITLE>>", escape_latex(_str_field(config.get("role_title"), ["role_title", "title", "role"])))
     tmpl = tmpl.replace("<<COMPANY_NAME>>", escape_latex(_str_field(config.get("company", config.get("company_name")), ["name", "company"])))
     
@@ -181,23 +190,38 @@ def generate_resume(
     if clean_github.startswith("github.com/"):
         clean_github = clean_github[len("github.com/"):]
 
-    if email_val == "your.email@example.com" and (phone_val or clean_linkedin or clean_github):
+    placeholder_emails = config.get("placeholder_emails", ["your.email@example.com", "email@example.com"])
+    if email_val in placeholder_emails and (phone_val or clean_linkedin or clean_github):
         email_val = ""
 
-    # Construct clean contact line (horizontal with pipes)
+    # Construct clean contact line (horizontal with configurable delimiter or custom items)
     contact_parts = []
-    if email_val:
-        contact_parts.append(f"\\href{{mailto:{email_val}}}{{{escape_latex(email_val)}}}")
-    if phone_val:
-        import re as _re
-        clean_tel = _re.sub(r'[^\d+]', '', phone_val)
-        contact_parts.append(f"\\href{{tel:{clean_tel}}}{{{escape_latex(phone_val)}}}")
-    if clean_linkedin:
-        contact_parts.append(f"\\href{{https://linkedin.com/in/{clean_linkedin}}}{{linkedin.com/in/{escape_latex(clean_linkedin)}}}")
-    if clean_github:
-        contact_parts.append(f"\\href{{https://github.com/{clean_github}}}{{github.com/{escape_latex(clean_github)}}}")
+    custom_contact_items = config.get("contact_items")
+    if isinstance(custom_contact_items, list) and custom_contact_items:
+        for item in custom_contact_items:
+            if isinstance(item, dict):
+                label = escape_latex(item.get("label") or item.get("value", ""))
+                href = item.get("href") or item.get("url")
+                if href:
+                    contact_parts.append(f"\\href{{{href}}}{{{label}}}")
+                elif label:
+                    contact_parts.append(label)
+            elif isinstance(item, str) and item:
+                contact_parts.append(escape_latex(item))
+    else:
+        if email_val:
+            contact_parts.append(f"\\href{{mailto:{email_val}}}{{{escape_latex(email_val)}}}")
+        if phone_val:
+            import re as _re
+            clean_tel = _re.sub(r'[^\d+]', '', phone_val)
+            contact_parts.append(f"\\href{{tel:{clean_tel}}}{{{escape_latex(phone_val)}}}")
+        if clean_linkedin:
+            contact_parts.append(f"\\href{{https://linkedin.com/in/{clean_linkedin}}}{{linkedin.com/in/{escape_latex(clean_linkedin)}}}")
+        if clean_github:
+            contact_parts.append(f"\\href{{https://github.com/{clean_github}}}{{github.com/{escape_latex(clean_github)}}}")
 
-    contact_line = " ~$|$~ ".join(contact_parts)
+    contact_delimiter = config.get("contact_delimiter", " ~$|$~ ")
+    contact_line = contact_delimiter.join(contact_parts)
     contact_stack = "\\\\[3pt]\n".join(contact_parts)
 
     tmpl = tmpl.replace("<<CONTACT_LINE>>", contact_line)
@@ -206,6 +230,7 @@ def generate_resume(
     tmpl = tmpl.replace("<<PHONE>>",      escape_latex(phone_val))
     tmpl = tmpl.replace("<<LINKEDIN>>",   escape_latex(clean_linkedin))
     tmpl = tmpl.replace("<<GITHUB>>",     escape_latex(clean_github))
+
     # Support both 'professional_summary' (library recipes) and 'summary' (AI-generated JSON)
     summary_text = config.get("professional_summary") or config.get("summary", "")
     if isinstance(summary_text, dict):
@@ -217,8 +242,8 @@ def generate_resume(
     tmpl = tmpl.replace("<<SUMMARY>>", escape_latex(summary_text))
     
     projects = config.get("projects", [])
-    proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 and isinstance(projects[0], dict) else "Academic Projects"
-    proj2 = escape_latex(projects[1].get("name", "")) if len(projects) > 1 and isinstance(projects[1], dict) else "Personal Projects"
+    proj1 = escape_latex(projects[0].get("name", "")) if len(projects) > 0 and isinstance(projects[0], dict) else ""
+    proj2 = escape_latex(projects[1].get("name", "")) if len(projects) > 1 and isinstance(projects[1], dict) else ""
     tmpl = tmpl.replace("<<PROJECT_1>>", proj1)
     tmpl = tmpl.replace("<<PROJECT_2>>", proj2)
     
@@ -227,7 +252,7 @@ def generate_resume(
     for s in skills:
         if isinstance(s, dict) and s.get("keywords"):
             skill_words.extend([k.strip() for k in s.get("keywords").split(',')])
-    relevant_skills = escape_latex(", ".join(skill_words[:5]) if skill_words else "various modern tools")
+    relevant_skills = escape_latex(", ".join(skill_words[:5])) if skill_words else ""
     tmpl = tmpl.replace("<<RELEVANT_SKILLS>>", relevant_skills)
     
     raw_cl = config.get("cover_letter", "")
@@ -244,21 +269,57 @@ def generate_resume(
     elif not isinstance(raw_cl, str):
         raw_cl = str(raw_cl) if raw_cl else ""
     cover_letter = escape_latex(raw_cl)
-    # Normalize line endings and convert to LaTeX paragraph breaks
-    # Collapse 3+ newlines into one blank line, then ensure every \n becomes \n\n
     cover_letter = re.sub(r'\r\n', '\n', cover_letter)
     cover_letter = re.sub(r'\n{3,}', '\n\n', cover_letter)
     cover_letter = cover_letter.replace('\n', '\n\n')
-    # Strip trailing "Sincerely,\nYOUR NAME" (or similar) — template adds the signature block
+    
+    # Strip signature dynamically matching user name
+    name_regex_part = re.escape(user_name) if user_name else r'YOUR_NAME'
     cover_letter = re.sub(
-        r'\n*((Sincerely|Best regards|Yours sincerely|Yours faithfully|Regards|Thanks?)[,\s]*)?\n*\\n?YOUR_NAME\s*Raju\s*$',
+        rf'\n*((Sincerely|Best regards|Yours sincerely|Yours faithfully|Regards|Thanks?)[,\s]*)?\n*\\n?(YOUR_NAME|{name_regex_part})\s*$',
         '',
         cover_letter,
         flags=re.IGNORECASE
     )
-    # Also strip trailing "Dear Hiring Team," / "Dear Hiring Manager," if it appears (duplicate with "Dear Hiring Manager," from AI is already gone since we removed \opening)
-    # But "Dear Hiring Team," might be the AI's greeting — keep it as part of the letter
     tmpl = tmpl.replace("<<COVER_LETTER>>", cover_letter)
+
+    # ── Section Formatting Functions & Table Specs ────────────────────────────
+    table_specs = config.get("table_column_specs", {}) if isinstance(config.get("table_column_specs"), dict) else {}
+    skills_spec = table_specs.get("skills", "@{} >{\\bfseries}p{3.8cm} p{13cm} @{}")
+    cert_spec   = table_specs.get("certifications", "@{} p{8.2cm} >{\\centering\\arraybackslash}p{7.0cm} >{\\raggedleft\\arraybackslash}p{2.5cm} @{}")
+    ach_spec    = table_specs.get("achievements", "@{} p{8.2cm} >{\\centering\\arraybackslash}p{7.0cm} >{\\raggedleft\\arraybackslash}p{2.5cm} @{}")
+    add_spec    = table_specs.get("additional_info", "@{} >{\\bfseries}p{3.8cm} p{13cm} @{}")
+
+    table_headers = config.get("table_headers", {}) if isinstance(config.get("table_headers"), dict) else {}
+    cert_header_list = table_headers.get("certifications", ["Certificate", "Issuer", "Year"])
+    cert_header_row = " & ".join(f"\\textbf{{{escape_latex(str(h))}}}" for h in cert_header_list)
+
+    DEFAULT_SECTION_TITLES = {
+        "summary": "Professional Summary",
+        "professional_summary": "Professional Summary",
+        "skills": "Skills",
+        "experience": "Experience",
+        "projects": "Projects",
+        "education": "Education",
+        "certifications": "Certifications",
+        "achievements": "Achievements",
+        "additional_info": "Additional Information",
+        "languages": "Additional Information"
+    }
+
+    user_titles = config.get("section_titles", {}) if isinstance(config.get("section_titles"), dict) else {}
+    def get_title(sec_name):
+        if sec_name in user_titles:
+            title_str = str(user_titles[sec_name])
+        elif sec_name in DEFAULT_SECTION_TITLES:
+            title_str = DEFAULT_SECTION_TITLES[sec_name]
+        else:
+            title_str = sec_name.replace("_", " ").title()
+        return escape_latex(title_str)
+
+    sec_toggles = config.get("sections", {}) if isinstance(config.get("sections"), dict) else {}
+
+    # Education string formatting
     edu = config.get("education", "")
     if isinstance(edu, list):
         edu_items = []
@@ -266,7 +327,7 @@ def generate_resume(
             if isinstance(e, dict):
                 inst = escape_latex(e.get("institution", ""))
                 deg = escape_latex(e.get("degree", ""))
-                dt = escape_latex(e.get("date") or e.get("year", ""))  # AI JSON uses 'year'
+                dt = escape_latex(e.get("date") or e.get("year", ""))
                 det = escape_latex(e.get("details", ""))
                 edu_str = f"\\textbf{{{deg}}} \\hfill \\textbf{{{dt}}}\\\\\n{inst}"
                 if det:
@@ -278,7 +339,7 @@ def generate_resume(
     elif isinstance(edu, dict):
         inst = escape_latex(edu.get("institution", ""))
         deg = escape_latex(edu.get("degree", ""))
-        dt = escape_latex(edu.get("date") or edu.get("year", ""))  # AI JSON uses 'year'
+        dt = escape_latex(edu.get("date") or edu.get("year", ""))
         det = escape_latex(edu.get("details", ""))
         edu_str = f"\\textbf{{{deg}}} \\hfill \\textbf{{{dt}}}\\\\\n{inst}"
         if det:
@@ -286,16 +347,33 @@ def generate_resume(
         edu = edu_str
     elif not isinstance(edu, str):
         edu = str(edu)
-        
     tmpl = tmpl.replace("<<EDUCATION>>", edu)
 
+    # Helper for rendering tabular or tabularx dynamically
+    def render_table_block(spec, rows, header_row=None, arraystretch=1.0):
+        env = "tabularx" if "X" in spec else "tabular"
+        width_arg = "{\\linewidth}" if env == "tabularx" else ""
+        stretch = f"\\renewcommand{{\\arraystretch}}{{{arraystretch}}}\n" if (arraystretch != 1.0 or env == "tabularx") else ""
+        header = f"{header_row} \\\\[1pt]\n" if header_row else ""
+        return (
+            f"{stretch}"
+            f"\\begin{{{env}}}{width_arg}{{{spec}}}\n"
+            f"{header}"
+            f"{rows}"
+            f"\\end{{{env}}}"
+        )
 
+    # Summary
+    summary_tex = ""
+    if summary_text and sec_toggles.get("summary") is not False and sec_toggles.get("professional_summary") is not False:
+        title = get_title("summary")
+        summary_tex = f"\\section*{{{title}}}\n{escape_latex(summary_text)}"
 
-    # ── Skills ────────────────────────────────────────────────────────────────
+    # Skills
     skills_tex = ""
+    skills_inner_rows = ""
     skills_list = config.get("skills", [])
     if isinstance(skills_list, dict):
-        # AI format: {"Languages": ["Java", "Python"]} -> internal format
         skills_list = [
             {"name": k, "keywords": ", ".join(v) if isinstance(v, list) else str(v)}
             for k, v in skills_list.items()
@@ -304,14 +382,20 @@ def generate_resume(
     for cat in skills_list:
         if not isinstance(cat, dict) or cat.get("active") is False:
             continue
-        skills_tex += (
+        skills_inner_rows += (
             f"{escape_latex(cat.get('name', ''))} & "
             f"{escape_latex(cat.get('keywords', ''))} \\\\\n"
         )
-    tmpl = tmpl.replace("<<SKILLS>>", skills_tex)
 
-    # ── Projects ──────────────────────────────────────────────────────────────
+    if skills_inner_rows and sec_toggles.get("skills") is not False:
+        title = get_title("skills")
+        tbl = render_table_block(skills_spec, skills_inner_rows, arraystretch=1.0)
+        skills_tex = f"\\section*{{{title}}}\n\n{tbl}"
+    tmpl = tmpl.replace("<<SKILLS>>", skills_inner_rows)
+
+    # Projects
     projects_tex = ""
+    projects_inner = ""
     for proj in config.get("projects", []):
         if not isinstance(proj, dict) or proj.get("active") is False:
             continue
@@ -321,27 +405,30 @@ def generate_resume(
         )
         tech = proj.get("tech", proj.get("technologies", ""))
         date = proj.get("date", "")
-        
         date_str = f"\\quad {escape_latex(date)}" if date else ""
         
-        projects_tex += (
+        projects_inner += (
             f"\\textbf{{ {escape_latex(proj.get('name', ''))} }} "
             f"\\hfill \\textit{{ {escape_latex(tech)} "
             f"{date_str} }} {link_tex}\n"
         )
-        projects_tex += "\\begin{itemize}\n"
+        projects_inner += "\\begin{itemize}\n"
         points = proj.get("points", proj.get("highlights", []))
         if isinstance(points, list):
             for pt in points:
-                projects_tex += f"\\item {escape_latex(pt)}\n"
+                projects_inner += f"\\item {escape_latex(pt)}\n"
         elif isinstance(points, str) and points:
-            projects_tex += f"\\item {escape_latex(points)}\n"
-            
-        projects_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
-    tmpl = tmpl.replace("<<PROJECTS>>", projects_tex)
+            projects_inner += f"\\item {escape_latex(points)}\n"
+        projects_inner += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
 
-    # ── Experience ─────────────────────────────────────────────────────────────
+    if projects_inner and sec_toggles.get("projects") is not False:
+        title = get_title("projects")
+        projects_tex = f"\\section*{{{title}}}\n\n{projects_inner}"
+    tmpl = tmpl.replace("<<PROJECTS>>", projects_inner)
+
+    # Experience
     experience_tex = ""
+    experience_inner = ""
     for exp in config.get("experience", []):
         if not isinstance(exp, dict) or exp.get("active") is False:
             continue
@@ -353,33 +440,41 @@ def generate_resume(
         date_str = f"\\hfill \\textbf{{ {date} }}" if date else ""
         company_loc = ", ".join(x for x in [company, location] if x)
         
-        experience_tex += f"\\textbf{{ {role} }} {date_str}\\\\\n"
+        experience_inner += f"\\textbf{{ {role} }} {date_str}\\\\\n"
         if company_loc:
-            experience_tex += f"\\textit{{ {company_loc} }}\n"
+            experience_inner += f"\\textit{{ {company_loc} }}\n"
         
-        experience_tex += "\\begin{itemize}\n"
+        experience_inner += "\\begin{itemize}\n"
         points = exp.get("points", exp.get("highlights", []))
         if isinstance(points, list):
             for pt in points:
-                experience_tex += f"\\item {escape_latex(pt)}\n"
+                experience_inner += f"\\item {escape_latex(pt)}\n"
         elif isinstance(points, str) and points:
-            experience_tex += f"\\item {escape_latex(points)}\n"
-        experience_tex += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
-    tmpl = tmpl.replace("<<EXPERIENCE>>", experience_tex)
+            experience_inner += f"\\item {escape_latex(points)}\n"
+        experience_inner += "\\end{itemize}\n\\vspace{3pt plus 0.25fill minus 2pt}\n"
 
-    # ── Simple table sections ─────────────────────────────────────────────────
-    for key, tag in [
-        ("certifications",  "<<CERTIFICATIONS>>"),
-        ("achievements",    "<<ACHIEVEMENTS>>"),
-        ("additional_info", "<<ADDITIONAL>>"),
-    ]:
-        tex = ""
+    if experience_inner and sec_toggles.get("experience") is not False:
+        title = get_title("experience")
+        experience_tex = f"\\section*{{{title}}}\n\n{experience_inner}"
+    tmpl = tmpl.replace("<<EXPERIENCE>>", experience_inner)
+
+    # Education section block
+    education_tex = ""
+    if edu and sec_toggles.get("education") is not False:
+        title = get_title("education")
+        education_tex = f"\\section*{{{title}}}\n{edu}"
+
+    # Certifications, Achievements, Additional Info
+    certifications_tex = ""
+    achievements_tex = ""
+    additional_tex = ""
+
+    for key in ["certifications", "achievements", "additional_info"]:
+        tex_rows = ""
         items = config.get(key, [])
 
         if key == "additional_info":
-            sec_toggles = config.get("sections", {})
             add_info_active = sec_toggles.get("additional_info") is not False
-            
             if isinstance(items, dict):
                 lang_val = items.get("languages", "")
                 aoi_val  = items.get("areas_of_interest", "")
@@ -389,7 +484,7 @@ def generate_resume(
                     aoi_val = ", ".join(aoi_val)
                 normalised = []
                 if lang_val and add_info_active and sec_toggles.get("languages") is not False:
-                    normalised.append({"name": "Languages",         "content": lang_val})
+                    normalised.append({"name": "Languages", "content": lang_val})
                 if aoi_val and add_info_active and sec_toggles.get("areas_of_interest") is not False:
                     normalised.append({"name": "Areas of Interest", "content": aoi_val})
                 items = normalised
@@ -399,38 +494,104 @@ def generate_resume(
                 else:
                     lang_items = [i for i in items if isinstance(i, dict) and "language" in i.get("name","").lower() and sec_toggles.get("languages") is not False]
                     aoi_items  = [i for i in items if isinstance(i, dict) and "interest" in i.get("name","").lower() and sec_toggles.get("areas_of_interest") is not False]
-                    other      = [i for i in items if isinstance(i, dict)
-                                  and "language" not in i.get("name","").lower()
-                                  and "interest"  not in i.get("name","").lower()]
+                    other      = [i for i in items if isinstance(i, dict) and "language" not in i.get("name","").lower() and "interest" not in i.get("name","").lower()]
                     items = lang_items + aoi_items + other
-
-            # If additional_info items remain, ensure LANGUAGES section wrapper stays active in template
-            if "sections" not in config:
-                config["sections"] = {}
-            if items:
-                config["sections"]["languages"] = True
-            else:
-                config["sections"]["languages"] = False
 
             for item in items:
                 if not isinstance(item, dict) or item.get("active") is False:
                     continue
                 content_val = item.get("content", item.get("keywords", ""))
-                tex += (
+                tex_rows += (
                     f"{escape_latex(item.get('name', ''))} & "
                     f"{escape_latex(content_val)} \\\\\n"
                 )
-        else:
+            if tex_rows and add_info_active:
+                title = get_title("additional_info")
+                tbl = render_table_block(add_spec, tex_rows)
+                additional_tex = f"\\section*{{{title}}}\n\n{tbl}"
+            tmpl = tmpl.replace("<<ADDITIONAL>>", tex_rows)
+
+        elif key == "certifications":
             for item in items:
                 if not isinstance(item, dict) or item.get("active") is False:
                     continue
-                tex += (
+                tex_rows += (
                     f"{escape_latex(item.get('name'))} & "
                     f"{escape_latex(item.get('issuer'))} & "
                     f"{escape_latex(item.get('year', ''))} \\\\\n"
                 )
+            if tex_rows and sec_toggles.get("certifications") is not False:
+                title = get_title("certifications")
+                tbl = render_table_block(cert_spec, tex_rows, header_row=cert_header_row, arraystretch=1.0)
+                certifications_tex = f"\\section*{{{title}}}\n\n{tbl}"
+            tmpl = tmpl.replace("<<CERTIFICATIONS>>", tex_rows)
 
-        tmpl = tmpl.replace(tag, tex)
+        elif key == "achievements":
+            for item in items:
+                if not isinstance(item, dict) or item.get("active") is False:
+                    continue
+                tex_rows += (
+                    f"{escape_latex(item.get('name'))} & "
+                    f"{escape_latex(item.get('issuer'))} & "
+                    f"{escape_latex(item.get('year', ''))} \\\\\n"
+                )
+            if tex_rows and sec_toggles.get("achievements") is not False:
+                title = get_title("achievements")
+                tbl = render_table_block(ach_spec, tex_rows)
+                achievements_tex = f"\\section*{{{title}}}\n\n{tbl}"
+            tmpl = tmpl.replace("<<ACHIEVEMENTS>>", tex_rows)
+
+    # ── Dynamic Section Assembly ──────────────────────────────────────────────
+    section_map = {
+        "summary": summary_tex,
+        "professional_summary": summary_tex,
+        "skills": skills_tex,
+        "experience": experience_tex,
+        "projects": projects_tex,
+        "education": education_tex,
+        "certifications": certifications_tex,
+        "achievements": achievements_tex,
+        "additional_info": additional_tex,
+        "languages": additional_tex
+    }
+
+    custom_sections_map = config.get("custom_sections", {}) if isinstance(config.get("custom_sections"), dict) else {}
+
+    section_order = config.get("section_order", [
+        "summary", "skills", "experience", "projects", "education", "certifications", "achievements", "additional_info"
+    ])
+
+    compiled_sections = []
+    for sec_key in section_order:
+        sec_name = str(sec_key).lower()
+        if sec_name in section_map:
+            content = section_map[sec_name]
+            if content and content not in compiled_sections:
+                compiled_sections.append(content)
+        elif sec_name in custom_sections_map:
+            c_sec = custom_sections_map[sec_name]
+            c_title = get_title(sec_name)
+            c_body = ""
+            c_spec = table_specs.get(sec_name, "@{} >{\\bfseries}p{3.8cm} p{13cm} @{}")
+            if isinstance(c_sec, list):
+                c_body += "\\begin{itemize}\n"
+                for item in c_sec:
+                    c_body += f"\\item {escape_latex(str(item))}\n"
+                c_body += "\\end{itemize}\n"
+            elif isinstance(c_sec, dict):
+                c_rows = ""
+                for k, v in c_sec.items():
+                    c_rows += f"{escape_latex(str(k))} & {escape_latex(str(v))} \\\\\n"
+                c_body = render_table_block(c_spec, c_rows)
+            elif isinstance(c_sec, str):
+                c_body = escape_latex(c_sec)
+            if c_body:
+                compiled_sections.append(f"\\section*{{{c_title}}}\n{c_body}")
+
+    dynamic_sections_tex = "\n\n".join(compiled_sections)
+
+    if "<<DYNAMIC_SECTIONS>>" in tmpl:
+        tmpl = tmpl.replace("<<DYNAMIC_SECTIONS>>", dynamic_sections_tex)
 
     # ── Photo path ────────────────────────────────────────────────────────────
     if photo_path:

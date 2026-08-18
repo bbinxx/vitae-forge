@@ -1,9 +1,9 @@
-\documentclass[10pt, a4paper]{article}
+\documentclass[<<FONT_SIZE>>, a4paper]{article}
 
 % ── Packages ──────────────────────────────────────────────────────────────────
 \usepackage[
-  top=0.3in, bottom=0.3in,
-  left=0.45in, right=0.45in
+  top=<<MARGIN_TOP>>, bottom=<<MARGIN_BOTTOM>>,
+  left=<<MARGIN_LEFT>>, right=<<MARGIN_RIGHT>>
 ]{geometry}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{hyperref}
@@ -13,6 +13,8 @@
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{parskip}
+
+\definecolor{primary}{HTML}{<<PRIMARY_COLOR_HEX>>}
 
 % ── Hyperlink styling ─────────────────────────────────────────────────────────
 \hypersetup{
@@ -25,9 +27,9 @@
 
 % Section formatting
 \titleformat{\section}
-  {\normalsize\bfseries}
+  {\normalsize\bfseries\color{primary}}
   {}{0em}{\MakeUppercase}
-  [\vspace{-6pt}\rule{\linewidth}{0.5pt}]
+  [\vspace{-6pt}\color{primary}\rule{\linewidth}{<<RULE_THICKNESS>>}]
 
 \titlespacing{\section}{0pt}{6pt plus 1fill minus 3pt}{2pt minus 1pt}
 \flushbottom
@@ -36,9 +38,6 @@
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1pt plus 0.15fill minus 1pt}
-
-% Set base font size slightly larger than 10pt default
-\fontsize{10.5}{13.5}\selectfont
 
 \begin{document}
 
@@ -75,60 +74,7 @@
 
 \vspace{8pt}
 
-% [SECTION:SUMMARY]
-\section*{Professional Summary}
-<<SUMMARY>>
-% [/SECTION:SUMMARY]
-
-% [SECTION:SKILLS]
-\section*{Skills}
-
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
-<<SKILLS>>
-\end{tabular}
-% [/SECTION:SKILLS]
-
-% [SECTION:EXPERIENCE]
-\section*{Experience}
-<<EXPERIENCE>>
-% [/SECTION:EXPERIENCE]
-
-% [SECTION:PROJECTS]
-\section*{Projects}
-
-<<PROJECTS>>
-% [/SECTION:PROJECTS]
-
-% [SECTION:EDUCATION]
-\section*{Education}
-<<EDUCATION>>
-% [/SECTION:EDUCATION]
-
-% [SECTION:CERTIFICATIONS]
-\section*{Certifications}
-
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
-\textbf{Certificate} & \textbf{Issuer} & \textbf{Year} \\[1pt]
-<<CERTIFICATIONS>>
-\end{tabular}
-% [/SECTION:CERTIFICATIONS]
-
-% [SECTION:ACHIEVEMENTS]
-\section*{Achievements}
-
-\begin{tabular}{@{} p{8.2cm} >{\centering\arraybackslash}p{7.0cm} >{\raggedleft\arraybackslash}p{2.5cm} @{} }
-<<ACHIEVEMENTS>>
-\end{tabular}
-% [/SECTION:ACHIEVEMENTS]
-
-% [SECTION:LANGUAGES]
-\section*{Additional Information}
-
-\begin{tabular}{@{} >{\bfseries}p{3.8cm} p{13cm} @{} }
-<<ADDITIONAL>>
-\end{tabular}
-% [/SECTION:LANGUAGES]
+<<DYNAMIC_SECTIONS>>
 
 \end{document}
+

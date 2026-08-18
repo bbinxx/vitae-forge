@@ -338,7 +338,8 @@ async def export_pdf_local_route(request: Request):
         raise HTTPException(400, "Missing config in request body")
 
     if not pdf_name:
-        prefix = settings.get("file_name_prefix", "YOUR_NAME-")
+        from backend.services.tracker_service import _get_name_prefix
+        prefix = _get_name_prefix(user_id)
         role = config.get("role_title", "") if isinstance(config, dict) else ""
         safe_role = _re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
         pdf_name = f"{prefix}{safe_role}"
@@ -485,7 +486,7 @@ def list_files(request: Request):
             for v in versions:
                 pdf_key = v.get("pdf_r2_key")
                 if pdf_key:
-                    company = app.get("company", "Unknown App")
+                    company = app.get("company") or app.get("role") or Path(pdf_key).stem
                     key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
     except Exception as e:
         print(f"Failed to load apps for list-files: {e}")
@@ -809,15 +810,15 @@ def public_share_page(filename: str):
             ExpiresIn=3600 * 24 * 7
         )
         
-        # Just default values for public share (user_id not easily available)
-        user_name = "Candidate"
+        # Public share page — no auth context, leave user identity fields blank
+        user_name = ""
         user_email = ""
-        user_initial = "C"
-        
+        user_initial = ""
+
         # Load the presentation template
         template_path = TEMPLATES_DIR / "share.html"
         html = template_path.read_text()
-        
+
         # Inject the dynamic data
         html = html.replace("{{ PDF_URL }}", url)
         html = html.replace("{{ ROLE_NAME }}", filename.replace(".pdf", "").replace("_", " "))
