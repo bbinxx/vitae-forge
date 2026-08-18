@@ -130,6 +130,35 @@ DEFAULT_STARTER_CONFIG = {
     "achievements": True,
     "languages": True,
     "areas_of_interest": False
+  },
+  "section_order": [
+    "summary",
+    "skills",
+    "experience",
+    "projects",
+    "education",
+    "certifications",
+    "achievements",
+    "additional_info"
+  ],
+  "section_titles": {
+    "summary": "Professional Summary",
+    "skills": "Skills",
+    "experience": "Experience",
+    "projects": "Projects",
+    "education": "Education",
+    "certifications": "Certifications",
+    "achievements": "Achievements",
+    "additional_info": "Additional Information"
+  },
+  "styling": {
+    "font_size": "10pt",
+    "margin_top": "0.3in",
+    "margin_bottom": "0.3in",
+    "margin_left": "0.45in",
+    "margin_right": "0.45in",
+    "primary_color_hex": "000000",
+    "rule_thickness": "0.5pt"
   }
 }
 
