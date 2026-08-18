@@ -580,9 +580,8 @@ async def compile_pdf(app_id: str, request: Request):
     try:
         body = await request.json()
         config = body.get("config", {})
-        settings = db.get_settings(user_id)
-        prefix = settings.get('file_name_prefix', 'YOUR_NAME-') if isinstance(settings, dict) else 'YOUR_NAME-'
-        
+        from backend.services.tracker_service import _get_name_prefix
+        prefix = _get_name_prefix(user_id)
         fallback_name = f"{prefix}{app['role']}".replace(" ", "_")
         pdf_name = body.get("pdf_name", fallback_name)
         if pdf_name.endswith(".pdf"):
@@ -755,7 +754,7 @@ def scrape_job_url(req: ScrapeRequest):
         '  "email": {"to": "", "cc": "", "subject": "", "body": ""}\n'
         '}\n\n'
         'Fill in every field you can. If not found, leave empty string.\n'
-        "Set status to 'Bookmarked' as default. Set priority based on how well the role matches a Java Developer profile."
+        "Set status to 'Bookmarked' as default. Set priority to 'High' for senior or lead roles, 'Low' for internships, 'Medium' for all others."
     )
 
     return {
