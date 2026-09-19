@@ -55,7 +55,15 @@ _UPDATABLE_FIELDS = [
 @router.get("")
 def list_applications(request: Request):
     user_id = get_user_id(request)
-    return {"applications": db.get_all_applications(user_id)}
+    apps = db.get_all_applications(user_id)
+    def parse_sort_key(app):
+        for k in ('created_at', 'date_applied', 'updated_at'):
+            val = app.get(k)
+            if val:
+                return str(val)
+        return ""
+    apps.sort(key=parse_sort_key, reverse=True)
+    return {"applications": apps}
 
 @router.post("")
 async def create_application(request: Request):

@@ -28,14 +28,16 @@ def _get_name_prefix(user_id: str) -> str:
     return "Resume-"
 
 def build_display_name(user_id: str, app: dict) -> str:
-    prefix = _get_name_prefix(user_id)
-    if not app:
-        return f"{prefix}app"
-    role = app.get('role', '')
-    if role:
-        name = role.strip('_')
-        return f"{prefix}{sanitize_filename(name, fallback='app')}"
-    return f"{prefix}{sanitize_filename(app.get('id', ''), fallback='app')}"
+    raw_prefix = _get_name_prefix(user_id).strip("-_")
+    role = app.get('role', '') if app else ''
+    company = app.get('company', '') if app else ''
+    
+    parts = [p for p in (raw_prefix, role, company) if p]
+    combined = "_".join(parts) if parts else "RESUME"
+    
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", combined.replace(' ', '_'))
+    cleaned = re.sub(r"_+", "_", cleaned).strip('_').upper()
+    return cleaned or "RESUME"
 
 def timeline_event(status: str, note: str = "") -> dict:
     return {
@@ -46,10 +48,15 @@ def timeline_event(status: str, note: str = "") -> dict:
 
 def default_app(app_id: str, body: dict) -> dict:
     status = body.get("status", "Bookmarked")
-    return {
+    company = body.get("company") or body.get("name") or body.get("company_name") or body.get("companyName") or ""
+    role = body.get("role") or body.get("title") or body.get("job_title") or body.get("jobTitle") or body.get("position") or ""
+    now_iso = datetime.now().isoformat()
+    now_date = datetime.now().strftime("%Y-%m-%d")
+    
+    app_dict = {
         "id":               app_id,
-        "company":          body.get("company", ""),
-        "role":             body.get("role", ""),
+        "company":          company,
+        "role":             role,
         "location":         body.get("location", ""),
         "job_url":          body.get("job_url", ""),
         "status":           status,
@@ -71,8 +78,17 @@ def default_app(app_id: str, body: dict) -> dict:
         "contact_email":    body.get("contact_email", ""),
         "email":            body.get("email", {}),
         "interview_rounds": body.get("interview_rounds", []),
-        "created_at":       datetime.now().isoformat(),
-        "updated_at":       datetime.now().isoformat(),
+        "date_applied":     body.get("date_applied") or now_date,
+        "created_at":       body.get("created_at") or now_iso,
+        "updated_at":       now_iso,
         "timeline":         [timeline_event(status, "Application created")],
     }
+
+    # Merge any additional custom keys provided in body
+    for k, v in body.items():
+        if k not in app_dict:
+            app_dict[k] = v
+
+    return app_dict
+
 

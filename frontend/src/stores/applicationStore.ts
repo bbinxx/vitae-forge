@@ -45,25 +45,36 @@ class ApplicationStore {
   }
 
   async create(company: string, role: string, status: string, priority: string): Promise<Application | undefined> {
-    try {
-      const configRes = await api.getConfig().catch(() => ({}));
-      const baseConfig = configRes.master || configRes || {};
+    return this.createFromJson({ company, role, status, priority });
+  }
 
-      const res = await api.createApplication({
-        company,
-        role,
-        status,
-        priority,
-        date_applied: new Date().toISOString().split('T')[0],
-        resume_template: baseConfig
-      });
+  async createFromJson(jsonObj: Record<string, any>): Promise<Application | undefined> {
+    try {
+      let baseConfig = {};
+      if (!jsonObj.resume_template) {
+        const configRes = await api.getConfig().catch(() => ({}));
+        baseConfig = configRes.master || configRes || {};
+      }
+
+      const payload = {
+        company: jsonObj.company || jsonObj.name || jsonObj.company_name || jsonObj.companyName || 'Untitled Company',
+        role: jsonObj.role || jsonObj.title || jsonObj.job_title || jsonObj.jobTitle || jsonObj.position || 'Untitled Role',
+        status: jsonObj.status || 'APPLIED',
+        priority: jsonObj.priority || 'MEDIUM',
+        date_applied: jsonObj.date_applied || new Date().toISOString().split('T')[0],
+        resume_template: jsonObj.resume_template || baseConfig,
+        ...jsonObj
+      };
+
+      const res = await api.createApplication(payload);
       await this.load();
-      return res.application;
+      return res.application || res;
     } catch (e: any) {
       alert('Failed to create application: ' + e.message);
       return undefined;
     }
   }
+
 
   async update(id: string, data: Partial<Application>) {
     try {
