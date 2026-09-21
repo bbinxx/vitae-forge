@@ -3,7 +3,7 @@ import { Application, Bookmark, Setting, Recipe } from '../types';
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -59,11 +59,26 @@ export const api = {
   pickFolder: () => apiFetch<{ folder: string }>('/api/settings/pick-folder'),
   getConfig: () => apiFetch<any>('/get-config'),
   saveConfig: (data: any) => apiFetch<{ ok: boolean }>('/save-config', { method: 'POST', body: JSON.stringify(data) }),
+  uploadSettingsPhoto: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<{ ok: boolean; photo_r2_key: string }>('/api/settings/photo', {
+      method: 'POST',
+      body: formData
+    });
+  },
+  getSettingsPhotoUrl: () => apiFetch<{ url: string | null }>('/api/settings/photo-url'),
 
   // LaTeX Templates
   getTemplate: (filename: string) => apiFetch<{ content: string; filename: string }>(`/api/template/${filename}`),
   saveTemplate: (filename: string, content: string) => apiFetch<{ ok: boolean; filename: string }>(`/api/template/${filename}`, {
     method: 'PUT',
     body: JSON.stringify({ content }),
+  }),
+
+  // PDF Export to Setting Folder Location
+  exportPdfLocal: (config: any, pdf_name?: string, type?: string, include_photo?: boolean) => apiFetch<{ ok: boolean; path: string }>('/api/export-pdf-local', {
+    method: 'POST',
+    body: JSON.stringify({ config, pdf_name, type, include_photo })
   }),
 };

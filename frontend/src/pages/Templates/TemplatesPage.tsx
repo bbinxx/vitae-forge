@@ -183,9 +183,9 @@ export default function TemplatesPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
             {/* Mobile Section View Switcher */}
             <div className="mobile-only" style={{ gap: '4px', background: 'var(--bg-surface)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-              <button className={`btn btn-sm ${activeMobileTab === 'list' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('list')}>📂 Files</button>
-              <button className={`btn btn-sm ${activeMobileTab === 'editor' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('editor')}>💻 Code</button>
-              <button className={`btn btn-sm ${activeMobileTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('preview')}>📄 PDF</button>
+              <button className={`btn btn-sm ${activeMobileTab === 'list' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('list')}>Files</button>
+              <button className={`btn btn-sm ${activeMobileTab === 'editor' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('editor')}>Code</button>
+              <button className={`btn btn-sm ${activeMobileTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveMobileTab('preview')}>PDF</button>
             </div>
 
             {isModified && (

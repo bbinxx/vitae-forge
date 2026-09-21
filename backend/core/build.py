@@ -190,6 +190,11 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     else:
         full_config.update(v_data)
     
+    # Force sections['photo'] to match include_photo so the LaTeX generator renders it
+    if "sections" not in full_config:
+        full_config["sections"] = {}
+    full_config["sections"]["photo"] = include_photo
+
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(full_config, tmp)
         tmp_path = tmp.name

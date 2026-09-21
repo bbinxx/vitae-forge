@@ -244,6 +244,53 @@ async def save_settings_route(request: Request):
     db.save_settings(user_id, data)
     return {"ok": True}
 
+@router.post("/api/settings/photo")
+async def upload_settings_photo_route(request: Request, file: UploadFile = File(...)):
+    user_id = get_user_id(request)
+    import uuid
+    import tempfile
+    try:
+        content = await file.read()
+        suffix = Path(file.filename).suffix
+        key = f"settings_photos/{user_id}_{uuid.uuid4().hex[:8]}{suffix}"
+        
+        with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+            
+        from backend.core.upload import get_r2_client, BUCKET
+        client = get_r2_client()
+        if not client:
+            raise HTTPException(500, "R2 not configured")
+            
+        client.upload_file(tmp_path, BUCKET, key)
+        Path(tmp_path).unlink()
+        
+        return {"ok": True, "photo_r2_key": key}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@router.get("/api/settings/photo-url")
+def get_settings_photo_url(request: Request):
+    user_id = get_user_id(request)
+    settings = db.get_settings(user_id) or {}
+    photo_r2_key = settings.get("photo_r2_key")
+    if not photo_r2_key:
+        return {"url": None}
+        
+    from backend.core.upload import get_r2_client, BUCKET
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(500, "R2 not configured")
+        
+    try:
+        url = client.generate_presigned_url(
+            'get_object', Params={'Bucket': BUCKET, 'Key': photo_r2_key}, ExpiresIn=3600
+        )
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 @router.get("/api/settings/pick-folder")
 def pick_folder_route():
     import subprocess
@@ -290,14 +337,19 @@ async def export_pdf_local_route(request: Request):
     if not config:
         raise HTTPException(400, "Missing config in request body")
 
-    if not pdf_name:
-        prefix = settings.get("file_name_prefix", "YOUR_NAME-")
-        role = config.get("role_title", "") if isinstance(config, dict) else ""
-        safe_role = _re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
-        pdf_name = f"{prefix}{safe_role}"
+    raw_name = pdf_name
+    if not raw_name:
+        from backend.services.tracker_service import _get_name_prefix
+        prefix = _get_name_prefix(user_id).strip("-_")
+        role = config.get("role_title", "") or config.get("role", "") if isinstance(config, dict) else ""
+        company = config.get("company", "") if isinstance(config, dict) else ""
+        parts = [p for p in (prefix, role, company) if p]
+        raw_name = "_".join(parts) if parts else "RESUME"
 
-    if not pdf_name.endswith(".pdf"):
-        pdf_name = f"{pdf_name}.pdf"
+    stem = Path(raw_name).stem.replace(' ', '_')
+    stem = _re.sub(r'[^a-zA-Z0-9_-]', '_', stem)
+    stem = _re.sub(r'_+', '_', stem).strip('_').upper()
+    pdf_name = f"{stem or 'RESUME'}.pdf"
 
     target_dir = Path(export_folder)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -438,7 +490,7 @@ def list_files(request: Request):
             for v in versions:
                 pdf_key = v.get("pdf_r2_key")
                 if pdf_key:
-                    company = app.get("company", "Unknown App")
+                    company = app.get("company") or app.get("role") or Path(pdf_key).stem
                     key_to_meta[pdf_key] = f"{company} - {v.get('name', 'Custom Version')}"
     except Exception as e:
         print(f"Failed to load apps for list-files: {e}")
@@ -762,15 +814,15 @@ def public_share_page(filename: str):
             ExpiresIn=3600 * 24 * 7
         )
         
-        # Just default values for public share (user_id not easily available)
-        user_name = "Candidate"
+        # Public share page — no auth context, leave user identity fields blank
+        user_name = ""
         user_email = ""
-        user_initial = "C"
-        
+        user_initial = ""
+
         # Load the presentation template
         template_path = TEMPLATES_DIR / "share.html"
         html = template_path.read_text()
-        
+
         # Inject the dynamic data
         html = html.replace("{{ PDF_URL }}", url)
         html = html.replace("{{ ROLE_NAME }}", filename.replace(".pdf", "").replace("_", " "))

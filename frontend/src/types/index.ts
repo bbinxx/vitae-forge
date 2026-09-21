@@ -10,6 +10,19 @@ export interface Application {
   status: string;
   priority: string;
   date_applied: string;
+  location?: string;
+  job_url?: string;
+  salary_range?: string;
+  contact_name?: string;
+  contact_email?: string;
+  email?: {
+    to?: string;
+    cc?: string;
+    subject?: string;
+    body?: string;
+  };
+  notes?: string;
+  job_description?: string;
   resume_template?: any;
   created_at?: string;
 }
@@ -41,6 +54,7 @@ export interface Setting {
   editor_word_wrap?: boolean;
   editor_minimap?: boolean;
   editor_theme?: string;
+  photo_r2_key?: string;
 }
 
 export interface SystemStatus {

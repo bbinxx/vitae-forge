@@ -62,6 +62,11 @@ async def preview_pdf(request: Request):
         v_data = {k: v for k, v in config.items() if k != "library"}
         full_config.update(v_data)
 
+        # Force sections['photo'] to match include_photo so the LaTeX generator renders it
+        if "sections" not in full_config:
+            full_config["sections"] = {}
+        full_config["sections"]["photo"] = include_photo
+
         if preview_type == "cover_letter":
             template = TEMPLATE_COVER_LETTER
         elif include_photo:
@@ -76,39 +81,61 @@ async def preview_pdf(request: Request):
                 detail="LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or compile downloaded TeX bundle in Overleaf."
             )
 
-        # All temp artefacts live in one directory so cleanup is complete.
-        with tempfile.TemporaryDirectory(prefix="resume_preview_") as tmp_dir:
-            tmp_dir_path = Path(tmp_dir)
-            tmp_config_path = tmp_dir_path / "config.json"
-            tmp_tex_path = tmp_dir_path / "resume.tex"
+        custom_photo_path = None
+        try:
+            if include_photo and user_id:
+                from backend.db import db
+                settings = db.get_settings(user_id) or {}
+                photo_r2_key = settings.get("photo_r2_key")
+                if photo_r2_key:
+                    from backend.core.upload import get_r2_client, BUCKET
+                    client = get_r2_client()
+                    if client:
+                        try:
+                            suffix = Path(photo_r2_key).suffix
+                            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp_photo:
+                                client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
+                                custom_photo_path = Path(tmp_photo.name)
+                        except Exception as e:
+                            print(f"Error downloading settings photo: {e}")
 
-            with open(tmp_config_path, "w") as f:
-                json.dump(full_config, f)
+            # All temp artefacts live in one directory so cleanup is complete.
+            with tempfile.TemporaryDirectory(prefix="resume_preview_") as tmp_dir:
+                tmp_dir_path = Path(tmp_dir)
+                tmp_config_path = tmp_dir_path / "config.json"
+                tmp_tex_path = tmp_dir_path / "resume.tex"
 
-            generate_resume(
-                str(tmp_config_path), str(template), str(tmp_tex_path),
-                photo_path=str(PROFILE_PHOTO) if include_photo else None,
-            )
+                with open(tmp_config_path, "w") as f:
+                    json.dump(full_config, f)
 
-            proc = subprocess.run(
-                [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", tmp_dir, str(tmp_tex_path)],
-                capture_output=True, timeout=30,
-            )
+                photo_to_use = str(custom_photo_path) if custom_photo_path else (str(PROFILE_PHOTO) if include_photo else None)
+                generate_resume(
+                    str(tmp_config_path), str(template), str(tmp_tex_path),
+                    photo_path=photo_to_use,
+                )
 
-            pdf_file = tmp_tex_path.with_suffix(".pdf")
-            if not pdf_file.exists():
-                detail = "PDF compilation failed."
-                log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore") if tmp_tex_path.with_suffix(".log").exists() else "")
-                if proc.returncode != 0 and log:
-                    tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
-                    detail = f"{detail} {tail}"
-                raise HTTPException(500, detail)
+                proc = subprocess.run(
+                    [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", tmp_dir, str(tmp_tex_path)],
+                    capture_output=True, timeout=30,
+                )
 
-            return Response(
-                content=pdf_file.read_bytes(),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'inline; filename="{pdf_name}"'},
-            )
+                pdf_file = tmp_tex_path.with_suffix(".pdf")
+                if not pdf_file.exists():
+                    detail = "PDF compilation failed."
+                    log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore") if tmp_tex_path.with_suffix(".log").exists() else "")
+                    if proc.returncode != 0 and log:
+                        tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
+                        detail = f"{detail} {tail}"
+                    raise HTTPException(500, detail)
+
+                return Response(
+                    content=pdf_file.read_bytes(),
+                    media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{pdf_name}"'},
+                )
+        finally:
+            if custom_photo_path:
+                custom_photo_path.unlink(missing_ok=True)
 
     except json.JSONDecodeError:
         raise HTTPException(400, "Invalid JSON in request body")
