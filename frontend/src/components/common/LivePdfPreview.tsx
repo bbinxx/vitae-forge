@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { settingsStore } from '../../stores/settingsStore';
+import { api } from '../../services/api';
 
 interface LivePdfPreviewProps {
   jsonPayload: any;
@@ -11,7 +13,7 @@ interface LivePdfPreviewProps {
 export default function LivePdfPreview({
   jsonPayload,
   previewType = 'resume',
-  includePhoto = true,
+  includePhoto = false,
   onToggleType,
   onTogglePhoto
 }: LivePdfPreviewProps) {
@@ -40,6 +42,43 @@ export default function LivePdfPreview({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleSaveToExportFolder = async () => {
+    const settings = settingsStore.getSettings();
+    if (!settings.export_folder) {
+      alert('No export destination folder specified. Please click "PDF Settings" to set your export folder location.');
+      return;
+    }
+
+    const rawPrefix = (settings.file_name_prefix || 'RESUME').replace(/[-_\s]+$/, '');
+    const role = jsonPayload?.role || jsonPayload?.title || jsonPayload?.job_title || jsonPayload?.role_title || '';
+    const company = jsonPayload?.company || jsonPayload?.company_name || jsonPayload?.name || '';
+    const typeStr = previewType === 'cover_letter' ? 'COVER_LETTER' : '';
+
+    const parts = [rawPrefix, role, company, typeStr].filter(Boolean);
+    let baseName = parts.join('_')
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '')
+      .toUpperCase();
+
+    if (!baseName) baseName = 'RESUME';
+
+    try {
+      const res = await api.exportPdfLocal(
+        jsonPayload,
+        baseName,
+        previewType,
+        localIncludePhoto
+      );
+      if (res && res.path) {
+        alert(`PDF saved successfully to setting location:\n${res.path}`);
+      }
+    } catch (e: any) {
+      alert('Failed to save PDF to setting location: ' + e.message);
+    }
+  };
 
   const handleCompile = async (force = false) => {
     if (!jsonPayload) return;
@@ -195,6 +234,16 @@ export default function LivePdfPreview({
             style={{ padding: '3px 8px', fontSize: '10px' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>refresh</span> Compile
+          </button>
+
+          <button 
+            className="btn btn-primary btn-sm"
+            onClick={handleSaveToExportFolder}
+            disabled={isLoading}
+            style={{ padding: '3px 10px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}
+            title="Save PDF to setting location folder"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>save</span> Save PDF
           </button>
         </div>
       </div>

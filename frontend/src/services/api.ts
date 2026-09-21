@@ -75,4 +75,10 @@ export const api = {
     method: 'PUT',
     body: JSON.stringify({ content }),
   }),
+
+  // PDF Export to Setting Folder Location
+  exportPdfLocal: (config: any, pdf_name?: string, type?: string, include_photo?: boolean) => apiFetch<{ ok: boolean; path: string }>('/api/export-pdf-local', {
+    method: 'POST',
+    body: JSON.stringify({ config, pdf_name, type, include_photo })
+  }),
 };

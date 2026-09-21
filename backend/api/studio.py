@@ -337,15 +337,19 @@ async def export_pdf_local_route(request: Request):
     if not config:
         raise HTTPException(400, "Missing config in request body")
 
-    if not pdf_name:
+    raw_name = pdf_name
+    if not raw_name:
         from backend.services.tracker_service import _get_name_prefix
-        prefix = _get_name_prefix(user_id)
-        role = config.get("role_title", "") if isinstance(config, dict) else ""
-        safe_role = _re.sub(r'[^a-zA-Z0-9_-]', '_', role.strip()).strip('_') if role else "resume"
-        pdf_name = f"{prefix}{safe_role}"
+        prefix = _get_name_prefix(user_id).strip("-_")
+        role = config.get("role_title", "") or config.get("role", "") if isinstance(config, dict) else ""
+        company = config.get("company", "") if isinstance(config, dict) else ""
+        parts = [p for p in (prefix, role, company) if p]
+        raw_name = "_".join(parts) if parts else "RESUME"
 
-    if not pdf_name.endswith(".pdf"):
-        pdf_name = f"{pdf_name}.pdf"
+    stem = Path(raw_name).stem.replace(' ', '_')
+    stem = _re.sub(r'[^a-zA-Z0-9_-]', '_', stem)
+    stem = _re.sub(r'_+', '_', stem).strip('_').upper()
+    pdf_name = f"{stem or 'RESUME'}.pdf"
 
     target_dir = Path(export_folder)
     target_dir.mkdir(parents=True, exist_ok=True)
