@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApplications, applicationStore } from '../../stores/applicationStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { api, apiFetch } from '../../services/api';
@@ -28,7 +28,7 @@ export default function ApplicationsPage() {
   const [studioStatus, setStudioStatus] = useState('APPLIED');
   const [studioPriority, setStudioPriority] = useState('MEDIUM');
 
-  const [jsonData, setJsonData] = useState<any>(null);
+  const [jsonData, setJsonData] = useState<any>({});
   const [previewType, setPreviewType] = useState<'resume' | 'cover_letter'>('resume');
   const [includePhoto, setIncludePhoto] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
@@ -80,42 +80,70 @@ export default function ApplicationsPage() {
     }
   };
 
-  const handleOpenNewAppStudio = async () => {
+  const handleOpenNewAppStudio = () => {
     setIsCreatingNewApp(true);
     setSelectedApp(null);
     setStudioCompany('');
     setStudioRole('');
     setStudioStatus('APPLIED');
     setStudioPriority('MEDIUM');
+    // Set initial template immediately so modal renders INSTANTLY (SUDDENLY)
+    const initialTemplate = {
+      personal: { name: "", email: "", phone: "", location: "" },
+      sections: { experience: true, education: true, skills: true, projects: true },
+      experience: [],
+      education: [],
+      skills: []
+    };
+    setJsonData(initialTemplate);
     setShowStudioModal(true);
-    try {
-      const configData = await api.getConfig();
+
+    // Sync master config in background without delaying modal pop-up
+    api.getConfig().then(configData => {
       const mainData = configData.master || configData || {};
-      setJsonData(mainData);
-    } catch {
-      setJsonData({});
-    }
+      if (mainData && Object.keys(mainData).length > 0) {
+        setJsonData(mainData);
+      }
+    }).catch(() => {});
   };
 
-  const handleOpenAppEditor = async (app: Application) => {
+  const handleOpenAppEditor = (app: Application) => {
     setIsCreatingNewApp(false);
     setSelectedApp(app);
     setStudioCompany(app.company || '');
     setStudioRole(app.role || '');
     setStudioStatus(app.status || 'APPLIED');
     setStudioPriority(app.priority || 'MEDIUM');
+    const initialTemplate = app.resume_template || {
+      personal: { name: "", email: "" },
+      sections: { experience: true, education: true, skills: true }
+    };
+    setJsonData(initialTemplate);
     setShowStudioModal(true);
-    try {
-      if (app.resume_template) {
-        setJsonData(app.resume_template);
-      } else {
-        const configData = await api.getConfig();
+
+    if (!app.resume_template) {
+      api.getConfig().then(configData => {
         const mainData = configData.master || configData || {};
         setJsonData(mainData);
-      }
-    } catch {
-      setJsonData({});
+      }).catch(() => {});
     }
+  };
+
+  const handleCopyPdfName = () => {
+    const settings = settingsStore.getSettings();
+    const rawPrefix = (settings.file_name_prefix || 'RESUME').replace(/[-_\s]+$/, '');
+    const finalCompany = studioCompany.trim() || jsonData?.company || jsonData?.name || 'COMPANY';
+    const finalRole = studioRole.trim() || jsonData?.role || jsonData?.title || 'ROLE';
+    const parts = [rawPrefix, finalRole, finalCompany].filter(Boolean);
+    const pdfName = parts.join('_')
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '')
+      .toUpperCase() + '.PDF';
+
+    navigator.clipboard.writeText(pdfName);
+    alert(`Copied PDF filename to clipboard:\n${pdfName}`);
   };
 
   const handleSaveConfig = async () => {
@@ -217,6 +245,10 @@ export default function ApplicationsPage() {
     }
   };
 
+  const handleQuickStatusChange = async (appId: string, newStatus: string) => {
+    await applicationStore.update(appId, { status: newStatus });
+  };
+
   const handleToggleSection = (sectionName: string) => {
     if (!jsonData) return;
     const sections = { ...(jsonData.sections || {}) };
@@ -239,7 +271,7 @@ export default function ApplicationsPage() {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(filteredApps.map(a => a.id));
+      setSelectedIds(sortedApps.map(a => a.id));
     } else {
       setSelectedIds([]);
     }
@@ -251,42 +283,44 @@ export default function ApplicationsPage() {
     );
   };
 
-  // Filtering & Sorting
-  const filteredApps = apps.filter(app => {
-    const text = (filterText || '').toLowerCase();
-    const matchesText = 
-      (app.company || '').toLowerCase().includes(text) ||
-      (app.role || '').toLowerCase().includes(text);
-    const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
-    const matchesPriority = priorityFilter === 'ALL' || app.priority === priorityFilter;
-    return matchesText && matchesStatus && matchesPriority;
-  });
+  // Memoized Filtering & Sorting
+  const sortedApps = useMemo(() => {
+    const filtered = apps.filter(app => {
+      const text = (filterText || '').toLowerCase();
+      const matchesText = 
+        (app.company || '').toLowerCase().includes(text) ||
+        (app.role || '').toLowerCase().includes(text);
+      const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
+      const matchesPriority = priorityFilter === 'ALL' || app.priority === priorityFilter;
+      return matchesText && matchesStatus && matchesPriority;
+    });
 
-  const sortedApps = [...filteredApps].sort((a, b) => {
-    let result = 0;
-    if (sortField === 'company') {
-      result = (a.company || '').localeCompare(b.company || '');
-    } else if (sortField === 'role') {
-      result = (a.role || '').localeCompare(b.role || '');
-    } else if (sortField === 'date') {
-      const getAppTime = (app: Application) => {
-        if (app.created_at) {
-          const t = new Date(app.created_at).getTime();
-          if (!isNaN(t) && t > 0) return t;
+    return [...filtered].sort((a, b) => {
+      let result = 0;
+      if (sortField === 'company') {
+        result = (a.company || '').localeCompare(b.company || '');
+      } else if (sortField === 'role') {
+        result = (a.role || '').localeCompare(b.role || '');
+      } else if (sortField === 'date') {
+        const getAppTime = (app: Application) => {
+          if (app.created_at) {
+            const t = new Date(app.created_at).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          if (app.date_applied) {
+            const t = new Date(app.date_applied).getTime();
+            if (!isNaN(t) && t > 0) return t;
+          }
+          return 0;
+        };
+        result = getAppTime(a) - getAppTime(b);
+        if (result === 0) {
+          result = (a.created_at || a.id || '').localeCompare(b.created_at || b.id || '');
         }
-        if (app.date_applied) {
-          const t = new Date(app.date_applied).getTime();
-          if (!isNaN(t) && t > 0) return t;
-        }
-        return 0;
-      };
-      result = getAppTime(a) - getAppTime(b);
-      if (result === 0) {
-        result = (a.created_at || a.id || '').localeCompare(b.created_at || b.id || '');
       }
-    }
-    return sortOrder === 'asc' ? result : -result;
-  });
+      return sortOrder === 'asc' ? result : -result;
+    });
+  }, [apps, filterText, statusFilter, priorityFilter, sortField, sortOrder]);
 
   const getStatusBadgeColor = (statusStr: string) => {
     const s = (statusStr || '').toUpperCase();
@@ -301,6 +335,12 @@ export default function ApplicationsPage() {
     if (pv === 'HIGH') return 'var(--danger)';
     if (pv === 'LOW') return 'var(--text-muted)';
     return 'var(--warning)';
+  };
+
+  const formatAppDate = (app: Application) => {
+    const rawDate = app.date_applied || app.created_at || (app as any).date || (app as any).applied_date;
+    if (!rawDate) return new Date().toISOString().split('T')[0];
+    return rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
   };
 
   return (
@@ -410,7 +450,7 @@ export default function ApplicationsPage() {
                 <input 
                   type="checkbox" 
                   onChange={handleSelectAll}
-                  checked={filteredApps.length > 0 && selectedIds.length === filteredApps.length}
+                  checked={sortedApps.length > 0 && selectedIds.length === sortedApps.length}
                 />
               </th>
               <th style={{ padding: '12px 16px', width: '22%' }}>Company</th>
@@ -437,21 +477,30 @@ export default function ApplicationsPage() {
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{app.company}</td>
                   <td style={{ padding: '12px 16px' }}>{app.role}</td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      background: badge.bg,
-                      color: badge.color
-                    }}>
-                      {app.status || 'APPLIED'}
-                    </span>
+                    <select
+                      value={app.status || 'APPLIED'}
+                      onChange={(e) => handleQuickStatusChange(app.id, e.target.value)}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        background: badge.bg,
+                        color: badge.color,
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="APPLIED" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>APPLIED</option>
+                      <option value="INTERVIEW" style={{ background: 'var(--bg-card)', color: '#3b82f6' }}>INTERVIEW</option>
+                      <option value="OFFER" style={{ background: 'var(--bg-card)', color: 'var(--success)' }}>OFFER</option>
+                      <option value="REJECTED" style={{ background: 'var(--bg-card)', color: 'var(--danger)' }}>REJECTED</option>
+                    </select>
                   </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: getPriorityColor(app.priority) }}>
                     {app.priority || 'MEDIUM'}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{app.date_applied}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{formatAppDate(app)}</td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => handleOpenGmail(app)} title="Open Gmail with pre-filled application details">
@@ -483,20 +532,29 @@ export default function ApplicationsPage() {
                   <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{app.company}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{app.role}</div>
                 </div>
-                <span style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  background: badge.bg,
-                  color: badge.color
-                }}>
-                  {app.status || 'APPLIED'}
-                </span>
+                <select
+                  value={app.status || 'APPLIED'}
+                  onChange={(e) => handleQuickStatusChange(app.id, e.target.value)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    background: badge.bg,
+                    color: badge.color,
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="APPLIED" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>APPLIED</option>
+                  <option value="INTERVIEW" style={{ background: 'var(--bg-card)', color: '#3b82f6' }}>INTERVIEW</option>
+                  <option value="OFFER" style={{ background: 'var(--bg-card)', color: 'var(--success)' }}>OFFER</option>
+                  <option value="REJECTED" style={{ background: 'var(--bg-card)', color: 'var(--danger)' }}>REJECTED</option>
+                </select>
               </div>
               <div className="app-card-row" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 <span>Priority: <strong style={{ color: getPriorityColor(app.priority) }}>{app.priority || 'MEDIUM'}</strong></span>
-                <span>{app.date_applied}</span>
+                <span>{formatAppDate(app)}</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => handleOpenGmail(app)} title="Open Gmail">
@@ -591,6 +649,15 @@ export default function ApplicationsPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleCopyPdfName}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem' }}
+                  title="Copy generated PDF filename to clipboard"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span> Copy PDF Name
+                </button>
+
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={handleOpenGmailInStudio}

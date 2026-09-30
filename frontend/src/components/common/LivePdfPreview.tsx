@@ -80,28 +80,57 @@ export default function LivePdfPreview({
     }
   };
 
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Track changes to payload without auto-compiling
+  useEffect(() => {
+    if (!jsonPayload) return;
+    const currentPayloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto: localIncludePhoto });
+    if (lastCompiledPayloadRef.current && lastCompiledPayloadRef.current !== currentPayloadStr) {
+      setIsDirty(true);
+    }
+  }, [jsonPayload, previewType, localIncludePhoto]);
+
+  // Handle keyboard shortcut Ctrl+Enter / Cmd+Enter to compile
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleCompile(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [jsonPayload, previewType, localIncludePhoto]);
+
+  // Initial compilation on mount if PDF is empty
+  useEffect(() => {
+    if (jsonPayload && !pdfUrl && !lastCompiledPayloadRef.current) {
+      handleCompile(true);
+    }
+  }, [jsonPayload]);
+
   const handleCompile = async (force = false) => {
     if (!jsonPayload) return;
     
     const payloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto: localIncludePhoto });
     if (!force && lastCompiledPayloadRef.current === payloadStr) {
-      // Avoid compiling again if payload did not change
       return;
     }
     lastCompiledPayloadRef.current = payloadStr;
+    setIsDirty(false);
 
     setIsLoading(true);
     setCompileError('');
     setLoadingPct(10);
     setElapsedTime(0);
 
-    // Dynamic timer simulating build compilation phases
     if (timerRef.current) clearInterval(timerRef.current);
     if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
 
     timerRef.current = setInterval(() => {
       setLoadingPct((prev) => {
-        if (prev >= 90) return 90; // Hold at 90 until fetch returns
+        if (prev >= 90) return 90;
         return prev + Math.floor(Math.random() * 8) + 5;
       });
     }, 150);
@@ -146,19 +175,6 @@ export default function LivePdfPreview({
     }
   };
 
-  useEffect(() => {
-    // Only recompile if content changes (debounced automatically to avoid heavy server cycles)
-    const timer = setTimeout(() => {
-      handleCompile();
-    }, 600);
-
-    return () => {
-      clearTimeout(timer);
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-    };
-  }, [jsonPayload, previewType, localIncludePhoto]);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {/* Header controls bar */}
@@ -174,13 +190,28 @@ export default function LivePdfPreview({
         gap: '8px',
         minHeight: '44px'
       }}>
-        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>description</span> 
-          Live PDF Preview
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>description</span> 
+            Live PDF Preview
+          </span>
+          {isDirty && (
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              background: 'rgba(234, 179, 8, 0.2)',
+              color: 'var(--warning)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              border: '1px solid rgba(234, 179, 8, 0.4)'
+            }}>
+              Uncompiled changes
+            </span>
+          )}
+        </div>
 
         {/* Toggle options */}
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <button
             className="btn btn-ghost"
             style={{ 
@@ -228,19 +259,28 @@ export default function LivePdfPreview({
           </button>
 
           <button 
-            className="btn btn-secondary btn-sm"
+            className={`btn ${isDirty ? 'btn-primary' : 'btn-secondary'} btn-sm`}
             onClick={() => handleCompile(true)}
             disabled={isLoading}
-            style={{ padding: '3px 8px', fontSize: '10px' }}
+            style={{
+              padding: '4px 12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: isDirty ? '0 0 8px rgba(99, 102, 241, 0.5)' : 'none'
+            }}
+            title="Compile LaTeX PDF (Ctrl+Enter)"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>refresh</span> Compile
+            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>play_arrow</span> Compile
           </button>
 
           <button 
             className="btn btn-primary btn-sm"
             onClick={handleSaveToExportFolder}
             disabled={isLoading}
-            style={{ padding: '3px 10px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}
+            style={{ padding: '4px 10px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}
             title="Save PDF to setting location folder"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>save</span> Save PDF
