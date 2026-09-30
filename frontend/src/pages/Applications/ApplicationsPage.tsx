@@ -33,15 +33,33 @@ export default function ApplicationsPage() {
   const [includePhoto, setIncludePhoto] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
   const [savingConfig, setSavingConfig] = useState(false);
+  const [syncingSheets, setSyncingSheets] = useState(false);
 
   // Studio PDF Settings modal states
   const [showStudioSettings, setShowStudioSettings] = useState(false);
   const [settingPrefix, setSettingPrefix] = useState('RESUME-');
   const [settingFolder, setSettingFolder] = useState('');
+  const [settingSheetsUrl, setSettingSheetsUrl] = useState('');
 
   useEffect(() => {
     loadApps();
   }, []);
+
+  const handleSyncToSheets = async () => {
+    setSyncingSheets(true);
+    try {
+      const res = await api.syncSheets();
+      if (res && res.ok) {
+        alert(`Google Sheets Sync Success!\n${res.message}`);
+      } else {
+        alert(`Sync Notice: ${res.message || 'Please configure Google Sheets Webhook URL in Settings.'}`);
+      }
+    } catch (e: any) {
+      alert('Sync Failed: ' + e.message);
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
 
   const handleOpenStudioSettings = async () => {
     try {
@@ -49,6 +67,7 @@ export default function ApplicationsPage() {
       const s = settingsStore.getSettings();
       setSettingPrefix(s.file_name_prefix || 'RESUME-');
       setSettingFolder(s.export_folder || '');
+      setSettingSheetsUrl(s.google_sheets_webhook_url || '');
     } catch {}
     setShowStudioSettings(true);
   };
@@ -71,10 +90,11 @@ export default function ApplicationsPage() {
       await settingsStore.save({
         ...current,
         file_name_prefix: settingPrefix.trim(),
-        export_folder: settingFolder.trim()
+        export_folder: settingFolder.trim(),
+        google_sheets_webhook_url: settingSheetsUrl.trim()
       });
       setShowStudioSettings(false);
-      alert('PDF naming and export settings saved!');
+      alert('PDF naming, export & Google Sheets settings saved!');
     } catch (e: any) {
       alert('Failed to save settings: ' + e.message);
     }
@@ -417,6 +437,17 @@ export default function ApplicationsPage() {
           <option value="company-desc">Company Z-A</option>
         </select>
 
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={handleSyncToSheets}
+          disabled={syncingSheets}
+          title="Sync all current and historical applications to Google Sheet"
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>table_chart</span>
+          {syncingSheets ? 'Syncing...' : 'Sync Sheets'}
+        </button>
+
         {/* Bulk action buttons */}
         {selectedIds.length > 0 && (
           <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
@@ -756,6 +787,18 @@ export default function ApplicationsPage() {
                   </button>
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Local folder path on system where PDFs are saved.</span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>Google Apps Script Webhook URL</label>
+                <input
+                  type="url"
+                  className="input-field"
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={settingSheetsUrl}
+                  onChange={e => setSettingSheetsUrl(e.target.value)}
+                />
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Web app URL to sync job applications to Google Sheets.</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>

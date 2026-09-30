@@ -46,6 +46,7 @@ export const api = {
   createApplication: (data: Omit<Application, 'id'>) => apiFetch<{ application: Application }>('/applications', { method: 'POST', body: JSON.stringify(data) }),
   updateApplication: (id: string, data: Partial<Application>) => apiFetch<{ application: Application }>(`/applications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteApplication: (id: string) => apiFetch<{ ok: boolean }>(`/applications/${id}`, { method: 'DELETE' }),
+  syncSheets: () => apiFetch<{ ok: boolean; count: number; message: string }>('/applications/sync-sheets', { method: 'POST' }),
 
   // Bookmarks (Saved Resumes)
   getBookmarks: () => apiFetch<{ bookmarks: Bookmark[] }>('/bookmarks'),
