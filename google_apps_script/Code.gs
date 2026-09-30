@@ -5,45 +5,69 @@
  * SETUP INSTRUCTIONS:
  * 1. Open your Google Sheet.
  * 2. Click Extensions > Apps Script.
- * 3. Paste this code into Code.gs.
+ * 3. Replace all existing code with this file content.
  * 4. Click Deploy > New deployment.
  * 5. Select type: Web app.
  *    - Execute as: Me
  *    - Who has access: Anyone
  * 6. Click Deploy, authorize permissions, and copy the Web App URL.
- * 7. Paste the Web App URL into VitaeForge PDF / System Settings under "Google Sheets Webhook URL".
+ * 7. Paste the Web App URL into VitaeForge Settings under "Google Sheets Webhook URL".
  */
+
+function doGet(e) {
+  if (e && e.parameter && e.parameter.payload) {
+    try {
+      var data = JSON.parse(e.parameter.payload);
+      return processPayload(data);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, status: "VitaeForge Google Sheets Sync Active" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-
-    // Ensure headers exist
-    ensureHeaders(sheet);
-
-    var action = data.action;
-
-    if (action === "sync_all" && data.applications) {
-      syncAllApplications(sheet, data.applications);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, synced: data.applications.length }))
-        .setMimeType(ContentService.MimeType.JSON);
-    } else if (action === "delete" && data.application) {
-      deleteApplication(sheet, data.application.id);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, deleted: data.application.id }))
-        .setMimeType(ContentService.MimeType.JSON);
-    } else if (data.application) {
-      upsertApplication(sheet, data.application);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, upserted: data.application.id }))
+    var contents = e && e.postData ? e.postData.contents : "";
+    if (!contents && e && e.parameter && e.parameter.payload) {
+      contents = e.parameter.payload;
+    }
+    if (!contents) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Empty request payload" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Invalid payload" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var data = JSON.parse(contents);
+    return processPayload(data);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function processPayload(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  ensureHeaders(sheet);
+
+  var action = data.action;
+
+  if (action === "sync_all" && data.applications) {
+    syncAllApplications(sheet, data.applications);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, count: data.applications.length, message: "Synced all applications" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } else if (action === "delete" && data.application) {
+    deleteApplication(sheet, data.application.id);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, deleted: data.application.id }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } else if (data.application) {
+    upsertApplication(sheet, data.application);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, upserted: data.application.id }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Invalid payload action" }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function ensureHeaders(sheet) {
@@ -63,7 +87,10 @@ function ensureHeaders(sheet) {
   ];
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(headers);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#e2e8f0");
+    var headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight("bold");
+    headerRange.setBackground("#3b82f6");
+    headerRange.setFontColor("#ffffff");
   }
 }
 

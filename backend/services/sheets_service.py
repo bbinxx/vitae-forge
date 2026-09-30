@@ -3,12 +3,27 @@ import threading
 import requests
 from backend.db import db
 
+def _post_to_google_script(url: str, payload: dict, timeout: int = 15):
+    """
+    Posts JSON payload to Google Apps Script URL.
+    Google Apps Script responds to POST with a 302 Found redirect to script.googleusercontent.com.
+    Standard requests library changes POST -> GET on 302 redirect. We explicitly re-POST to the
+    redirect target Location header to preserve postData in Google Apps Script.
+    """
+    headers = {"Content-Type": "application/json"}
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=timeout, allow_redirects=False)
+        if resp.status_code in (301, 302, 303, 307, 308) and "Location" in resp.headers:
+            redirect_url = resp.headers["Location"]
+            resp = requests.post(redirect_url, json=payload, headers=headers, timeout=timeout)
+        return resp
+    except Exception as e:
+        print(f"[Google Sheets Sync] Request error: {e}")
+        return None
+
 def _send_webhook_async(url: str, payload: dict):
     def worker():
-        try:
-            requests.post(url, json=payload, timeout=10)
-        except Exception as e:
-            print(f"[Google Sheets Sync] Webhook notify error: {e}")
+        _post_to_google_script(url, payload, timeout=10)
 
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
@@ -79,8 +94,9 @@ def sync_all_applications_to_sheets(user_id: str) -> dict:
         "applications": serialized_apps
     }
 
-    try:
-        resp = requests.post(webhook_url, json=payload, timeout=15)
+    resp = _post_to_google_script(webhook_url, payload, timeout=15)
+    if resp and resp.status_code == 200:
         return {"ok": True, "count": len(serialized_apps), "message": f"Successfully synced {len(serialized_apps)} applications to Google Sheet."}
-    except Exception as e:
-        return {"ok": False, "message": f"Failed to reach Google Sheets Webhook: {str(e)}"}
+    else:
+        err_detail = resp.text[:200] if resp else "No response from Google Apps Script"
+        return {"ok": False, "message": f"Google Sheets Sync Notice: {err_detail}"}
