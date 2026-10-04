@@ -55,6 +55,7 @@ export interface Setting {
   editor_minimap?: boolean;
   editor_theme?: string;
   photo_r2_key?: string;
+  google_sheets_webhook_url?: string;
 }
 
 export interface SystemStatus {

@@ -65,6 +65,16 @@ def list_applications(request: Request):
     apps.sort(key=parse_sort_key, reverse=True)
     return {"applications": apps}
 
+from backend.services.sheets_service import sync_application_to_sheets, sync_all_applications_to_sheets
+
+@router.post("/sync-sheets")
+def sync_sheets(request: Request):
+    user_id = get_user_id(request)
+    result = sync_all_applications_to_sheets(user_id)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("message", "Sync failed"))
+    return result
+
 @router.post("")
 async def create_application(request: Request):
     user_id = get_user_id(request)
@@ -106,6 +116,7 @@ async def create_application(request: Request):
             if custom_photo_path:
                 custom_photo_path.unlink(missing_ok=True)
     db.save_application(user_id, new_app)
+    sync_application_to_sheets(user_id, new_app, action="upsert")
     return new_app
 
 @router.put("/{app_id}")
@@ -168,11 +179,15 @@ async def update_application(app_id: str, request: Request):
         )
 
     db.save_application(user_id, app)
+    sync_application_to_sheets(user_id, app, action="upsert")
     return app
 
 @router.delete("/{app_id}")
 def delete_app(app_id: str, request: Request):
     user_id = get_user_id(request)
+    app = db.get_application(user_id, app_id)
+    if app:
+        sync_application_to_sheets(user_id, app, action="delete")
     db.delete_application(user_id, app_id)
     return {"ok": True}
 
@@ -202,6 +217,7 @@ async def bulk_update(request: Request):
                     timeline_event(new_status, f"Bulk update → {new_status}")
                 )
             db.save_application(user_id, app)
+            sync_application_to_sheets(user_id, app, action="upsert")
             count += 1
 
     return {"ok": True, "updated": count}
