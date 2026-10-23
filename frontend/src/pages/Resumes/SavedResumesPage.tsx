@@ -52,8 +52,7 @@ export default function SavedResumesPage() {
     if (!selectedItem) return;
     setSavingConfig(true);
     try {
-      const updatedBookmark = { ...selectedItem, data: jsonData };
-      await api.updateBookmark(selectedItem.id, updatedBookmark);
+      await api.updateBookmark(selectedItem.id, { name: selectedItem.name, data: jsonData });
       await loadBookmarks();
       alert('Resume saved successfully!');
     } catch (e: any) {

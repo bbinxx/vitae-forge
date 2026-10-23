@@ -343,10 +343,12 @@ export default function ApplicationsPage() {
   }, [apps, filterText, statusFilter, priorityFilter, sortField, sortOrder]);
 
   const getStatusBadgeColor = (statusStr: string) => {
-    const s = (statusStr || '').toUpperCase();
+    const s = (statusStr || '').toUpperCase().replace(/ /g, '_');
     if (s === 'OFFER') return { bg: 'rgba(5, 150, 105, 0.15)', color: 'var(--success)' };
     if (s === 'INTERVIEW') return { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' };
     if (s === 'REJECTED') return { bg: 'rgba(220, 38, 38, 0.15)', color: 'var(--danger)' };
+    if (s === 'BOT_APPLIED') return { bg: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' };
+    if (s === 'BOT_PENDING') return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' };
     return { bg: 'var(--accent-dim)', color: 'var(--accent)' };
   };
 
@@ -404,6 +406,8 @@ export default function ApplicationsPage() {
         >
           <option value="ALL">All Status</option>
           <option value="APPLIED">Applied</option>
+          <option value="BOT_APPLIED">Bot Applied</option>
+          <option value="BOT_PENDING">Bot Pending</option>
           <option value="INTERVIEW">Interview</option>
           <option value="OFFER">Offer</option>
           <option value="REJECTED">Rejected</option>
@@ -523,6 +527,8 @@ export default function ApplicationsPage() {
                       }}
                     >
                       <option value="APPLIED" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>APPLIED</option>
+                      <option value="BOT_APPLIED" style={{ background: 'var(--bg-card)', color: '#8b5cf6' }}>BOT APPLIED</option>
+                      <option value="BOT_PENDING" style={{ background: 'var(--bg-card)', color: '#f59e0b' }}>BOT PENDING</option>
                       <option value="INTERVIEW" style={{ background: 'var(--bg-card)', color: '#3b82f6' }}>INTERVIEW</option>
                       <option value="OFFER" style={{ background: 'var(--bg-card)', color: 'var(--success)' }}>OFFER</option>
                       <option value="REJECTED" style={{ background: 'var(--bg-card)', color: 'var(--danger)' }}>REJECTED</option>
@@ -578,6 +584,8 @@ export default function ApplicationsPage() {
                   }}
                 >
                   <option value="APPLIED" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>APPLIED</option>
+                  <option value="BOT_APPLIED" style={{ background: 'var(--bg-card)', color: '#8b5cf6' }}>BOT APPLIED</option>
+                  <option value="BOT_PENDING" style={{ background: 'var(--bg-card)', color: '#f59e0b' }}>BOT PENDING</option>
                   <option value="INTERVIEW" style={{ background: 'var(--bg-card)', color: '#3b82f6' }}>INTERVIEW</option>
                   <option value="OFFER" style={{ background: 'var(--bg-card)', color: 'var(--success)' }}>OFFER</option>
                   <option value="REJECTED" style={{ background: 'var(--bg-card)', color: 'var(--danger)' }}>REJECTED</option>
@@ -651,6 +659,8 @@ export default function ApplicationsPage() {
                     style={{ fontSize: '0.75rem', padding: '3px 6px', height: 'auto', width: '110px' }}
                   >
                     <option value="APPLIED">Applied</option>
+                    <option value="BOT_APPLIED">Bot Applied</option>
+                    <option value="BOT_PENDING">Bot Pending</option>
                     <option value="INTERVIEW">Interview</option>
                     <option value="OFFER">Offer</option>
                     <option value="REJECTED">Rejected</option>

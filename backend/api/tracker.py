@@ -27,7 +27,7 @@ router = APIRouter(prefix="/applications", tags=["tracker"])
 BUILD_PY = ROOT / "src" / "core" / "build.py"
 
 STATUS_OPTIONS = [
-    "Bookmarked", "Applied", "Screening",
+    "Bookmarked", "Applied", "Bot Applied", "Bot Pending", "Screening",
     "Interview", "Offer", "Rejected", "Withdrawn",
 ]
 PRIORITY_OPTIONS = ["High", "Medium", "Low"]
