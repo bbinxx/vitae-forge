@@ -1,0 +1,80 @@
+{
+  "personal": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "phone": "+1 (555) 000-0000",
+    "linkedin": "your-linkedin",
+    "github": "your-github"
+  },
+  "role_title": "Your Role Title",
+  "summary": "Brief professional summary describing your experience, key skills, and career goals. Update this with your own background.",
+  "alternative_summaries": {},
+  "skills": {
+    "Languages": [],
+    "Frameworks": [],
+    "Developer Tools": [],
+    "Databases": [],
+    "Deployment": []
+  },
+  "experience": [],
+  "projects": [],
+  "education": {
+    "degree": "Your Degree",
+    "institution": "Your Institution",
+    "year": "Year"
+  },
+  "certifications": [],
+  "achievements": [],
+  "additional_info": {
+    "areas_of_interest": "",
+    "languages": ""
+  },
+  "cover_letter": "Dear Hiring Manager,\n\nI am excited to apply for the [Role] position at [Company]. [Introduce yourself and summarize your background.]\n\n[Describe your key experience and what you bring to this role.]\n\nThank you for your time and consideration. I look forward to discussing how my skills and experience can contribute to your organization.\n\nSincerely,\nYour Name",
+  "layout": {
+    "one_page": true,
+    "ats_optimized": true,
+    "photo": false
+  },
+  "sections": {
+    "role_title": true,
+    "photo": false,
+    "summary": true,
+    "skills": true,
+    "experience": true,
+    "projects": true,
+    "education": true,
+    "certifications": true,
+    "achievements": true,
+    "languages": true,
+    "areas_of_interest": false
+  },
+  "section_order": [
+    "summary",
+    "skills",
+    "experience",
+    "projects",
+    "education",
+    "certifications",
+    "achievements",
+    "additional_info"
+  ],
+  "section_titles": {
+    "summary": "Professional Summary",
+    "skills": "Skills",
+    "experience": "Experience",
+    "projects": "Projects",
+    "education": "Education",
+    "certifications": "Certifications",
+    "achievements": "Achievements",
+    "additional_info": "Additional Information"
+  },
+  "styling": {
+    "font_size": "10pt",
+    "margin_top": "0.3in",
+    "margin_bottom": "0.3in",
+    "margin_left": "0.45in",
+    "margin_right": "0.45in",
+    "primary_color_hex": "000000",
+    "rule_thickness": "0.5pt"
+  }
+}

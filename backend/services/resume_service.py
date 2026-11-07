@@ -1,6 +1,36 @@
 from backend.db import db
 from typing import Dict, Any, Optional
 
+PERSONAL_FIELDS = ("name", "email", "phone", "linkedin", "github")
+
+
+def merge_personal(base: Optional[Dict[str, Any]], *sources: Any) -> Dict[str, Any]:
+    """Merge contact details without letting partial/empty values erase real ones.
+
+    Saved recipes and application templates often contain an incomplete
+    ``personal`` block (e.g. only a name). A plain ``dict.update`` would wipe
+    the user's email from the master profile, so empty incoming values are
+    ignored here.
+    """
+    personal = dict(base or {})
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        nested = source.get("personal")
+        if isinstance(nested, dict):
+            for key, value in nested.items():
+                if value not in (None, ""):
+                    personal[key] = value
+        for field in PERSONAL_FIELDS:
+            value = source.get(field)
+            # Top-level ``email`` is often the cover-letter payload
+            # ({"to", "cc", "subject", "body"}), not the contact address.
+            # Never let a non-string value overwrite a contact field.
+            if isinstance(value, str) and value.strip():
+                personal[field] = value
+    return personal
+
+
 def get_full_config(user_id: str) -> Dict[str, Any]:
     """Merge personal, library, and recipes into the full config format."""
     try:

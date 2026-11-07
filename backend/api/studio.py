@@ -24,7 +24,7 @@ from backend.core.upload import list_r2_objects, upload_pdf, get_r2_client, BUCK
 from backend.core.deps import get_user_id, get_optional_user_id
 
 from backend.db import db
-from backend.services.resume_service import get_full_config, save_full_config
+from backend.services.resume_service import get_full_config, save_full_config, merge_personal
 
 router = APIRouter()
 
@@ -148,18 +148,12 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
     else:
         v_data = dict(req.config)
 
-    if isinstance(req.config.get("personal"), dict):
-        full_config["personal"].update(req.config["personal"])
-    elif isinstance(v_data.get("personal"), dict):
-        full_config["personal"].update(v_data["personal"])
-
-    for pfield in ("name", "email", "phone", "linkedin", "github"):
-        if req.config.get(pfield):
-            full_config["personal"][pfield] = req.config[pfield]
-        elif v_data.get(pfield):
-            full_config["personal"][pfield] = v_data[pfield]
+    merged_personal = merge_personal(
+        main_config.get("personal"), req.config, v_data
+    )
 
     full_config.update(v_data)
+    full_config["personal"] = merged_personal
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(full_config, tmp)
@@ -368,6 +362,9 @@ async def export_pdf_local_route(request: Request):
             full_config["library"][lib_type].update(lib_items)
     v_data = {k: v for k, v in config.items() if k != "library"}
     full_config.update(v_data)
+    full_config["personal"] = merge_personal(
+        main_config.get("personal"), config, v_data
+    )
 
     with tempfile.TemporaryDirectory(prefix="resume_export_") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
