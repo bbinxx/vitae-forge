@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [folder, setFolder] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
   const [density, setDensity] = useState<'compact' | 'comfortable'>('comfortable');
+  const [sheetsUrl, setSheetsUrl] = useState('');
+  const [syncingSheets, setSyncingSheets] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Profile image upload states
@@ -37,6 +39,7 @@ export default function SettingsPage() {
     if (settings) {
       setPrefix(settings.file_name_prefix || '');
       setFolder(settings.export_folder || '');
+      setSheetsUrl(settings.google_sheets_webhook_url || '');
       setTheme(settings.theme || 'dark');
       setDensity(settings.density || 'comfortable');
       if (settings.photo_r2_key) {
@@ -57,6 +60,7 @@ export default function SettingsPage() {
           ...settings,
           file_name_prefix: prefix.trim(),
           export_folder: folder.trim(),
+          google_sheets_webhook_url: sheetsUrl.trim(),
           theme,
           density,
           photo_r2_key: res.photo_r2_key
@@ -72,6 +76,26 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSyncSheets = async () => {
+    if (!sheetsUrl.trim()) {
+      alert('Please enter and save your Google Apps Script Webhook URL first.');
+      return;
+    }
+    setSyncingSheets(true);
+    try {
+      const res = await api.syncSheets();
+      if (res && res.ok) {
+        alert(`Success!\n${res.message}`);
+      } else {
+        alert(`Sync Notice: ${res.message || 'Check your Apps Script Webhook URL.'}`);
+      }
+    } catch (err: any) {
+      alert('Sync Failed: ' + err.message);
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -80,6 +104,7 @@ export default function SettingsPage() {
         ...settings,
         file_name_prefix: prefix.trim(),
         export_folder: folder.trim(),
+        google_sheets_webhook_url: sheetsUrl.trim(),
         theme,
         density
       };
@@ -240,6 +265,49 @@ export default function SettingsPage() {
                 Browse
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Google Sheets Sync Card */}
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>table_chart</span>
+              Google Sheets Sync Integration
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleSyncSheets}
+              disabled={syncingSheets}
+              style={{ fontSize: '0.75rem' }}
+            >
+              {syncingSheets ? 'Syncing...' : 'Sync All Applications Now'}
+            </button>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
+              Google Apps Script Webhook URL
+            </label>
+            <input
+              type="url"
+              className="input-field"
+              value={sheetsUrl}
+              onChange={e => setSheetsUrl(e.target.value)}
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+              All new, updated, and existing applications (including full resume JSON) will sync automatically to your Google Sheet.
+            </span>
           </div>
         </div>
 

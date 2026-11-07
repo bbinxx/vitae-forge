@@ -10,7 +10,7 @@ import { apiFetch } from './services/api';
 import { User } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('applications');
   const [user, setUser] = useState<User | null>(() => {
     try {
       const cachedUser = localStorage.getItem('user');
@@ -66,9 +66,8 @@ export default function App() {
   }
 
   return (
-    <Shell activeTab={activeTab} setActiveTab={setActiveTab} user={user} onSignOut={handleSignOut}>
-      {activeTab === 'dashboard' && <DashboardPage onNavigate={setActiveTab} />}
-      {activeTab === 'applications' && <ApplicationsPage />}
+    <Shell activeTab={activeTab === 'dashboard' ? 'applications' : activeTab} setActiveTab={setActiveTab} user={user} onSignOut={handleSignOut}>
+      {(activeTab === 'dashboard' || activeTab === 'applications') && <ApplicationsPage />}
       {activeTab === 'saved-resumes' && <SavedResumesPage />}
       {activeTab === 'templates' && <TemplatesPage />}
       {activeTab === 'settings' && <SettingsPage />}

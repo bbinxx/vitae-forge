@@ -18,7 +18,7 @@ from backend.core.config import (
     TEMPLATE_PLAIN, TEMPLATE_PHOTO, PROFILE_PHOTO,
     find_pdflatex, load_resume_config,
 )
-from backend.services.resume_service import get_full_config
+from backend.services.resume_service import get_full_config, merge_personal
 
 # Ensure output dirs exist on import
 DIST_DIR.mkdir(exist_ok=True)
@@ -176,6 +176,10 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     else:
         v_data = dict(version_data)
 
+    merged_personal = merge_personal(
+        main_config.get("personal"), version_data, v_data
+    )
+
     if "library" in v_data:
         for lib_type, lib_items in v_data["library"].items():
             if lib_type not in full_config["library"]:
@@ -189,6 +193,8 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
         full_config.update(v_data_clean)
     else:
         full_config.update(v_data)
+
+    full_config["personal"] = merged_personal
     
     # Force sections['photo'] to match include_photo so the LaTeX generator renders it
     if "sections" not in full_config:
@@ -258,6 +264,10 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
     else:
         v_data = dict(version_data)
 
+    merged_personal = merge_personal(
+        main_config.get("personal"), version_data, v_data
+    )
+
     if "library" in v_data:
         for lib_type, lib_items in v_data["library"].items():
             if lib_type not in full_config["library"]:
@@ -269,6 +279,8 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         full_config.update(v_data_clean)
     else:
         full_config.update(v_data)
+
+    full_config["personal"] = merged_personal
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(full_config, tmp)

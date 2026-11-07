@@ -56,7 +56,13 @@ class ResumeStore {
 
   async update(id: string, data: Partial<Bookmark>) {
     try {
-      await api.updateBookmark(id, data);
+      // Always send both required fields: name + data
+      const existing = this.bookmarks.find(b => b.id === id);
+      const payload = {
+        name: data.name ?? existing?.name ?? '',
+        data: data.data ?? existing?.data ?? {},
+      };
+      await api.updateBookmark(id, payload);
       await this.load();
     } catch (e: any) {
       alert('Failed to update resume: ' + e.message);

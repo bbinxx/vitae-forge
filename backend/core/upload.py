@@ -78,6 +78,26 @@ def list_r2_objects(ttl: int = 30) -> dict[str, str]:
         return {}
 
 
+def require_r2_client():
+    """
+    Return a configured R2 boto3 client, or raise HTTP 500 if R2 is not set up.
+
+    Use this in FastAPI routes instead of the repetitive::
+
+        client = get_r2_client()
+        if not client:
+            raise HTTPException(500, "R2 not configured")
+    """
+    from fastapi import HTTPException
+    client = get_r2_client()
+    if not client:
+        raise HTTPException(
+            status_code=500,
+            detail="R2 cloud storage is not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY in your .env file.",
+        )
+    return client
+
+
 def upload_pdf(filename: str) -> dict:
     """Upload a single PDF from DIST_DIR to R2. Returns {ok, error?}."""
     global _r2_cache
