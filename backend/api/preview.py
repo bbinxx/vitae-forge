@@ -13,7 +13,7 @@ from jose import jwt, JWTError
 from backend.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER, PROFILE_PHOTO, find_pdflatex
 from backend.core.generate import generate_resume
 from backend.api.auth import SECRET_KEY, ALGORITHM
-from backend.services.resume_service import get_full_config
+from backend.services.resume_service import get_full_config, merge_personal
 
 router = APIRouter(prefix="/api", tags=["preview"])
 
@@ -58,9 +58,13 @@ async def preview_pdf(request: Request):
                     full_config["library"][lib_type] = {}
                 full_config["library"][lib_type].update(lib_items)
 
-        # Merge everything else
+        # Merge everything else, but never let a partial personal block wipe
+        # the user's real contact details (e.g. their email).
         v_data = {k: v for k, v in config.items() if k != "library"}
         full_config.update(v_data)
+        full_config["personal"] = merge_personal(
+            main_config.get("personal"), config, v_data
+        )
 
         # Force sections['photo'] to match include_photo so the LaTeX generator renders it
         if "sections" not in full_config:

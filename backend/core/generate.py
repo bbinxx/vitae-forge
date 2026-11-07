@@ -1,15 +1,15 @@
 """
-src/core/generate.py
+backend/core/generate.py
 LaTeX resume generator — fills a .tex template from resume_config.json.
-Moved from src/generate.py into the core package; fully standalone.
 """
+import datetime
 import json
 import os
 import re
 import sys
 from pathlib import Path
 
-# Add project root to sys.path to allow running the script directly
+# Allow direct execution: python -m backend.core.generate
 _project_root = Path(__file__).resolve().parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
@@ -53,6 +53,44 @@ def resolve_modular(val, section_key: str, full_library: dict):
     return val
 
 
+def _str_field(val, preferred_keys=None) -> str:
+    """Safely extract a string from a possible dict/list/str value."""
+    if not val:
+        return ""
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict) and preferred_keys:
+        for k in preferred_keys:
+            if val.get(k) and isinstance(val.get(k), str):
+                return val.get(k)
+    return ""
+
+
+_PERSONAL_FIELDS = ("name", "email", "phone", "linkedin", "github")
+
+
+def _merge_personal(personal: dict, source) -> None:
+    """Overlay contact fields from `source`, ignoring empty values.
+
+    Partial recipes must not clear contact details that exist in the master
+    profile (previously an empty email in a saved template hid the real one).
+    """
+    if not isinstance(source, dict):
+        return
+    nested = source.get("personal")
+    if isinstance(nested, dict):
+        for key, value in nested.items():
+            if value not in (None, ""):
+                personal[key] = value
+    for field in _PERSONAL_FIELDS:
+        value = source.get(field)
+        # Top-level ``email`` may be a cover-letter object
+        # ({"to", "cc", "subject", "body"}); only merge plain strings so it
+        # cannot overwrite the real contact email.
+        if isinstance(value, str) and value.strip():
+            personal[field] = value
+
+
 def generate_resume(
     source: str,
     template_path: str,
@@ -65,17 +103,16 @@ def generate_resume(
     Generate a .tex file by filling `template_path` with data from
     `source` (a role_id string or a path to a JSON config file).
     """
+    # Initialise data here to avoid the locals() antipattern later
+    data: dict = {}
+
     if os.path.isfile(source):
         with open(source) as f:
             data = json.load(f)
         if "recipes" in data and "library" in data:
             master_config = data
             if not role_id:
-                # If no role specified but has recipes, use the first one if any exist
-                if data["recipes"]:
-                    role_id = list(data["recipes"].keys())[0]
-                else:
-                    role_id = None
+                role_id = list(data["recipes"].keys())[0] if data["recipes"] else None
             recipe = data["recipes"].get(role_id, {}) if role_id else {}
         else:
             if user_id:
@@ -83,7 +120,13 @@ def generate_resume(
                 master_config = get_full_config(user_id)
             else:
                 master_config = load_resume_config()
-            rec_obj = data.get("recipe") if (isinstance(data, dict) and "recipe" in data) else (data.get("resume_template") if (isinstance(data, dict) and "resume_template" in data) else None)
+            rec_obj = (
+                data.get("recipe")
+                if isinstance(data, dict) and "recipe" in data
+                else data.get("resume_template")
+                if isinstance(data, dict) and "resume_template" in data
+                else None
+            )
             if isinstance(rec_obj, dict):
                 recipe = dict(rec_obj)
                 if "cover_letter" not in recipe and "email" in data:
@@ -102,23 +145,15 @@ def generate_resume(
         if not recipe:
             raise ValueError(f"Role ID '{source}' not found in config.")
 
-    personal = {}
-    if isinstance(master_config, dict) and "personal" in master_config and isinstance(master_config["personal"], dict):
+    personal: dict = {}
+    if isinstance(master_config, dict) and isinstance(master_config.get("personal"), dict):
         personal.update(master_config["personal"])
 
-    if 'data' in locals() and isinstance(data, dict):
-        if "personal" in data and isinstance(data["personal"], dict):
-            personal.update(data["personal"])
-        for pfield in ("name", "email", "phone", "linkedin", "github"):
-            if data.get(pfield):
-                personal[pfield] = data[pfield]
+    # data is always a dict (initialised above), safe to check without locals()
+    _merge_personal(personal, data)
 
     if isinstance(recipe, dict):
-        if "personal" in recipe and isinstance(recipe["personal"], dict):
-            personal.update(recipe["personal"])
-        for pfield in ("name", "email", "phone", "linkedin", "github"):
-            if recipe.get(pfield):
-                personal[pfield] = recipe[pfield]
+        _merge_personal(personal, recipe)
 
     library  = master_config.get("library", {})
     if "library" in recipe and isinstance(recipe["library"], dict):
@@ -145,17 +180,7 @@ def generate_resume(
         config[section] = resolve_modular(config.get(section), section, library)
 
     with open(template_path) as f:
-        tmpl = f.read()    # Helper to safely extract string from possible dict/list/string values
-    def _str_field(val, preferred_keys=None):
-        if not val:
-            return ""
-        if isinstance(val, str):
-            return val
-        if isinstance(val, dict) and preferred_keys:
-            for k in preferred_keys:
-                if val.get(k) and isinstance(val.get(k), str):
-                    return val.get(k)
-        return ""
+        tmpl = f.read()
 
     # ── Styling & Preamble Tokens ─────────────────────────────────────────────
     styling = config.get("styling", {}) if isinstance(config.get("styling"), dict) else {}
@@ -172,8 +197,7 @@ def generate_resume(
     tmpl = tmpl.replace("<<ROLE_TITLE>>", escape_latex(_str_field(config.get("role_title"), ["role_title", "title", "role"])))
     tmpl = tmpl.replace("<<COMPANY_NAME>>", escape_latex(_str_field(config.get("company", config.get("company_name")), ["name", "company"])))
     
-    import datetime
-    tmpl = tmpl.replace("<<DATE>>",       datetime.datetime.now().strftime("%B %d, %Y"))
+    tmpl = tmpl.replace("<<DATE>>", datetime.datetime.now().strftime("%B %d, %Y"))
     
     email_val = _str_field(config.get("email"), ["email", "address"])
     phone_val = _str_field(config.get("phone"), ["phone", "number"])
@@ -212,8 +236,7 @@ def generate_resume(
         if email_val:
             contact_parts.append(f"\\href{{mailto:{email_val}}}{{{escape_latex(email_val)}}}")
         if phone_val:
-            import re as _re
-            clean_tel = _re.sub(r'[^\d+]', '', phone_val)
+            clean_tel = re.sub(r'[^\d+]', '', phone_val)
             contact_parts.append(f"\\href{{tel:{clean_tel}}}{{{escape_latex(phone_val)}}}")
         if clean_linkedin:
             contact_parts.append(f"\\href{{https://linkedin.com/in/{clean_linkedin}}}{{linkedin.com/in/{escape_latex(clean_linkedin)}}}")
