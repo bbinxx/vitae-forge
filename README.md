@@ -5,6 +5,13 @@
 
 ---
 
+## Contributor and Agent Documentation
+
+- [AGENTS.md](AGENTS.md): repository conventions, feature branch workflow, development commands, and task-specific skill selection.
+- [Skills guide and global inventory](docs/SKILLS.md): suitable skills for this stack, usage limits, and the complete `npx skills list -g` snapshot.
+
+---
+
 ## 🚀 Key Features
 
 - **Modern React SPA Studio**: Fast, flat, solid-color UI built with React & Vite.
