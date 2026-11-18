@@ -1,17 +1,28 @@
-version: '3.8'
-
 services:
   app:
-    build: .
-    container_name: resume-studio
+    build:
+      context: .
+      target: runtime
     ports:
-      - "5050:5050"
-    volumes:
-      - .:/app
-      - /app/venv
-      - /app/dist
+      - "${HOST_PORT:-5050}:5050"
     env_file:
       - .env
     environment:
-      - PORT=5050
+      PORT: "5050"
+    volumes:
+      - uploads:/app/assets
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  uploads:

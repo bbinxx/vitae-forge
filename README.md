@@ -86,11 +86,14 @@ Vitae Forge is configured to run as a single container serving both the static R
 docker build -t vitae-forge .
 
 # Run container on port 5050
-docker run -p 5050:5050 vitae-forge
+docker run --env-file .env --init -p 5050:5050 vitae-forge
 ```
 
+For production configuration, persistent uploads, Compose commands, health checks,
+and container smoke tests, see [Docker deployment](docs/DOCKER_DEPLOYMENT.md).
+
 ### 1-Click Render Deployment
-Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` automatically builds the React SPA and provisions Python 3.11 with TeX Live packages (`texlive-latex-base`, `texlive-fonts-recommended`, `texlive-fonts-extra`, `texlive-latex-extra`, `cm-super`).
+Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` automatically builds the React SPA and provisions Python 3.11 with TeX Live packages (`texlive-latex-base`, `texlive-fonts-recommended`, `texlive-latex-extra`, `cm-super`). Configure runtime credentials and authentication before exposing the service.
 
 ---
 
