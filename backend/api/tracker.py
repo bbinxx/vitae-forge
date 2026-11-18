@@ -24,7 +24,7 @@ from backend.db import db
 
 router = APIRouter(prefix="/applications", tags=["tracker"])
 
-BUILD_PY = ROOT / "src" / "core" / "build.py"
+BUILD_PY = ROOT / "backend" / "core" / "build.py"
 
 STATUS_OPTIONS = [
     "Bookmarked", "Applied", "Bot Applied", "Bot Pending", "Screening",

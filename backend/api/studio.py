@@ -28,7 +28,7 @@ from backend.services.resume_service import get_full_config, save_full_config, m
 
 router = APIRouter()
 
-BUILD_PY = ROOT / "src" / "core" / "build.py"
+BUILD_PY = ROOT / "backend" / "core" / "build.py"
 
 # ── Bookmarks (Saved Resumes) ─────────────────────────────────────────────────
 

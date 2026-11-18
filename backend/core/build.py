@@ -287,7 +287,7 @@ def generate_latex_source(version_data: dict, display_name: str, include_photo: 
         tmp_path = tmp.name
 
     try:
-        generate_py = ROOT / "src" / "core" / "generate.py"
+        generate_py = ROOT / "backend" / "core" / "generate.py"
         template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
         suffix = "_X" if include_photo else ""
         tex_name = f"{display_name}{suffix}_temp.tex"
