@@ -44,6 +44,13 @@ vitae_forge/
 
 ---
 
+## Coding agent workflow
+
+All coding agents should follow [AGENTS.md](AGENTS.md) and the
+[coding agent guide](docs/CODING_AGENT_GUIDE.md), which covers recommended skills,
+verification, and feature branches. Never commit directly to `dev` or `main`;
+use a task branch and a reviewed pull request targeting `dev`.
+
 ## 💻 Local Development Setup
 
 ### 1. Backend Setup
