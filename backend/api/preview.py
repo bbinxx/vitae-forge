@@ -4,14 +4,14 @@ FastAPI router for live PDF preview generation.
 """
 import json
 import tempfile
-import subprocess
 from pathlib import Path
 
 from fastapi import APIRouter, Request, HTTPException, Response
 from jose import jwt, JWTError
 
-from backend.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER, PROFILE_PHOTO, find_pdflatex
-from backend.core.generate import generate_resume
+from backend.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
+from backend.services.latex_project import render_project
+from starlette.concurrency import run_in_threadpool
 from backend.api.auth import SECRET_KEY, ALGORITHM
 from backend.services.resume_service import get_full_config, merge_personal
 
@@ -78,13 +78,6 @@ async def preview_pdf(request: Request):
         else:
             template = TEMPLATE_PLAIN
 
-        pdflatex_cmd = find_pdflatex()
-        if not pdflatex_cmd:
-            raise HTTPException(
-                status_code=400,
-                detail="LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or compile downloaded TeX bundle in Overleaf."
-            )
-
         custom_photo_path = None
         try:
             if include_photo and user_id:
@@ -101,42 +94,16 @@ async def preview_pdf(request: Request):
                                 client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
                                 custom_photo_path = Path(tmp_photo.name)
                         except Exception as e:
-                            print(f"Error downloading settings photo: {e}")
+                            print("Profile photo download failed")
 
-            # All temp artefacts live in one directory so cleanup is complete.
-            with tempfile.TemporaryDirectory(prefix="resume_preview_") as tmp_dir:
-                tmp_dir_path = Path(tmp_dir)
-                tmp_config_path = tmp_dir_path / "config.json"
-                tmp_tex_path = tmp_dir_path / "resume.tex"
-
-                with open(tmp_config_path, "w") as f:
-                    json.dump(full_config, f)
-
-                photo_to_use = str(custom_photo_path) if custom_photo_path else (str(PROFILE_PHOTO) if include_photo else None)
-                generate_resume(
-                    str(tmp_config_path), str(template), str(tmp_tex_path),
-                    photo_path=photo_to_use,
-                )
-
-                proc = subprocess.run(
-                    [pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", tmp_dir, str(tmp_tex_path)],
-                    capture_output=True, timeout=30,
-                )
-
-                pdf_file = tmp_tex_path.with_suffix(".pdf")
-                if not pdf_file.exists():
-                    detail = "PDF compilation failed."
-                    log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore") if tmp_tex_path.with_suffix(".log").exists() else "")
-                    if proc.returncode != 0 and log:
-                        tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
-                        detail = f"{detail} {tail}"
-                    raise HTTPException(500, detail)
-
-                return Response(
-                    content=pdf_file.read_bytes(),
-                    media_type="application/pdf",
-                    headers={"Content-Disposition": f'inline; filename="{pdf_name}"'},
-                )
+            photo_to_use = custom_photo_path or (PROFILE_PHOTO if include_photo else None)
+            project = await run_in_threadpool(render_project, full_config, template, photo=photo_to_use)
+            pdf = await run_in_threadpool(project.pdf)
+            return Response(
+                content=pdf,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{pdf_name}"'},
+            )
         finally:
             if custom_photo_path:
                 custom_photo_path.unlink(missing_ok=True)
@@ -146,5 +113,5 @@ async def preview_pdf(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Preview error: {e}")
-        raise HTTPException(500, f"Preview generation failed: {str(e)}")
+        print("Preview generation failed")
+        raise HTTPException(500, "Preview generation failed.")

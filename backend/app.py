@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from jose import jwt, JWTError
+from psycopg import Error as PostgresError
 
 from backend.core.config import DIST_DIR, ASSETS_DIR, ROOT, ensure_dirs
 from backend.api.auth import SECRET_KEY, ALGORITHM, router as auth_router
@@ -31,12 +32,18 @@ ensure_dirs()
 async def lifespan(app: FastAPI):
     """Application startup and shutdown logic."""
     print("🚀 Vitae Forge starting up...")
-    from backend.db import db
-    try:
-        db.list_users()
-        print("🔥 DB connected successfully. Cloud sync is ACTIVE.")
-    except Exception as exc:
-        print(f"⚠️  DB connection warning: {exc}")
+    from starlette.concurrency import run_in_threadpool
+    from backend.db.postgres_repo import connect, initialize
+
+    def prepare_database():
+        with connect() as connection:
+            initialize(connection)
+
+    if os.environ.get("DATABASE_URL"):
+        try:
+            await run_in_threadpool(prepare_database)
+        except Exception:
+            raise RuntimeError("Could not initialize PostgreSQL") from None
     yield
     # Shutdown — nothing to clean up currently
 
@@ -73,6 +80,14 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"ok": False, "detail": f"Server Exception: {str(exc)}", "error_type": "server_error", "code": 500},
+    )
+
+
+@app.exception_handler(PostgresError)
+async def postgres_exception_handler(request: Request, exc: PostgresError):
+    return JSONResponse(
+        status_code=503,
+        content={"ok": False, "detail": "Database operation failed.", "error_type": "database_error", "code": 503},
     )
 
 # ── Authentication Middleware ──────────────────────────────────────────────────

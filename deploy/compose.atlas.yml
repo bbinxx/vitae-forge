@@ -1,0 +1,15 @@
+# Apply with: docker compose -f docker-compose.yml -f deploy/compose.atlas.yml up -d
+# Uses the existing TexCompiler network and alias. Does not modify its service.
+services:
+  app:
+    env_file:
+      - .env
+      - ${TEXCOMPILER_ENV_FILE:-/home/ninja/.config/vitae-forge/texcompiler.env}
+    networks:
+      - default
+      - texcompiler
+
+networks:
+  texcompiler:
+    external: true
+    name: ${TEXCOMPILER_DOCKER_NETWORK:-texcompiler_default}

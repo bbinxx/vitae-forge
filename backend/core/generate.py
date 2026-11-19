@@ -98,6 +98,8 @@ def generate_resume(
     photo_path: str | None = None,
     role_id: str | None = None,
     user_id: str | None = None,
+    *,
+    self_contained: bool = False,
 ) -> None:
     """
     Generate a .tex file by filling `template_path` with data from
@@ -115,7 +117,9 @@ def generate_resume(
                 role_id = list(data["recipes"].keys())[0] if data["recipes"] else None
             recipe = data["recipes"].get(role_id, {}) if role_id else {}
         else:
-            if user_id:
+            if self_contained:
+                master_config = {}
+            elif user_id:
                 from backend.services.resume_service import get_full_config
                 master_config = get_full_config(user_id)
             else:
@@ -623,6 +627,8 @@ def generate_resume(
     # ── Auto-hide sections if missing/empty in JSON ───────────────────────────
     if "sections" not in config:
         config["sections"] = {}
+    if self_contained and not photo_path:
+        config["sections"]["photo"] = False
         
     if not config.get("projects"):
         config["sections"]["projects"] = False

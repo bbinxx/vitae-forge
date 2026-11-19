@@ -9,6 +9,12 @@
 \usepackage{tabularx}
 \usepackage{parskip}
 
+% Preserve searchable Unicode text (including bullets) across TeX distributions.
+\ifdefined\pdfgentounicode
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+\fi
+
 \definecolor{primary}{HTML}{<<PRIMARY_COLOR_HEX>>}
 
 % Section formatting
@@ -20,7 +26,7 @@
 \titlespacing{\section}{0pt}{6pt plus 1fill minus 3pt}{2pt minus 1pt}
 \flushbottom
 
-\setlist[itemize]{topsep=0pt plus 0.05fill, partopsep=0pt, parsep=0pt plus 0.05fill, leftmargin=1.2em, itemsep=1pt plus 0.1fill minus 1pt}
+\setlist[itemize]{label=\ensuremath{\bullet},topsep=0pt plus 0.05fill, partopsep=0pt, parsep=0pt plus 0.05fill, leftmargin=1.2em, itemsep=1pt plus 0.1fill minus 1pt}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1pt plus 0.15fill minus 1pt}

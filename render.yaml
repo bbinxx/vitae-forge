@@ -6,9 +6,15 @@ services:
     plan: free
     region: oregon
     envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TEXCOMPILER_URL
+        sync: false
+      - key: TEXCOMPILER_API_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
       - key: PORT
         value: 5050
       - key: AUTH_REQUIRED
-        value: "false"
-      - key: DEFAULT_USER_ID
-        value: default_user
+        value: "true"
