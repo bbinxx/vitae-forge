@@ -21,13 +21,8 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=5050 \
     HOME=/home/app
 
-# Standard template fonts do not require the large fonts-extra collection.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    texlive-latex-base \
-    texlive-fonts-recommended \
-    texlive-latex-extra \
-    cm-super \
+# Compilation is provided exclusively by TexCompiler; no TeX distribution here.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home app
@@ -36,9 +31,9 @@ WORKDIR /app
 COPY --from=python-builder /opt/venv /opt/venv
 COPY --chown=app:app backend/ ./backend/
 COPY --from=frontend-builder --chown=app:app /build/frontend/dist ./frontend/dist
-# The compiler writes temporary .tex files in /app; uploads live in assets.
-RUN mkdir -p /app/assets /tmp/resume_dist /tmp/resume_logs \
-    && chown app:app /app /app/assets /tmp/resume_dist /tmp/resume_logs
+# Only uploads and downloaded PDF artifacts need writable storage.
+RUN mkdir -p /app/assets /tmp/resume_dist \
+    && chown app:app /app/assets /tmp/resume_dist
 
 USER app
 EXPOSE 5050
@@ -46,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '5050') + '/login', timeout=3).close()"
 
 # exec makes Uvicorn receive container termination signals directly.
-CMD ["sh", "-c", "exec uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-5050}"]
+CMD ["sh", "-c", "exec uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-5050} --timeout-graceful-shutdown 180"]

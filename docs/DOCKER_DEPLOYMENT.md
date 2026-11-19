@@ -2,8 +2,8 @@
 
 Build and run with Docker Engine and BuildKit (the default in modern Docker).
 The image builds the React SPA and Python dependencies in separate stages, then
-ships only the backend, built frontend, Python environment, and required TeX
-packages. npm and pip download caches speed subsequent dependency builds.
+ships the backend, built frontend, and Python environment. TexCompiler runs
+LaTeX in a separate service. npm and pip download caches speed subsequent dependency builds.
 See [Docker's build guidance](https://docs.docker.com/build/building/best-practices/).
 
 ## Configuration and startup
@@ -16,7 +16,20 @@ and set `FIREBASE_CREDENTIALS_PATH` to its **container** path. The repository us
 Firestore; there is no active local database fallback. Configure R2 variables
 used by `backend/core/upload.py` if uploads and cloud PDF storage are required.
 
-Compose expects an existing `.env` file containing your runtime configuration:
+Set `TEXCOMPILER_URL` to the base URL reachable from the backend container
+and `TEXCOMPILER_API_TOKEN` to the service token. Keep the token in server-side
+runtime configuration. The Atlas overlay joins the existing compiler network
+and loads an additional environment file. Use `TEXCOMPILER_DOCKER_NETWORK` and
+`TEXCOMPILER_ENV_FILE` to override its defaults.
+
+Compose reads runtime settings from an existing `.env` file.
+
+```bash
+docker compose -f docker-compose.yml -f deploy/compose.atlas.yml up --build -d --wait
+```
+
+For a compiler endpoint reachable without the Atlas network, use the base
+Compose file.
 
 ```bash
 docker compose config --quiet
@@ -47,20 +60,16 @@ volume override for Compose. Never add credentials to the Dockerfile.
 
 ## Runtime behavior and storage
 
-- The service runs as UID/GID 10001. `/app` remains writable because the existing
-  LaTeX compiler generates temporary source files there. Do not enable a read-only
-  root filesystem without first moving those writes to dedicated storage.
-- The image honors `PORT` for standalone and hosted deployments. Uvicorn receives
-  termination signals directly. Keep one worker unless concurrent PDF generation
-  has been tested: current compiler paths and caches are shared within a container.
+- The service runs as UID/GID 10001. Uploads and exported PDFs require writable
+  storage. The image honors `PORT` and Uvicorn receives termination signals directly.
 - The health check requests `/login`, which must serve the built SPA successfully.
   It remains public with authentication enabled and uses the configured port.
   This is an HTTP/frontend availability check, not a Firestore or R2 readiness check.
-- Uploads persist in `/app/assets` under Compose. Generated PDFs, compiler caches,
-  and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
+- Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
   manage durable template changes in source control or provision explicit storage.
 - The bundled templates use standard fonts. Custom templates requiring additional
-  fonts/packages must extend the image and be tested with representative documents.
+  fonts can bundle them as project assets. Additional TeX packages must be
+  available in the compiler service.
 - Base image tags receive updates, and several Python requirements are ranges.
   Builds are not fully reproducible; use tested image digests and a complete Python
   lock file if exact reproducibility is required.
@@ -69,10 +78,14 @@ volume override for Compose. Never add credentials to the Dockerfile.
 
 ```bash
 docker build --progress=plain -t vitae-forge:local .
-docker run --rm -i --entrypoint python vitae-forge:local < scripts/docker-smoke.py
+docker run --rm --mount type=bind,src="$PWD/tests",dst=/tests,readonly \
+  --entrypoint python vitae-forge:local -m unittest discover -s /tests -v
 ```
 
-The smoke check uses synthetic data without cloud credentials. It checks non-root
-execution, bundled files, writable compiler paths, all three template compilations,
-SPA/static routes, authentication enforcement, and a non-default port. It does not
-validate live Firestore/R2 or end-to-end authenticated resume workflows.
+For a live integration check, run the synthetic verification script inside
+the running backend container. The script uses its configured compiler and
+writes synthetic PDF artifacts under `/tmp/vitae-remote-verification`.
+
+```bash
+docker compose exec -T -e EXPECT_NO_TEX=1 app python - < scripts/verify-texcompiler.py
+```
