@@ -31,8 +31,11 @@ urllib3==2.6.3
 # Image processing — 11.x has Python 3.14 wheels (10.x source-only, broken on 3.14)
 Pillow>=11.0.0
 
-# Firebase — 7.x has Python 3.14 wheels
-firebase-admin>=7.0.0
+# PostgreSQL / Neon
+psycopg[binary]>=3.2,<4
+
+# FastAPI integration checks
+httpx==0.28.1
 
 # Auth — 5.x has Python 3.14 wheels
 bcrypt>=5.0.0

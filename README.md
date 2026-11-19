@@ -25,7 +25,7 @@ vitae_forge/
 ├── backend/                  # FastAPI Application Code & Compilation Engine
 │   ├── api/                  # REST Routers (auth, studio, tracker, library, checkpoints)
 │   ├── core/                 # Configuration defaults and shared utilities
-│   ├── db/                   # Repository abstractions (Firestore / Local fallback)
+│   ├── db/                   # PostgreSQL-backed repository
 │   ├── templates/tex/        # LaTeX source templates (template.tex, template_photo.tex)
 │   └── app.py                # Primary FastAPI application entrypoint & static mounts
 ├── frontend/                 # Modern React SPA (Vite + Vanilla CSS)
@@ -51,30 +51,66 @@ All coding agents should follow [AGENTS.md](AGENTS.md) and the
 verification, and feature branches. Never commit directly to `dev` or `main`;
 use a task branch and a reviewed pull request targeting `dev`.
 
-## 💻 Local Development Setup
+## Installation
 
-### 1. Backend Setup
+### Docker Compose
+
+Install Docker Engine and the Compose plugin. From the repository root,
+create a runtime file for a new installation.
+
 ```bash
-# Create virtual environment and install dependencies
+cp -n .env.example .env
+chmod 600 .env
+```
+
+Fill in the PostgreSQL URL, TexCompiler endpoint and token, and a stable
+`JWT_SECRET`. If you already have a Firestore deployment, complete the
+[migration](docs/MIGRATION_V4.md) before starting v4.
+
+```bash
+docker compose config --quiet
+docker compose up --build -d --wait
+```
+
+Open [Vitae Forge](http://localhost:5050/login). Set `HOST_PORT` in `.env`
+to publish a different port.
+
+### Run from source
+
+Install Python 3.11 and Node.js 22. Prepare the same `.env` file, then run
+the backend from the repository root.
+
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
-# Start FastAPI dev server
-uvicorn backend.app:app --host 127.0.0.1 --port 5050 --reload
+uvicorn backend.app:app --env-file .env --host 127.0.0.1 --port 5050 --reload
 ```
 
-### 2. Frontend Setup
+In a second terminal, start the frontend development server.
+
 ```bash
-# Navigate to frontend and start Vite dev server
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173` for Vite HMR or `http://localhost:5050` for the unified server.
+Open [the Vite development server](http://localhost:5173).
 
----
+## Runtime configuration
+
+Vitae Forge v4.0.0 uses PostgreSQL for application data and TexCompiler for PDFs.
+Set these values in the backend runtime environment before starting the app.
+
+| Setting | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL or Neon connection string with TLS settings |
+| `TEXCOMPILER_URL` | TexCompiler base URL reachable from the backend |
+| `TEXCOMPILER_API_TOKEN` | TexCompiler server bearer token |
+
+Before upgrading an existing Firestore installation, follow the
+[migration guide](docs/MIGRATION_V4.md). See the [changelog](CHANGELOG.md)
+for changes in this release.
 
 ## 🐳 Single Container Production Deployment (Docker & Render)
 
@@ -93,13 +129,16 @@ For production configuration, persistent uploads, Compose commands, health check
 and container smoke tests, see [Docker deployment](docs/DOCKER_DEPLOYMENT.md).
 
 ### 1-Click Render Deployment
-Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` builds the React SPA and Python backend. Set `TEXCOMPILER_URL` and `TEXCOMPILER_API_TOKEN` in the backend runtime environment to enable PDF previews and exports. See the [deployment guide](docs/DOCKER_DEPLOYMENT.md) for configuration and verification.
+Use the included `render.yaml` blueprint and supply `DATABASE_URL`,
+`TEXCOMPILER_URL`, `TEXCOMPILER_API_TOKEN`, and a stable `JWT_SECRET`.
+Authentication is enabled by default. See [Docker deployment](docs/DOCKER_DEPLOYMENT.md)
+for configuration and verification.
 
 ---
 
 ## 📄 Master Resume JSON Specification
 
-Vitae Forge uses a structured JSON schema for generating resumes, cover letters, and email application drafts. See [`prompts/ATS_Prompt.md`](file:///mnt/MY_UNIVERSE/DEV/RSM/vitae_forge/prompts/ATS_Prompt.md) for the AI system prompt to turn any Job Description into an importable application package.
+Vitae Forge uses a structured JSON schema for generating resumes, cover letters, and email application drafts. See [`prompts/ATS_Prompt.md`](prompts/ATS_Prompt.md) for the AI system prompt to turn any Job Description into an importable application package.
 
 ---
 

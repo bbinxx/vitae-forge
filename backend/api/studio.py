@@ -226,7 +226,7 @@ async def save_config(request: Request):
     save_full_config(user_id, data)
     return {"ok": True}
 
-# ── Settings (Firebase) ───────────────────────────────────────────────────────
+# ── Settings (PostgreSQL) ───────────────────────────────────────────────────────
 
 @router.get("/api/settings")
 def get_settings_route(request: Request):
