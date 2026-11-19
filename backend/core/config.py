@@ -9,7 +9,6 @@ from pathlib import Path
 # ── Root Paths ────────────────────────────────────────────────────────────────
 ROOT          = Path(__file__).parent.parent.parent
 DIST_DIR      = Path("/tmp/resume_dist")
-LOG_DIR       = Path("/tmp/resume_logs")
 ASSETS_DIR    = ROOT / "assets"
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 TEX_DIR       = TEMPLATES_DIR / "tex"
@@ -95,19 +94,5 @@ TEMPLATE_COVER_LETTER = TEX_DIR / "cover_letter.tex"
 
 def ensure_dirs() -> None:
     """Ensure all required output directories exist."""
-    for d in (DIST_DIR, LOG_DIR, ASSETS_DIR):
+    for d in (DIST_DIR, ASSETS_DIR):
         d.mkdir(parents=True, exist_ok=True)
-
-
-# ── LaTeX Compiler Discovery ──────────────────────────────────────────────────
-
-def find_pdflatex() -> str | None:
-    """Locate the pdflatex executable (system PATH or TinyTeX fallback)."""
-    import shutil
-    import glob
-    import os
-    cmd = shutil.which("pdflatex")
-    if cmd:
-        return cmd
-    tinytex = glob.glob(os.path.expanduser("~/.TinyTeX/bin/*/pdflatex"))
-    return tinytex[0] if tinytex else None

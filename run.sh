@@ -324,8 +324,8 @@ if [ "$MODE" = "prod" ]; then
             --worker-class uvicorn.workers.UvicornWorker \
             --workers "$WORKERS" \
             --bind "${BACKEND_HOST}:${BACKEND_PORT}" \
-            --timeout 120 \
-            --graceful-timeout 30 \
+            --timeout 180 \
+            --graceful-timeout 180 \
             --access-logfile - \
             --error-logfile - \
             > "$BACKEND_LOG" 2>&1 &

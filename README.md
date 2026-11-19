@@ -1,7 +1,7 @@
 # Vitae Forge
 
 > **Master ATS Resume Compiler, Studio & Job Application Tracker**  
-> A high-automation, single-page ATS-optimized LaTeX resume system, interactive visual studio, role recipe manager, and application tracker. Powered by a modern React SPA frontend, a high-performance FastAPI backend, and a TeX Live compilation engine.
+> A high-automation, single-page ATS-optimized LaTeX resume system, interactive visual studio, role recipe manager, and application tracker. Powered by a modern React SPA frontend, a high-performance FastAPI backend, and the TexCompiler PDF service.
 
 ---
 
@@ -24,7 +24,7 @@
 vitae_forge/
 ├── backend/                  # FastAPI Application Code & Compilation Engine
 │   ├── api/                  # REST Routers (auth, studio, tracker, library, checkpoints)
-│   ├── core/                 # Config defaults, PDF build orchestrator, LaTeX generator
+│   ├── core/                 # Configuration defaults and shared utilities
 │   ├── db/                   # Repository abstractions (Firestore / Local fallback)
 │   ├── templates/tex/        # LaTeX source templates (template.tex, template_photo.tex)
 │   └── app.py                # Primary FastAPI application entrypoint & static mounts
@@ -78,7 +78,7 @@ Open `http://localhost:5173` for Vite HMR or `http://localhost:5050` for the uni
 
 ## 🐳 Single Container Production Deployment (Docker & Render)
 
-Vitae Forge is configured to run as a single container serving both the static React SPA frontend and the FastAPI backend with TeX Live installed.
+Vitae Forge serves the React SPA and FastAPI backend from a single container and sends PDF compilation requests to TexCompiler.
 
 ### Docker Run
 ```bash
@@ -93,7 +93,7 @@ For production configuration, persistent uploads, Compose commands, health check
 and container smoke tests, see [Docker deployment](docs/DOCKER_DEPLOYMENT.md).
 
 ### 1-Click Render Deployment
-Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` automatically builds the React SPA and provisions Python 3.11 with TeX Live packages (`texlive-latex-base`, `texlive-fonts-recommended`, `texlive-latex-extra`, `cm-super`). Configure runtime credentials and authentication before exposing the service.
+Deploy directly to Render using the included `render.yaml` blueprint. The multi-stage `Dockerfile` builds the React SPA and Python backend. Set `TEXCOMPILER_URL` and `TEXCOMPILER_API_TOKEN` in the backend runtime environment to enable PDF previews and exports. See the [deployment guide](docs/DOCKER_DEPLOYMENT.md) for configuration and verification.
 
 ---
 

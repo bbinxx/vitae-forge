@@ -9,7 +9,6 @@ import copy
 import json
 import tempfile
 import zipfile
-import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -28,7 +27,7 @@ from backend.services.resume_service import get_full_config, save_full_config, m
 
 router = APIRouter()
 
-BUILD_PY = ROOT / "backend" / "core" / "build.py"
+
 
 # ── Bookmarks (Saved Resumes) ─────────────────────────────────────────────────
 
@@ -49,15 +48,29 @@ def _save_bookmark_doc(user_id: str, bm: dict):
     if user_id and bm_id:
         db.save_checkpoint(user_id, f"bm_{bm_id}", {"bookmark": bm, "created_at": bm.get("created_at")})
 
-def _bundle_instructions() -> str:
+def _bundle_instructions(compiler: str = "pdflatex") -> str:
     return (
         "Resume LaTeX Bundle\n"
         "===================\n"
         "1. Open https://www.overleaf.com and create a New Blank Project.\n"
         "2. Upload resume.tex and profile.jpg (if present) into the project.\n"
-        "3. Set the compiler to pdfLaTeX (Menu > Compiler > pdfLaTeX).\n"
+        f"3. Set the compiler to {compiler} in the project settings.\n"
         "4. Recompile — the generated PDF is ready to download.\n"
     )
+
+def _source_zip(config: dict, user_id: str, document_type: str = "resume", *, include_photo: bool = True):
+    from backend.services.document_service import source_project
+    project = source_project(config, include_photo, user_id, document_type)
+    code = project.code.replace("assets/profile-photo.jpg", "profile.jpg")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("resume.tex", code)
+        for name, content in project.files.items():
+            archive.writestr("profile.jpg" if name == "assets/profile-photo.jpg" else name, content)
+        archive.writestr("INSTRUCTIONS.txt", _bundle_instructions(project.compiler))
+    buffer.seek(0)
+    return buffer
+
 
 @router.get("/bookmarks")
 def list_bookmarks(request: Request):
@@ -114,7 +127,7 @@ class DirectCompileRequest(BaseModel):
 
 @router.post("/compile-direct")
 def compile_direct(req: DirectCompileRequest, request: Request = None):
-    from backend.core.build import build_variant
+    from backend.services.document_service import build_variant
     from backend.core.config import TEMPLATE_PHOTO, TEMPLATE_PLAIN, TEMPLATE_COVER_LETTER
     import re as _re
 
@@ -169,13 +182,13 @@ def compile_direct(req: DirectCompileRequest, request: Request = None):
 
 @router.post("/download-latex-direct")
 def download_latex_direct(req: DirectCompileRequest, request: Request = None):
-    from backend.core.build import generate_latex_source
+    from backend.services.document_service import generate_latex_source
     import re as _re
 
     user_id = get_optional_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
     suffix = "_X" if req.include_photo else ""
-    latex = generate_latex_source(req.config, safe_name, req.include_photo, user_id=user_id)
+    latex = generate_latex_source(req.config, safe_name, req.include_photo, user_id=user_id, document_type=req.type)
     if not latex:
         raise HTTPException(500, "Failed to generate LaTeX source")
     return StreamingResponse(
@@ -186,22 +199,11 @@ def download_latex_direct(req: DirectCompileRequest, request: Request = None):
 
 @router.post("/download-zip-direct")
 def download_zip_direct(req: DirectCompileRequest, request: Request = None):
-    from backend.core.build import generate_latex_source
     import re as _re
 
     user_id = get_optional_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', req.name)
-    latex = generate_latex_source(req.config, safe_name, include_photo=True, user_id=user_id)
-    if not latex:
-        raise HTTPException(500, "Failed to generate LaTeX source")
-    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        zf.writestr("resume.tex", latex)
-        if PROFILE_PHOTO.exists():
-            zf.write(str(PROFILE_PHOTO), "profile.jpg")
-        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
-    zip_buf.seek(0)
+    zip_buf = _source_zip(req.config, user_id, req.type, include_photo=req.include_photo)
     return StreamingResponse(
         zip_buf,
         media_type="application/x-zip-compressed",
@@ -308,12 +310,11 @@ async def export_pdf_local_route(request: Request):
     import re as _re
     import shutil
     import tempfile
-    import subprocess
     from backend.core.config import (
         TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
-        find_pdflatex,
     )
-    from backend.core.generate import generate_resume
+    from backend.services.latex_project import render_project
+    from starlette.concurrency import run_in_threadpool
 
     user_id = get_user_id(request)
     data = await request.json()
@@ -366,50 +367,18 @@ async def export_pdf_local_route(request: Request):
         main_config.get("personal"), config, v_data
     )
 
-    with tempfile.TemporaryDirectory(prefix="resume_export_") as tmp_dir:
-        tmp_dir_path = Path(tmp_dir)
-        tmp_config_path = tmp_dir_path / "config.json"
-        tmp_tex_path = tmp_dir_path / "resume.tex"
+    if preview_type == "cover_letter":
+        template = TEMPLATE_COVER_LETTER
+    else:
+        template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
+    full_config.setdefault("sections", {})["photo"] = include_photo
+    project = await run_in_threadpool(render_project, full_config, template,
+                                      photo=PROFILE_PHOTO if include_photo else None)
+    pdf = await run_in_threadpool(project.pdf)
+    target_path.write_bytes(pdf)
+    (DIST_DIR / pdf_name).write_bytes(pdf)
+    return {"ok": True, "path": str(target_path)}
 
-        with open(tmp_config_path, "w") as f:
-            json.dump(full_config, f)
-
-        if preview_type == "cover_letter":
-            template = TEMPLATE_COVER_LETTER
-        elif include_photo:
-            template = TEMPLATE_PHOTO
-        else:
-            template = TEMPLATE_PLAIN
-
-        generate_resume(
-            str(tmp_config_path), str(template), str(tmp_tex_path),
-            photo_path=str(PROFILE_PHOTO) if include_photo else None,
-        )
-
-        pdflatex_cmd = find_pdflatex()
-        if not pdflatex_cmd:
-            raise HTTPException(400, "LaTeX compiler 'pdflatex' not found.")
-
-        proc = subprocess.run(
-            [pdflatex_cmd, "-interaction=nonstopmode",
-             "-output-directory", tmp_dir, str(tmp_tex_path)],
-            capture_output=True, timeout=60,
-        )
-
-        pdf_file = tmp_tex_path.with_suffix(".pdf")
-        if not pdf_file.exists():
-            detail = "PDF compilation failed."
-            log = (tmp_tex_path.with_suffix(".log").read_text(errors="ignore")
-                   if tmp_tex_path.with_suffix(".log").exists() else "")
-            if proc.returncode != 0 and log:
-                tail = "\n".join(l for l in log.splitlines()[-15:] if "error" in l.lower() or "!" in l)
-                detail = f"{detail} {tail}"
-            raise HTTPException(500, detail)
-
-        shutil.copy2(str(pdf_file), str(target_path))
-        shutil.copy2(str(pdf_file), str(DIST_DIR / pdf_name))
-
-        return {"ok": True, "path": str(target_path)}
 
 @router.get("/api/template/{filename}")
 def get_template(filename: str):
@@ -658,7 +627,7 @@ def download_workspace_archive(request: Request):
 
 @router.post("/bookmarks/{bm_id}/compile-pdf")
 def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Request = None):
-    from backend.core.build import build_custom_version
+    from backend.services.document_service import build_custom_version
     import re as _re
     user_id = get_optional_user_id(request)
     bookmarks = _load_bookmarks(user_id)
@@ -679,7 +648,7 @@ def compile_bookmark_pdf(bm_id: str, include_photo: bool = False, request: Reque
 
 @router.get("/bookmarks/{bm_id}/download-latex")
 def download_bookmark_latex(bm_id: str, include_photo: bool = False, request: Request = None):
-    from backend.core.build import generate_latex_source
+    from backend.services.document_service import generate_latex_source
     import re as _re
     user_id = get_optional_user_id(request)
     bookmarks = _load_bookmarks(user_id)
@@ -703,29 +672,17 @@ def download_bookmark_latex(bm_id: str, include_photo: bool = False, request: Re
 
 @router.get("/bookmarks/{bm_id}/download-zip")
 def download_bookmark_zip(bm_id: str, request: Request = None):
-    from backend.core.build import generate_latex_source
+    from backend.services.document_service import generate_latex_source
     import re as _re
-    bookmarks = _load_bookmarks()
+    user_id = get_optional_user_id(request)
+    bookmarks = _load_bookmarks(user_id)
     bm = next((b for b in bookmarks if b["id"] == bm_id), None)
     if not bm:
         raise HTTPException(404, "Bookmark not found")
 
     user_id = get_optional_user_id(request)
     safe_name = _re.sub(r'[^\w\-_]', '_', bm["name"])
-    latex = generate_latex_source(bm["data"], safe_name, include_photo=True, user_id=user_id)
-    if not latex:
-        raise HTTPException(500, "Failed to generate LaTeX source")
-
-    latex = latex.replace("../assets/profile-photo.jpg", "profile.jpg")
-
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "a", zipfile.ZIP_DEFLATED, False) as zf:
-        zf.writestr("resume.tex", latex)
-        if PROFILE_PHOTO.exists():
-            zf.write(str(PROFILE_PHOTO), "profile.jpg")
-        zf.writestr("INSTRUCTIONS.txt", _bundle_instructions())
-
-    zip_buf.seek(0)
+    zip_buf = _source_zip(bm["data"], user_id)
     return StreamingResponse(
         zip_buf,
         media_type="application/x-zip-compressed",
@@ -738,18 +695,18 @@ def download_bookmark_zip(bm_id: str, request: Request = None):
 def build_role_stream(role: str, request: Request):
     user_id = get_user_id(request)
     def stream():
-        cmd = (
-            [sys.executable, str(BUILD_PY), "all", "--user", user_id]
-            if role == "all"
-            else [sys.executable, str(BUILD_PY), role, "--user", user_id]
-        )
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, cwd=str(ROOT),
-        )
-        for line in proc.stdout:
-            yield line
-        proc.wait()
+        from backend.services.document_service import build_all, build_role
+        yield "Building documents through TexCompiler...\n"
+        try:
+            if role == "all":
+                build_all(user_id)
+            else:
+                build_role(role, user_id)
+            yield "Build complete.\n"
+        except HTTPException as exc:
+            yield f"Build failed: {exc.detail}\n"
+        except Exception:
+            yield "Build failed.\n"
 
     return StreamingResponse(stream(), media_type="text/plain")
 

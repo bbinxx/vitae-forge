@@ -16,15 +16,16 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from backend.core.config import ROOT, DIST_DIR, LOG_DIR
+from backend.core.config import DIST_DIR
 from backend.core.deps import get_user_id
 from backend.db import db
 
 router = APIRouter(prefix="/applications", tags=["tracker"])
 
-BUILD_PY = ROOT / "backend" / "core" / "build.py"
+
 
 STATUS_OPTIONS = [
     "Bookmarked", "Applied", "Bot Applied", "Bot Pending", "Screening",
@@ -102,11 +103,11 @@ async def create_application(request: Request):
                                 client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
                                 custom_photo_path = Path(tmp_photo.name)
                         except Exception as e:
-                            print(f"Error downloading settings photo: {e}")
+                            print("Profile photo download failed")
 
             display_name = build_display_name(user_id, new_app)
-            from backend.core.build import build_custom_version
-            success = build_custom_version(new_app['resume_template'], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
+            from backend.services.document_service import build_custom_version
+            success = await run_in_threadpool(build_custom_version, new_app['resume_template'], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
             if success:
                 suffix_str = "_X" if include_photo else ""
                 new_app['assigned_pdf'] = f"{display_name}{suffix_str}.pdf"
@@ -157,11 +158,11 @@ async def update_application(app_id: str, request: Request):
                                 client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
                                 custom_photo_path = Path(tmp_photo.name)
                         except Exception as e:
-                            print(f"Error downloading settings photo: {e}")
+                            print("Profile photo download failed")
 
             display_name = build_display_name(user_id, app)
-            from backend.core.build import build_custom_version
-            success = build_custom_version(app["resume_template"], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
+            from backend.services.document_service import build_custom_version
+            success = await run_in_threadpool(build_custom_version, app["resume_template"], display_name, include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
             if success:
                 suffix_str = "_X" if include_photo else ""
                 app["assigned_pdf"] = f"{display_name}{suffix_str}.pdf"
@@ -431,14 +432,8 @@ def build_version(app_id: str, v_id: str, request: Request):
         raise HTTPException(404, "Application or version not found")
 
     def stream():
-        from backend.core.config import find_pdflatex
-        pdflatex_cmd = find_pdflatex()
-        if not pdflatex_cmd:
-            yield "Error: LaTeX compiler 'pdflatex' not found on system. Please install TeX Live or another LaTeX distribution on this system to compile PDFs.\n"
-            return
-
         yield f"Building version {version.get('name')}...\n"
-        from backend.core.build import build_custom_version
+        from backend.services.document_service import build_custom_version
         
         # Merge base recipe with customizations
         from backend.services.resume_service import get_full_config
@@ -471,11 +466,15 @@ def build_version(app_id: str, v_id: str, request: Request):
                         custom_photo_path = Path(tmp.name)
         
         display_name = build_display_name(user_id, app)
-        success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
+        try:
+            success = build_custom_version(merged_recipe, display_name, version.get("include_photo"), custom_photo_path, user_id=user_id)
+        except HTTPException as exc:
+            yield f"Build failed: {exc.detail}\n"
+            return
+        finally:
+            if custom_photo_path:
+                custom_photo_path.unlink(missing_ok=True)
         
-        if custom_photo_path:
-            custom_photo_path.unlink(missing_ok=True)
-            
         if not success:
             yield "Build failed.\n"
             return
@@ -619,15 +618,6 @@ async def compile_pdf(app_id: str, request: Request):
         app["updated_at"] = datetime.now().isoformat()
         db.save_application(user_id, app)
 
-        # 2. Check if LaTeX compiler (pdflatex) is available
-        from backend.core.config import find_pdflatex
-        pdflatex_cmd = find_pdflatex()
-        if not pdflatex_cmd:
-            raise HTTPException(
-                status_code=400,
-                detail="LaTeX compiler 'pdflatex' not found on system. The JSON configuration was saved successfully, but the PDF could not be compiled. Please install a LaTeX distribution (like TeX Live) on this system."
-            )
-
         # Check settings for custom profile image downloaded from R2
         custom_photo_path = None
         layout = config.get("layout", {})
@@ -649,33 +639,18 @@ async def compile_pdf(app_id: str, request: Request):
                                 client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
                                 custom_photo_path = Path(tmp_photo.name)
                         except Exception as e:
-                            print(f"Error downloading settings photo: {e}")
+                            print("Profile photo download failed")
 
             # 3. Build the custom PDF
-            from backend.core.build import build_custom_version
-            success = build_custom_version(config, pdf_name, include_photo=include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
+            from backend.services.document_service import build_custom_version
+            success = await run_in_threadpool(build_custom_version, config, pdf_name, include_photo=include_photo, custom_photo_path=custom_photo_path, user_id=user_id)
         finally:
             if custom_photo_path:
                 custom_photo_path.unlink(missing_ok=True)
         
         if not success:
-            # Read build log to surface actual error
-            log_dir = LOG_DIR
-            log_pattern = f"{pdf_name}_build.log"
-            log_files = list(log_dir.glob(log_pattern)) if log_dir.exists() else []
-            log_tail = ""
-            if log_files:
-                try:
-                    with open(log_files[0], encoding="utf-8", errors="ignore") as lf:
-                        lines = lf.readlines()
-                        # Find the actual error line
-                        err_lines = [l for l in lines if "error" in l.lower() or "fatal" in l.lower() or "not found" in l.lower()]
-                        log_tail = " | ".join(err_lines[-3:]).strip() if err_lines else "".join(lines[-5:]).strip()
-                except Exception:
-                    pass
-            detail = f"PDF build failed. {log_tail}" if log_tail else "PDF build failed. Check server logs."
-            raise HTTPException(500, detail)
-        
+            raise HTTPException(502, "TexCompiler could not produce a PDF.")
+
         # Update app with assigned PDF
         app["assigned_pdf"] = f"{pdf_name}.pdf"
         
@@ -700,8 +675,8 @@ async def compile_pdf(app_id: str, request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Compile PDF error: {e}")
-        raise HTTPException(500, f"PDF compilation failed: {str(e)}")
+        print("PDF export failed")
+        raise HTTPException(500, "PDF export failed.")
 
 
 # ── Job URL Scraper ─────────────────────────────────────────────────────────
