@@ -10,11 +10,11 @@ See [Docker's build guidance](https://docs.docker.com/build/building/best-practi
 
 Supply configuration at runtime; `.env` and local credential files are excluded
 from the build context. For a deployed service, set `AUTH_REQUIRED=true` and a
-strong, stable `JWT_SECRET`. Configure Firestore with `FIREBASE_SERVICE_ACCOUNT`
-(JSON supplied as an environment value), or mount a service-account file read-only
-and set `FIREBASE_CREDENTIALS_PATH` to its **container** path. The repository uses
-Firestore; there is no active local database fallback. Configure R2 variables
+strong, stable `JWT_SECRET`. Set `DATABASE_URL` to the PostgreSQL connection
+string and keep the TLS settings supplied by Neon. Configure R2 variables
 used by `backend/core/upload.py` if uploads and cloud PDF storage are required.
+The [v4 migration guide](MIGRATION_V4.md) covers the Firestore data transfer
+and TexCompiler setup for existing deployments.
 
 Set `TEXCOMPILER_URL` to the base URL reachable from the backend container
 and `TEXCOMPILER_API_TOKEN` to the service token. Keep the token in server-side
@@ -22,7 +22,15 @@ runtime configuration. The Atlas overlay joins the existing compiler network
 and loads an additional environment file. Use `TEXCOMPILER_DOCKER_NETWORK` and
 `TEXCOMPILER_ENV_FILE` to override its defaults.
 
-Compose reads runtime settings from an existing `.env` file.
+Copy [`.env.example`](../.env.example) to `.env` for a fresh installation,
+restrict its permissions, and fill in the runtime values.
+
+```bash
+cp -n .env.example .env
+chmod 600 .env
+```
+
+For Atlas, use the overlay to reach the compiler on its Docker network.
 
 ```bash
 docker compose -f docker-compose.yml -f deploy/compose.atlas.yml up --build -d --wait
@@ -52,19 +60,13 @@ docker run -d --name vitae-forge --init --env-file .env \
   --security-opt no-new-privileges:true --cap-drop ALL vitae-forge:local
 ```
 
-For file-based Firebase credentials, additionally pass
-`--mount type=bind,source=/absolute/host/service-account.json,target=/run/secrets/firebase.json,readonly`
-and `-e FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase.json`. Make the file readable
-by container UID/GID 10001 without making it public. Use an equivalent read-only
-volume override for Compose. Never add credentials to the Dockerfile.
-
 ## Runtime behavior and storage
 
 - The service runs as UID/GID 10001. Uploads and exported PDFs require writable
   storage. The image honors `PORT` and Uvicorn receives termination signals directly.
 - The health check requests `/login`, which must serve the built SPA successfully.
   It remains public with authentication enabled and uses the configured port.
-  This is an HTTP/frontend availability check, not a Firestore or R2 readiness check.
+  This is an HTTP/frontend availability check, not a PostgreSQL or R2 readiness check.
 - Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
   manage durable template changes in source control or provision explicit storage.
 - The bundled templates use standard fonts. Custom templates requiring additional

@@ -9,6 +9,7 @@ services:
       - .env
     environment:
       PORT: "5050"
+      DATABASE_URL: "${DATABASE_URL:?Set DATABASE_URL in .env}"
     volumes:
       - uploads:/app/assets
     init: true
