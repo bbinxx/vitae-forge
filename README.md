@@ -25,7 +25,7 @@ vitae_forge/
 ├── backend/                  # FastAPI Application Code & Compilation Engine
 │   ├── api/                  # REST Routers (auth, studio, tracker, library, checkpoints)
 │   ├── core/                 # Config defaults, PDF build orchestrator, LaTeX generator
-│   ├── db/                   # Repository abstractions (Firestore / Local fallback)
+│   ├── db/                   # PostgreSQL-backed repository
 │   ├── templates/tex/        # LaTeX source templates (template.tex, template_photo.tex)
 │   └── app.py                # Primary FastAPI application entrypoint & static mounts
 ├── frontend/                 # Modern React SPA (Vite + Vanilla CSS)

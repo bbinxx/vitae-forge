@@ -2,7 +2,7 @@
 
 Vitae Forge is an ATS resume studio and application tracker. Its frontend uses
 React 18, TypeScript, Vite, and CSS. Its backend uses Python and FastAPI with
-Firestore/local storage and a LaTeX PDF compilation engine.
+PostgreSQL storage and a LaTeX PDF compilation engine.
 
 This guide is shared by all coding agents. [AGENTS.md](../AGENTS.md) is the
 repository instruction entry point. Agents without automatic instruction

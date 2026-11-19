@@ -3,7 +3,7 @@ src/api/tracker.py
 FastAPI router for job application tracking.
 
 Key design decisions:
-  - All applications are stored in Firebase.
+  - All applications are stored in PostgreSQL.
   - Resume versions are stored as subcollections inside applications.
   - Built PDFs and photos are uploaded to R2 and their URLs/keys are saved.
 """

@@ -10,11 +10,10 @@ See [Docker's build guidance](https://docs.docker.com/build/building/best-practi
 
 Supply configuration at runtime; `.env` and local credential files are excluded
 from the build context. For a deployed service, set `AUTH_REQUIRED=true` and a
-strong, stable `JWT_SECRET`. Configure Firestore with `FIREBASE_SERVICE_ACCOUNT`
-(JSON supplied as an environment value), or mount a service-account file read-only
-and set `FIREBASE_CREDENTIALS_PATH` to its **container** path. The repository uses
-Firestore; there is no active local database fallback. Configure R2 variables
-used by `backend/core/upload.py` if uploads and cloud PDF storage are required.
+strong, stable `JWT_SECRET`. Set `DATABASE_URL` to the PostgreSQL connection
+string, including the TLS settings supplied by Neon. The app initializes its
+document table on startup. Configure the R2 variables used by
+`backend/core/upload.py` for cloud uploads and PDF storage.
 
 Compose expects an existing `.env` file containing your runtime configuration:
 
@@ -39,11 +38,22 @@ docker run -d --name vitae-forge --init --env-file .env \
   --security-opt no-new-privileges:true --cap-drop ALL vitae-forge:local
 ```
 
-For file-based Firebase credentials, additionally pass
-`--mount type=bind,source=/absolute/host/service-account.json,target=/run/secrets/firebase.json,readonly`
-and `-e FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase.json`. Make the file readable
-by container UID/GID 10001 without making it public. Use an equivalent read-only
-volume override for Compose. Never add credentials to the Dockerfile.
+## Migrate existing Firestore data
+
+Build the PostgreSQL image and prepare a restricted environment file containing
+`DATABASE_URL`. Keep a legacy container with its Firestore credentials available
+for the export. Pause writes to Firestore before the final snapshot.
+
+```bash
+scripts/migrate-firestore-to-neon.sh LEGACY_CONTAINER NEON_IMAGE NEON_ENV_FILE
+```
+
+The script streams a point-in-time snapshot directly to PostgreSQL. It preserves
+document paths and JSON payloads, checks every destination row before committing,
+and permits a rerun against an identical import. It aborts if the destination
+contains records that differ from the snapshot. Start the PostgreSQL app with
+the same `DATABASE_URL` after verification. Keep the source available for
+rollback until the cutover is confirmed.
 
 ## Runtime behavior and storage
 
@@ -55,7 +65,7 @@ volume override for Compose. Never add credentials to the Dockerfile.
   has been tested: current compiler paths and caches are shared within a container.
 - The health check requests `/login`, which must serve the built SPA successfully.
   It remains public with authentication enabled and uses the configured port.
-  This is an HTTP/frontend availability check, not a Firestore or R2 readiness check.
+  This is an HTTP/frontend availability check, not a PostgreSQL or R2 readiness check.
 - Uploads persist in `/app/assets` under Compose. Generated PDFs, compiler caches,
   and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
   manage durable template changes in source control or provision explicit storage.
@@ -75,4 +85,4 @@ docker run --rm -i --entrypoint python vitae-forge:local < scripts/docker-smoke.
 The smoke check uses synthetic data without cloud credentials. It checks non-root
 execution, bundled files, writable compiler paths, all three template compilations,
 SPA/static routes, authentication enforcement, and a non-default port. It does not
-validate live Firestore/R2 or end-to-end authenticated resume workflows.
+validate live PostgreSQL/R2 or end-to-end authenticated resume workflows.
