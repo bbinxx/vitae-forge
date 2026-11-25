@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS vitae_documents (
 );
 CREATE INDEX IF NOT EXISTS vitae_usernames ON vitae_documents ((data ->> 'username'))
 WHERE cardinality(path) = 2 AND path[1] = 'users';
+CREATE UNIQUE INDEX IF NOT EXISTS vitae_unique_usernames ON vitae_documents ((data ->> 'username'))
+WHERE cardinality(path) = 2 AND path[1] = 'users' AND nullif(data ->> 'username', '') IS NOT NULL;
 """
 
 _pool: ConnectionPool | None = None
@@ -114,6 +116,14 @@ class PostgresRepository(AbstractRepository):
 
     def get_user_by_id(self, user_id):
         return self._get("users", user_id)
+
+    def create_user(self, user_id, user):
+        with repository_connection() as connection:
+            cursor = connection.execute(
+                "INSERT INTO vitae_documents (path, data) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (["users", user_id], Jsonb(user)),
+            )
+            return cursor.rowcount == 1
 
     def save_user(self, user_id, user):
         self._save(("users", user_id), user, merge=True)

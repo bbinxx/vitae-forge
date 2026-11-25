@@ -11,12 +11,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccessMsg('');
     setLoading(true);
 
     const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
@@ -37,17 +35,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         throw new Error(data.detail || data.message || 'Authentication failed');
       }
 
-      if (mode === 'login') {
-        if (data.access_token) {
-          localStorage.setItem('token', data.access_token);
-          document.cookie = `auth_token=${data.access_token}; path=/; max-age=604800; SameSite=Lax`;
-          onLoginSuccess(data.user);
-        } else {
-          throw new Error('No token returned from server');
-        }
+      if (data.user) {
+        onLoginSuccess(data.user);
       } else {
-        setSuccessMsg('Account created successfully! You can now log in.');
-        setMode('login');
+        throw new Error('No user returned from server');
       }
     } catch (err: any) {
       setError(err.message);
@@ -163,24 +154,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           }}>
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>error</span>
             <span>{error}</span>
-          </div>
-        )}
-
-        {successMsg && (
-          <div style={{
-            background: 'rgba(5, 150, 105, 0.1)',
-            border: '1px solid rgba(5, 150, 105, 0.2)',
-            color: '#34d399',
-            padding: '10px 12px',
-            borderRadius: '6px',
-            fontSize: '0.78rem',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
-            <span>{successMsg}</span>
           </div>
         )}
 

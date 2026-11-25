@@ -1,5 +1,6 @@
 import os
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -10,7 +11,10 @@ from backend.services.user_service import authenticate_user, create_user, get_us
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "super-secret-default-key-change-in-prod")
+_configured_key = os.environ.get("JWT_SECRET", "")
+if not _configured_key.strip() or _configured_key.strip() == "super-secret-default-key-change-in-prod":
+    _configured_key = ""
+SECRET_KEY = _configured_key or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 
@@ -25,81 +29,61 @@ class RegisterRequest(BaseModel):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def validate_auth_configuration() -> None:
+    if os.environ.get("AUTH_REQUIRED", "false").lower() == "true" and not _configured_key:
+        raise RuntimeError("Set a private JWT_SECRET when AUTH_REQUIRED=true")
+
+
+def _start_session(user: dict, request: Request, response: Response) -> dict:
+    session_user = {"id": user["id"], "username": user["username"]}
+    token = create_access_token(
+        {"sub": session_user["id"], "username": session_user["username"]},
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    response.set_cookie(
+        key="auth_token",
+        value=token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="lax",
+        path="/",
+    )
+    return {"ok": True, "access_token": token, "token_type": "bearer", "user": session_user}
+
+
 @router.post("/login")
-def login(req: LoginRequest, response: Response):
+def login(req: LoginRequest, request: Request, response: Response):
     user = authenticate_user(req.username, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-        
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["id"], "username": user["username"]},
-        expires_delta=access_token_expires
-    )
-    
-    # Set auth_token in HTTP response cookie
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=604800,
-        httponly=False,
-        samesite="lax",
-        path="/"
-    )
-    
-    return {
-        "ok": True,
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {"id": user["id"], "username": user["username"]}
-    }
+    return _start_session(user, request, response)
+
 
 @router.post("/register")
-def register(req: RegisterRequest, response: Response):
-    if not req.username or len(req.username.trim()) < 2:
+def register(req: RegisterRequest, request: Request, response: Response):
+    username = req.username.strip()
+    if len(username) < 2:
         raise HTTPException(status_code=400, detail="Username must be at least 2 characters")
-    if not req.password or len(req.password) < 4:
+    if len(req.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    if len(req.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must fit within 72 UTF-8 bytes")
+    if "\x00" in username:
+        raise HTTPException(status_code=400, detail="Invalid username")
 
-    user = create_user(req.username.trim(), req.password)
+    user = create_user(username, req.password)
     if not user:
         raise HTTPException(status_code=400, detail="Username is already taken")
-    
-    # Trigger seeding for new user
-    try:
-        from backend.db.seed import seed_user_data
-        seed_user_data(user["id"])
-    except Exception as e:
-        print(f"User seed warning: {e}")
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["id"], "username": user["username"]},
-        expires_delta=access_token_expires
-    )
-    
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=604800,
-        httponly=False,
-        samesite="lax",
-        path="/"
-    )
-    
-    return {
-        "ok": True,
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {"id": user["id"], "username": user["username"]}
-    }
+    return _start_session(user, request, response)
+
 
 @router.post("/logout")
 def logout(response: Response):
@@ -118,7 +102,6 @@ def read_users_me(request: Request):
         
     user = get_user_by_id(user_id)
     if not user:
-        return {"id": user_id, "username": user_id, "authenticated": True}
+        raise HTTPException(status_code=401, detail="Not authenticated")
         
     return {"id": user["id"], "username": user["username"], "authenticated": True}
-

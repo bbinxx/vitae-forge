@@ -1,22 +1,22 @@
 import { Application, Bookmark, Setting, Recipe } from '../types';
 
+export function clearStoredSession(): void {
+  for (const key of ['token', 'user', 'cached_applications', 'cached_bookmarks']) {
+    localStorage.removeItem(key);
+  }
+}
+
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
     ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   try {
     const res = await fetch(endpoint, { ...options, headers });
     
     if (res.status === 401 && !window.location.pathname.includes('/login')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearStoredSession();
       window.location.href = '/login';
       throw new Error('Session expired');
     }

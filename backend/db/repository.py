@@ -4,6 +4,10 @@ from typing import Optional, List, Dict, Any
 class AbstractRepository(ABC):
     # ── Users ──
     @abstractmethod
+    def create_user(self, user_id: str, user: Dict[str, Any]) -> bool:
+        pass
+
+    @abstractmethod
     def get_user(self, username: str) -> Optional[Dict[str, Any]]:
         pass
         

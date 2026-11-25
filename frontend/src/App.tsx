@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useState, useEffect } from 'react';
 import Shell from './components/layout/Shell';
 import ApplicationsPage from './pages/Applications/ApplicationsPage';
 import LoginPage from './pages/LoginPage';
-import { apiFetch } from './services/api';
+import { apiFetch, clearStoredSession } from './services/api';
 import { User } from './types';
 
 const SavedResumesPage = lazy(() => import('./pages/Resumes/SavedResumesPage'));
@@ -19,42 +19,49 @@ export default function App() {
       return null;
     }
   });
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [sessionError, setSessionError] = useState('');
 
   const isLoginPage = window.location.pathname === '/login';
 
   useEffect(() => {
-    checkSession();
+    localStorage.removeItem('token');
+    if (!isLoginPage) void checkSession();
   }, []);
 
   const checkSession = async () => {
+    setSessionError('');
     try {
       const userData = await apiFetch<User>('/api/auth/me');
-      if (userData && userData.username) {
-        setUser(userData);
+      if (userData.id !== user?.id &&
+          (localStorage.getItem('cached_applications') || localStorage.getItem('cached_bookmarks'))) {
+        clearStoredSession();
         localStorage.setItem('user', JSON.stringify(userData));
+        window.location.reload();
+        return;
       }
-    } catch (e: any) {
-      console.log('Session check notice:', e.message);
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setSessionChecked(true);
+    } catch {
+      setSessionError('Could not verify your session.');
     }
   };
 
   const handleSignOut = async () => {
+    setSessionError('');
     try {
-      await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => ({}));
-    } catch (e) {
-      console.error('Logout error:', e);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('cached_applications');
-      localStorage.removeItem('cached_bookmarks');
-      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+      clearStoredSession();
       window.location.href = '/login';
+    } catch {
+      setSessionError('Sign-out failed. Please try again.');
     }
   };
 
   const handleLoginSuccess = (loggedInUser: User) => {
     if (loggedInUser) {
+      clearStoredSession();
       setUser(loggedInUser);
       localStorage.setItem('user', JSON.stringify(loggedInUser));
     }
@@ -65,8 +72,15 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
+  if (!sessionChecked) {
+    return sessionError
+      ? <p role="alert">{sessionError} <button onClick={checkSession}>Retry</button></p>
+      : <p role="status">Checking session…</p>;
+  }
+
   return (
     <Shell activeTab={activeTab === 'dashboard' ? 'applications' : activeTab} setActiveTab={setActiveTab} user={user} onSignOut={handleSignOut}>
+      {sessionError && <p role="alert">{sessionError}</p>}
       {(activeTab === 'dashboard' || activeTab === 'applications') && <ApplicationsPage />}
       <Suspense fallback={<p role="status">Loading…</p>}>
         {activeTab === 'saved-resumes' && <SavedResumesPage />}
