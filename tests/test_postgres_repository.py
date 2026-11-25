@@ -52,3 +52,34 @@ class PostgresRepositoryTests(unittest.TestCase):
             self.assertEqual(store.list_checkpoints(user_id), [])
             self.assertEqual(store.get_app_versions(user_id, "job"), [])
             self.assertIsNone(store.get_application(user_id, "job"))
+
+    def test_registration_and_sign_in_use_database_unique_username(self):
+        from fastapi.testclient import TestClient
+        from backend.app import app
+
+        connection = connect()
+        self.addCleanup(connection.close)
+        self.addCleanup(connection.rollback)
+        initialize(connection)
+
+        @contextmanager
+        def test_connection():
+            yield connection
+
+        username = f"candidate-{uuid4()}"
+        credentials = {"username": username, "password": "synthetic-password"}
+        client = TestClient(app)
+        self.addCleanup(client.close)
+        with patch("backend.db.postgres_repo.connect", test_connection):
+            registered = client.post("/api/auth/register", json=credentials)
+            self.assertEqual(registered.status_code, 200)
+            user = registered.json()["user"]
+            stored = PostgresRepository().get_user(username)
+            self.assertEqual(stored["id"], user["id"])
+            self.assertNotEqual(stored["password_hash"], credentials["password"])
+            duplicate = client.post("/api/auth/register", json=credentials)
+            self.assertEqual(duplicate.status_code, 400)
+            self.assertFalse(PostgresRepository().create_user("another-id", {"username": username}))
+            self.assertEqual(client.get("/api/auth/me").json()["id"], user["id"])
+            self.assertEqual(client.post("/api/auth/logout").status_code, 200)
+            self.assertEqual(client.post("/api/auth/login", json=credentials).json()["user"], user)

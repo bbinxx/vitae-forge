@@ -7,12 +7,10 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Request, HTTPException, Response
-from jose import jwt, JWTError
 
 from backend.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
 from backend.services.latex_project import render_project
 from starlette.concurrency import run_in_threadpool
-from backend.api.auth import SECRET_KEY, ALGORITHM
 from backend.services.resume_service import get_full_config, merge_personal
 
 router = APIRouter(prefix="/api", tags=["preview"])
@@ -30,21 +28,11 @@ async def preview_pdf(request: Request):
         if not config:
             raise HTTPException(400, "Missing 'config' in request body")
 
-        # Need user_id for preview, try to get from request state or Authorization header
         user_id = getattr(request.state, "user_id", None)
-        if not user_id:
-            auth_header = request.headers.get("Authorization")
-            if auth_header and auth_header.startswith("Bearer "):
-                try:
-                    payload = jwt.decode(auth_header.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
-                    user_id = payload.get("sub")
-                except JWTError:
-                    pass
-
         if not user_id:
             raise HTTPException(401, "Not authenticated")
 
-        main_config = get_full_config(user_id)
+        main_config = await run_in_threadpool(get_full_config, user_id)
 
         full_config = {
             "personal": main_config.get("personal", {}),

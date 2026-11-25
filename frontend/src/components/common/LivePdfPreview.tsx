@@ -140,12 +140,10 @@ export default function LivePdfPreview({
     }, 100);
 
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch('/api/preview-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           config: typeof jsonPayload === 'string' ? JSON.parse(jsonPayload) : jsonPayload,

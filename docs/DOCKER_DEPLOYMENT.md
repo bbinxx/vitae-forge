@@ -16,6 +16,16 @@ used by `backend/core/upload.py` if uploads and cloud PDF storage are required.
 The [v4 migration guide](MIGRATION_V4.md) covers the Firestore data transfer
 and TexCompiler setup for existing deployments.
 
+Keep the same private `JWT_SECRET` across upgrades and replicas so existing
+sessions can continue. Protected deployments require this setting at startup.
+The browser uses an HttpOnly session cookie. API clients can use the bearer
+token returned by the login endpoint.
+
+PostgreSQL enforces unique account usernames. Startup creates the required
+index and reports an error if the database contains duplicate usernames.
+Resolve conflicting accounts before retrying; the upgrade preserves
+existing account IDs and password hashes.
+
 Set `TEXCOMPILER_URL` to the base URL reachable from the backend container
 and `TEXCOMPILER_API_TOKEN` to the service token. Keep the token in server-side
 runtime configuration. The Atlas overlay joins the existing compiler network

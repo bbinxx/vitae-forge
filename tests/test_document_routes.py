@@ -7,9 +7,8 @@ from unittest.mock import patch
 import zipfile
 
 from fastapi.testclient import TestClient
-from jose import jwt
 from backend.app import app
-from backend.api.auth import SECRET_KEY, ALGORITHM
+from backend.api.auth import create_access_token
 from backend.core.config import load_resume_config
 from backend.services.texcompiler_client import TexCompilerError
 
@@ -25,7 +24,7 @@ class RouteTests(unittest.TestCase):
         self.config['personal']['name']='Synthetic Person'
         self.client=TestClient(app)
         self.addCleanup(self.client.close)
-        self.client.headers['Authorization']='Bearer '+jwt.encode({'sub':'synthetic-user'},SECRET_KEY,algorithm=ALGORITHM)
+        self.client.headers['Authorization']='Bearer '+create_access_token({'sub':'synthetic-user'})
         for target in ['backend.api.preview.get_full_config','backend.api.studio.get_full_config','backend.services.document_service.get_full_config']:
             p=patch(target,return_value=self.config);p.start();self.addCleanup(p.stop)
         p=patch('backend.services.texcompiler_client.TexCompilerClient.from_env')

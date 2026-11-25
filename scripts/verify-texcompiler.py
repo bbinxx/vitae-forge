@@ -12,10 +12,9 @@ from unittest.mock import patch
 import requests
 
 from fastapi.testclient import TestClient
-from jose import jwt
 from PIL import Image
 from backend.app import app
-from backend.api.auth import SECRET_KEY, ALGORITHM
+from backend.api.auth import create_access_token
 from backend.core.config import load_resume_config, TEMPLATE_PLAIN
 from backend.services.texcompiler_client import TexCompilerClient, TexCompilerError
 from backend.services import document_service
@@ -55,7 +54,7 @@ for target,value in [('backend.api.preview.PROFILE_PHOTO',photo),('backend.api.s
 
 try:
     with TestClient(app) as browser:
-        browser.headers['Authorization']='Bearer '+jwt.encode({'sub':'synthetic-verification-user'},SECRET_KEY,algorithm=ALGORITHM)
+        browser.headers['Authorization']='Bearer '+create_access_token({'sub':'synthetic-verification-user'})
         for kind,include_photo,label in [('resume',False,'plain'),('resume',True,'photo'),('cover_letter',False,'letter')]:
             response=browser.post('/api/preview-pdf',json={'config':config,'type':kind,'include_photo':include_photo})
             assert response.status_code==200, 'Preview failed: '+str(response.status_code)

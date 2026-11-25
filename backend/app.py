@@ -16,7 +16,7 @@ from jose import jwt, JWTError
 from psycopg import Error as PostgresError
 
 from backend.core.config import DIST_DIR, ASSETS_DIR, ROOT, ensure_dirs
-from backend.api.auth import SECRET_KEY, ALGORITHM, router as auth_router
+from backend.api.auth import SECRET_KEY, ALGORITHM, validate_auth_configuration, router as auth_router
 from backend.api.studio import router as studio_router
 from backend.api.tracker import router as tracker_router
 from backend.api.library import router as library_router
@@ -32,6 +32,7 @@ ensure_dirs()
 async def lifespan(app: FastAPI):
     """Application startup and shutdown logic."""
     print("🚀 Vitae Forge starting up...")
+    validate_auth_configuration()
     from starlette.concurrency import run_in_threadpool
     from backend.db.postgres_repo import close_pool, open_pool
 
@@ -130,7 +131,7 @@ async def cookie_auth_middleware(request: Request, call_next):
 
     if token:
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"require_exp": True, "require_sub": True})
             request.state.user_id = payload.get("sub")
         except JWTError:
             pass  # Invalid token — treat as unauthenticated
