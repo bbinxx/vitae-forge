@@ -21,6 +21,10 @@ class AbstractRepository(ABC):
 
     # ── Resume Data (per-user) ──
     @abstractmethod
+    def get_resume_config(self, user_id: str) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
     def get_personal(self, user_id: str) -> Dict[str, Any]:
         pass
 
