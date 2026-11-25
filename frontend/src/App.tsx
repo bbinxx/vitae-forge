@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import Shell from './components/layout/Shell';
-import DashboardPage from './pages/Dashboard/DashboardPage';
 import ApplicationsPage from './pages/Applications/ApplicationsPage';
-import SavedResumesPage from './pages/Resumes/SavedResumesPage';
-import TemplatesPage from './pages/Templates/TemplatesPage';
-import SettingsPage from './pages/Settings/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import { apiFetch } from './services/api';
 import { User } from './types';
+
+const SavedResumesPage = lazy(() => import('./pages/Resumes/SavedResumesPage'));
+const TemplatesPage = lazy(() => import('./pages/Templates/TemplatesPage'));
+const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage'));
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('applications');
@@ -68,9 +68,11 @@ export default function App() {
   return (
     <Shell activeTab={activeTab === 'dashboard' ? 'applications' : activeTab} setActiveTab={setActiveTab} user={user} onSignOut={handleSignOut}>
       {(activeTab === 'dashboard' || activeTab === 'applications') && <ApplicationsPage />}
-      {activeTab === 'saved-resumes' && <SavedResumesPage />}
-      {activeTab === 'templates' && <TemplatesPage />}
-      {activeTab === 'settings' && <SettingsPage />}
+      <Suspense fallback={<p role="status">Loading…</p>}>
+        {activeTab === 'saved-resumes' && <SavedResumesPage />}
+        {activeTab === 'templates' && <TemplatesPage />}
+        {activeTab === 'settings' && <SettingsPage />}
+      </Suspense>
     </Shell>
   );
 }

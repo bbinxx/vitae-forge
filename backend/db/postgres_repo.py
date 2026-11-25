@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 import psycopg
 from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
 
 from backend.db.repository import AbstractRepository
 
@@ -17,6 +18,8 @@ CREATE TABLE IF NOT EXISTS vitae_documents (
 CREATE INDEX IF NOT EXISTS vitae_usernames ON vitae_documents ((data ->> 'username'))
 WHERE cardinality(path) = 2 AND path[1] = 'users';
 """
+
+_pool: ConnectionPool | None = None
 
 
 def connect():
@@ -31,10 +34,39 @@ def initialize(connection):
     connection.execute(SCHEMA)
 
 
+def open_pool(url: str) -> None:
+    global _pool
+    # Repository operations issue one statement each. Schema setup retains an explicit transaction.
+    pool = ConnectionPool(
+        url,
+        kwargs={"connect_timeout": 10, "prepare_threshold": None, "autocommit": True},
+        min_size=1,
+        max_size=4,
+        timeout=10,
+        open=False,
+    )
+    try:
+        pool.open(wait=True, timeout=15)
+        with pool.connection() as connection, connection.transaction():
+            initialize(connection)
+    except BaseException:
+        pool.close()
+        raise
+    _pool = pool
+
+
+def close_pool() -> None:
+    global _pool
+    pool, _pool = _pool, None
+    if pool is not None:
+        pool.close()
+
+
 @contextmanager
 def repository_connection():
     try:
-        with connect() as connection:
+        pool = _pool
+        with (pool.connection() if pool is not None else connect()) as connection:
             yield connection
     except psycopg.Error:
         raise psycopg.Error("Database operation failed.") from None
@@ -88,6 +120,17 @@ class PostgresRepository(AbstractRepository):
 
     def list_users(self):
         return [data for _, data in self._list("users")]
+
+    def get_resume_config(self, user_id):
+        config = {"personal": {}, "library": {}, "recipes": {}}
+        paths = [["users", user_id, "resume_data", name] for name in config]
+        with repository_connection() as connection:
+            rows = connection.execute(
+                "SELECT path[4], data FROM vitae_documents WHERE path IN (%s, %s, %s)",
+                paths,
+            ).fetchall()
+        config.update((name, data or {}) for name, data in rows)
+        return config
 
     def get_personal(self, user_id):
         return self._get("users", user_id, "resume_data", "personal") or {}

@@ -32,7 +32,7 @@ urllib3==2.6.3
 Pillow>=11.0.0
 
 # PostgreSQL / Neon
-psycopg[binary]>=3.2,<4
+psycopg[binary,pool]>=3.2,<4
 
 # FastAPI integration checks
 httpx==0.28.1

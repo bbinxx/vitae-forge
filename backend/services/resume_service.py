@@ -34,14 +34,7 @@ def merge_personal(base: Optional[Dict[str, Any]], *sources: Any) -> Dict[str, A
 def get_full_config(user_id: str) -> Dict[str, Any]:
     """Merge personal, library, and recipes into the full config format."""
     try:
-        personal = db.get_personal(user_id)
-        library = db.get_library(user_id)
-        recipes = db.get_recipes(user_id)
-        return {
-            "personal": personal,
-            "library": library,
-            "recipes": recipes
-        }
+        return db.get_resume_config(user_id)
     except Exception:
         from backend.core.config import load_resume_config
         return load_resume_config()
