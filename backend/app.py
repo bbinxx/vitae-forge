@@ -33,19 +33,19 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown logic."""
     print("🚀 Vitae Forge starting up...")
     from starlette.concurrency import run_in_threadpool
-    from backend.db.postgres_repo import connect, initialize
+    from backend.db.postgres_repo import close_pool, open_pool
 
-    def prepare_database():
-        with connect() as connection:
-            initialize(connection)
-
-    if os.environ.get("DATABASE_URL"):
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
         try:
-            await run_in_threadpool(prepare_database)
+            await run_in_threadpool(open_pool, database_url)
         except Exception:
             raise RuntimeError("Could not initialize PostgreSQL") from None
-    yield
-    # Shutdown — nothing to clean up currently
+    try:
+        yield
+    finally:
+        if database_url:
+            await run_in_threadpool(close_pool)
 
 
 app = FastAPI(

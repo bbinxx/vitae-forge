@@ -51,6 +51,9 @@ All coding agents should follow [AGENTS.md](AGENTS.md) and the
 verification, and feature branches. Never commit directly to `dev` or `main`;
 use a task branch and a reviewed pull request targeting `dev`.
 
+See the [performance roadmap](docs/PERFORMANCE_ROADMAP.md) for plans to improve
+startup, data loading, and PDF preview latency.
+
 ## Installation
 
 ### Docker Compose
