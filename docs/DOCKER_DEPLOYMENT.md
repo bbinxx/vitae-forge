@@ -88,9 +88,9 @@ HTTP 401. Changing `JWT_SECRET` requires users to sign in again.
   the draft, document type, and photo selection match. A changed draft
   compiles before downloading. Fix invalid JSON before exporting.
 - **Save to server folder** appears after you configure an export folder in
-  Settings. In Docker, use a writable path inside the container, such as a
-  directory under `/app/assets`, or mount a dedicated host folder with write
-  access for the app user.
+  Settings. In Docker, mount a dedicated host directory at a path such as
+  `/exports`, grant the app user write access, and enter the container path
+  in Settings.
 - Preview timing includes the request and download. A percentage appears
   during the download when the response provides the PDF size.
 
