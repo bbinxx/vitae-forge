@@ -30,9 +30,11 @@ current code. Use measurements to confirm where the time goes.
 3. **Load frontend code by screen.** Settings, Templates, and Saved Resumes
    now load on demand. Measure the impact on the time to the first visible
    application row. [App entry point](../frontend/src/App.tsx)
-4. **Reduce duplicate PDF preview work.** Debounce rapid edits and reuse
-   previews for identical inputs within a user session. Account for
-   template and photo changes in the cache key.
+4. **Reduce duplicate PDF preview work.** Each open preview allows one
+   compile request at a time. Save PDF reuses the preview for the matching
+   draft, document type, and photo selection. Measure further gains before
+   adding longer-lived caching. Any longer-lived cache must account for
+   template and profile photo changes.
    [Live PDF preview](../frontend/src/components/common/LivePdfPreview.tsx)
 
 ## Initial measurements
@@ -45,6 +47,10 @@ still need separate measurements.
 
 The initial production JavaScript fell from 68,613 to 58,543 gzip bytes after
 splitting secondary screens, a reduction of about 15%.
+
+After sign-in, the app navigates to the workspace in the same document and
+uses the authenticated login response. Direct workspace visits still verify
+the session before showing cached data.
 
 ## Where Rust fits
 

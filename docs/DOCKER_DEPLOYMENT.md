@@ -21,15 +21,6 @@ sessions can continue. Protected deployments require this setting at startup.
 The browser uses an HttpOnly session cookie. API clients can use the bearer
 token returned by the login endpoint.
 
-The signed-in screens live at `/workspace/applications`,
-`/workspace/saved-resumes`, `/workspace/templates`, and `/workspace/settings`.
-Opening a workspace URL while signed out sends the browser to sign-in and
-returns it to the requested screen afterward.
-
-**Save PDF** downloads to the browser. If you configure a server export
-folder, **Save to server folder** writes a separate copy on the application
-host.
-
 PostgreSQL enforces unique account usernames. Startup creates the required
 index and reports an error if the database contains duplicate usernames.
 Resolve conflicting accounts before retrying; the upgrade preserves
@@ -78,6 +69,30 @@ docker run -d --name vitae-forge --init --env-file .env \
   -p 5050:5050 --mount source=vitae-forge-uploads,target=/app/assets \
   --security-opt no-new-privileges:true --cap-drop ALL vitae-forge:local
 ```
+
+## Workspace and PDF exports
+
+| Screen | URL |
+| --- | --- |
+| Applications | `/workspace/applications` |
+| Saved Resumes | `/workspace/saved-resumes` |
+| Templates | `/workspace/templates` |
+| Settings | `/workspace/settings` |
+
+Opening a workspace URL while signed out redirects to `/login` and returns
+to the requested screen after sign-in. An expired session also returns to
+sign-in. With `AUTH_REQUIRED=true`, unauthenticated data API requests return
+HTTP 401. Changing `JWT_SECRET` requires users to sign in again.
+
+- **Save PDF** downloads to the browser. It reuses the current preview when
+  the draft, document type, and photo selection match. A changed draft
+  compiles before downloading. Fix invalid JSON before exporting.
+- **Save to server folder** appears after you configure an export folder in
+  Settings. In Docker, use a writable path inside the container, such as a
+  directory under `/app/assets`, or mount a dedicated host folder with write
+  access for the app user.
+- Preview timing includes the request and download. A percentage appears
+  during the download when the response provides the PDF size.
 
 ## Runtime behavior and storage
 

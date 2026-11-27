@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Add bookmarkable workspace URLs, safe return paths after sign-in, and
+  cross-tab session checks. Fix registration and enforce unique usernames in
+  PostgreSQL.
+- Download PDFs directly from Studio. Reuse a matching preview and keep
+  server-folder export as a separate action.
+- Show loading, retry, and empty states independently. Open the workspace
+  immediately after successful sign-in and show measured PDF preview timing.
+- Keep drafts open after failed saves, prevent stale editor responses from
+  overwriting drafts, and store template overrides per account.
+- Reuse PostgreSQL connections, batch resume-config reads, and defer
+  secondary frontend screens.
+
 ## v4.0.0
 
 ### Deployment changes
