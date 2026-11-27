@@ -1,177 +1,218 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { settingsStore } from '../../stores/settingsStore';
-import { api } from '../../services/api';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSettings } from '../../stores/settingsStore';
+import { api, redirectToSignIn } from '../../services/api';
 
 interface LivePdfPreviewProps {
   jsonPayload: any;
   previewType?: 'resume' | 'cover_letter';
   includePhoto?: boolean;
+  canCompile?: boolean;
+  fileLabel?: string;
   onToggleType?: (type: 'resume' | 'cover_letter') => void;
   onTogglePhoto?: (photo: boolean) => void;
+}
+
+type PreviewProgress = { startedAt: number; receiving: boolean; downloaded?: number };
+
+function formatElapsed(milliseconds: number) {
+  return (milliseconds / 1000).toFixed(1) + ' s';
+}
+
+function PreviewLoading({ startedAt, receiving, downloaded }: PreviewProgress) {
+  const [elapsed, setElapsed] = useState(() => performance.now() - startedAt);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setElapsed(performance.now() - startedAt), 100);
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
+
+  const label = receiving ? 'Downloading PDF…' : 'Waiting for TexCompiler…';
+  return (
+    <div className="sr-loading-overlay">
+      <div className="pdf-preview-progress">
+        <strong role="status">{label}</strong>
+        <progress aria-label={label} max={100} value={downloaded} />
+        <span>Elapsed {formatElapsed(elapsed)}{downloaded !== undefined ? ` · ${downloaded}% downloaded` : ''}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function LivePdfPreview({
   jsonPayload,
   previewType = 'resume',
   includePhoto = false,
+  canCompile = true,
+  fileLabel,
   onToggleType,
   onTogglePhoto
 }: LivePdfPreviewProps) {
-  const [loadingPct, setLoadingPct] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<PreviewProgress | null>(null);
+  const [lastDuration, setLastDuration] = useState<number | null>(null);
+  const isLoading = progress !== null;
+  const [savingFolder, setSavingFolder] = useState(false);
+  const { settings } = useSettings();
   const [pdfUrl, setPdfUrl] = useState('');
   const [compileError, setCompileError] = useState('');
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [showLogs, setShowLogs] = useState(false);
-
-  const timerRef = useRef<any>(null);
-  const elapsedTimerRef = useRef<any>(null);
-  const lastCompiledPayloadRef = useRef<string>('');
-
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [exportNotice, setExportNotice] = useState('');
+  const [compiledInput, setCompiledInput] = useState('');
+  const requestRef = useRef<AbortController | null>(null);
+  const attemptedInitial = useRef(false);
   const [localIncludePhoto, setLocalIncludePhoto] = useState(includePhoto);
+  const compileInput = useMemo(
+    () => JSON.stringify({ config: jsonPayload, type: previewType, include_photo: localIncludePhoto }),
+    [jsonPayload, previewType, localIncludePhoto],
+  );
+  const isDirty = Boolean(compiledInput && compiledInput !== compileInput);
 
   useEffect(() => {
     setLocalIncludePhoto(includePhoto);
   }, [includePhoto]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+  useEffect(() => () => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    attemptedInitial.current = false;
   }, []);
 
+  useEffect(() => () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+  }, [pdfUrl]);
+
+  const getDownloadName = () => {
+    const config = typeof jsonPayload === 'string' ? JSON.parse(jsonPayload) : jsonPayload;
+    const prefix = (settings.file_name_prefix || 'RESUME').replace(/[-_\s]+$/, '');
+    const title = fileLabel?.trim() || [
+      config?.role || config?.title || config?.job_title || config?.role_title,
+      config?.company || config?.company_name || config?.name,
+    ].filter(Boolean).join('_');
+    const suffix = previewType === 'cover_letter' ? 'COVER_LETTER' : '';
+    const stem = [prefix, title, suffix].filter(Boolean).join('_')
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/_+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
+    return { config, filename: `${stem || 'RESUME'}.pdf` };
+  };
+
   const handleSaveToExportFolder = async () => {
-    const settings = settingsStore.getSettings();
-    if (!settings.export_folder) {
-      alert('No export destination folder specified. Please click "PDF Settings" to set your export folder location.');
-      return;
-    }
-
-    const rawPrefix = (settings.file_name_prefix || 'RESUME').replace(/[-_\s]+$/, '');
-    const role = jsonPayload?.role || jsonPayload?.title || jsonPayload?.job_title || jsonPayload?.role_title || '';
-    const company = jsonPayload?.company || jsonPayload?.company_name || jsonPayload?.name || '';
-    const typeStr = previewType === 'cover_letter' ? 'COVER_LETTER' : '';
-
-    const parts = [rawPrefix, role, company, typeStr].filter(Boolean);
-    let baseName = parts.join('_')
-      .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9_-]/g, '')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '')
-      .toUpperCase();
-
-    if (!baseName) baseName = 'RESUME';
-
+    if (savingFolder || isLoading || !canCompile || !jsonPayload) return;
+    setExportNotice('');
+    setSavingFolder(true);
     try {
-      const res = await api.exportPdfLocal(
-        jsonPayload,
-        baseName,
-        previewType,
-        localIncludePhoto
-      );
-      if (res && res.path) {
-        alert(`PDF saved successfully to setting location:\n${res.path}`);
-      }
-    } catch (e: any) {
-      alert('Failed to save PDF to setting location: ' + e.message);
+      const { config, filename } = getDownloadName();
+      const { path } = await api.exportPdfLocal(config, filename, previewType, localIncludePhoto);
+      setExportNotice(`PDF saved to the server folder at ${path}.`);
+    } catch (error) {
+      setExportNotice('Could not save the PDF to the server folder. ' + (error as Error).message);
+    } finally {
+      setSavingFolder(false);
     }
   };
 
-  const [isDirty, setIsDirty] = useState(false);
-
-  // Track changes to payload without auto-compiling
-  useEffect(() => {
-    if (!jsonPayload) return;
-    const currentPayloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto: localIncludePhoto });
-    if (lastCompiledPayloadRef.current && lastCompiledPayloadRef.current !== currentPayloadStr) {
-      setIsDirty(true);
+  const handleCompile = useCallback(async () => {
+    if (!canCompile || !jsonPayload || requestRef.current || savingFolder) return;
+    const controller = new AbortController();
+    const startedAt = performance.now();
+    requestRef.current = controller;
+    setProgress({ startedAt, receiving: false });
+    setLastDuration(null);
+    setCompileError('');
+    try {
+      const body = JSON.parse(compileInput);
+      if (typeof body.config === 'string') body.config = JSON.parse(body.config);
+      const response = await fetch('/api/preview-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      if (response.status === 401) redirectToSignIn();
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || 'Could not generate the PDF.');
+      }
+      if (response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/pdf') {
+        throw new Error('The preview service did not return a PDF.');
+      }
+      const contentLength = Number(response.headers.get('Content-Length'));
+      const trackDownload = Number.isSafeInteger(contentLength) && contentLength > 0 &&
+        !response.headers.get('Content-Encoding');
+      const stream = response.body;
+      setProgress({ startedAt, receiving: true, downloaded: stream && trackDownload ? 0 : undefined });
+      let received = 0;
+      let lastPercent = 0;
+      let blob: Blob;
+      if (stream && trackDownload) {
+        const counted = stream.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, output) {
+            received += chunk.byteLength;
+            const percent = Math.min(100, Math.floor(received / contentLength * 100));
+            if (percent !== lastPercent && !controller.signal.aborted) {
+              lastPercent = percent;
+              setProgress({ startedAt, receiving: true, downloaded: percent });
+            }
+            output.enqueue(chunk);
+          },
+        }));
+        blob = await new Response(counted, {
+          headers: { 'Content-Type': response.headers.get('Content-Type') || 'application/pdf' },
+        }).blob();
+      } else {
+        blob = await response.blob();
+      }
+      if (controller.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      setCompiledInput(compileInput);
+      return url;
+    } catch (error) {
+      if (!controller.signal.aborted) setCompileError((error as Error).message);
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setProgress(null);
+        setLastDuration(performance.now() - startedAt);
+      }
     }
-  }, [jsonPayload, previewType, localIncludePhoto]);
+    return undefined;
+  }, [canCompile, compileInput, jsonPayload, savingFolder]);
 
-  // Handle keyboard shortcut Ctrl+Enter / Cmd+Enter to compile
+  const handleDownload = async () => {
+    if (!canCompile || !jsonPayload || requestRef.current || savingFolder) return;
+    setExportNotice('');
+    try {
+      const { filename } = getDownloadName();
+      const url = compiledInput === compileInput && pdfUrl ? pdfUrl : await handleCompile();
+      if (!url) return;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setExportNotice(`Download started for ${filename}.`);
+    } catch (error) {
+      setExportNotice('Could not download the PDF. ' + (error as Error).message);
+    }
+  };
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleCompile(true);
+    if (canCompile && jsonPayload && !attemptedInitial.current) {
+      attemptedInitial.current = true;
+      void handleCompile();
+    }
+  }, [canCompile, jsonPayload, handleCompile]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (canCompile && (event.ctrlKey || event.metaKey) && event.key === 'Enter' && !requestRef.current) {
+        event.preventDefault();
+        void handleCompile();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [jsonPayload, previewType, localIncludePhoto]);
-
-  // Initial compilation on mount if PDF is empty
-  useEffect(() => {
-    if (jsonPayload && !pdfUrl && !lastCompiledPayloadRef.current) {
-      handleCompile(true);
-    }
-  }, [jsonPayload]);
-
-  const handleCompile = async (force = false) => {
-    if (!jsonPayload) return;
-    
-    const payloadStr = JSON.stringify({ jsonPayload, previewType, includePhoto: localIncludePhoto });
-    if (!force && lastCompiledPayloadRef.current === payloadStr) {
-      return;
-    }
-    lastCompiledPayloadRef.current = payloadStr;
-    setIsDirty(false);
-
-    setIsLoading(true);
-    setCompileError('');
-    setLoadingPct(10);
-    setElapsedTime(0);
-
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-
-    timerRef.current = setInterval(() => {
-      setLoadingPct((prev) => {
-        if (prev >= 90) return 90;
-        return prev + Math.floor(Math.random() * 8) + 5;
-      });
-    }, 150);
-
-    elapsedTimerRef.current = setInterval(() => {
-      setElapsedTime((prev) => parseFloat((prev + 0.1).toFixed(1)));
-    }, 100);
-
-    try {
-      const res = await fetch('/api/preview-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config: typeof jsonPayload === 'string' ? JSON.parse(jsonPayload) : jsonPayload,
-          include_photo: localIncludePhoto,
-          type: previewType
-        })
-      });
-
-      if (res.ok) {
-        const blob = await res.blob();
-        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-        const url = URL.createObjectURL(blob);
-        setPdfUrl(url);
-        setLoadingPct(100);
-      } else {
-        const errObj = await res.json().catch(() => ({}));
-        setCompileError(errObj.detail || 'LaTeX Compilation Failed.');
-        setLoadingPct(0);
-      }
-    } catch (e: any) {
-      setCompileError(e.message || 'LaTeX engine communication failed.');
-      setLoadingPct(0);
-    } finally {
-      clearInterval(timerRef.current);
-      clearInterval(elapsedTimerRef.current);
-      setTimeout(() => setIsLoading(false), 200);
-    }
-  };
+  }, [canCompile, handleCompile]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -218,7 +259,9 @@ export default function LivePdfPreview({
               background: previewType === 'resume' ? 'var(--accent)' : 'transparent', 
               color: previewType === 'resume' ? 'white' : 'var(--text-muted)' 
             }}
-            onClick={() => onToggleType && onToggleType('resume')}
+            onClick={() => onToggleType?.('resume')}
+            aria-pressed={previewType === 'resume'}
+            hidden={!onToggleType}
           >
             Resume
           </button>
@@ -230,7 +273,9 @@ export default function LivePdfPreview({
               background: previewType === 'cover_letter' ? 'var(--accent)' : 'transparent', 
               color: previewType === 'cover_letter' ? 'white' : 'var(--text-muted)' 
             }}
-            onClick={() => onToggleType && onToggleType('cover_letter')}
+            onClick={() => onToggleType?.('cover_letter')}
+            aria-pressed={previewType === 'cover_letter'}
+            hidden={!onToggleType}
           >
             Cover Letter
           </button>
@@ -250,6 +295,7 @@ export default function LivePdfPreview({
               setLocalIncludePhoto(newVal);
               if (onTogglePhoto) onTogglePhoto(newVal);
             }}
+            aria-pressed={localIncludePhoto}
             title="Include photo in compilation"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '14px', marginRight: '4px' }}>photo_camera</span>
@@ -258,8 +304,8 @@ export default function LivePdfPreview({
 
           <button 
             className={`btn ${isDirty ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-            onClick={() => handleCompile(true)}
-            disabled={isLoading}
+            onClick={handleCompile}
+            disabled={!canCompile || isLoading || savingFolder || !jsonPayload}
             style={{
               padding: '4px 12px',
               fontSize: '11px',
@@ -276,13 +322,19 @@ export default function LivePdfPreview({
 
           <button 
             className="btn btn-primary btn-sm"
-            onClick={handleSaveToExportFolder}
-            disabled={isLoading}
+            onClick={handleDownload}
+            disabled={!canCompile || isLoading || savingFolder || !jsonPayload}
             style={{ padding: '4px 10px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}
-            title="Save PDF to setting location folder"
+            title="Download PDF to this device"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>save</span> Save PDF
           </button>
+          {settings.export_folder && (
+            <button className="btn btn-secondary btn-sm" onClick={handleSaveToExportFolder}
+              disabled={!canCompile || isLoading || savingFolder || !jsonPayload}>
+              {savingFolder ? 'Saving to server…' : 'Save to server folder'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -297,48 +349,13 @@ export default function LivePdfPreview({
         background: '#323639',
         minHeight: '280px'
       }}>
-        {/* Compilation progress loader overlay */}
-        {isLoading && (
-          <div className="sr-loading-overlay">
-            <div className="sr-spinner"></div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent)', marginTop: '8px' }}>
-              Compiling... {loadingPct}%
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Elapsed Time: {elapsedTime}s
-            </div>
-          </div>
-        )}
+        {progress && <PreviewLoading {...progress} />}
 
-        {/* LaTeX Compilation Error panel */}
         {compileError && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.96)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: '#fda4af',
-            zIndex: 10,
-            overflowY: 'auto'
-          }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#f43f5e', marginBottom: '8px' }}>warning</span>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px', textAlign: 'center' }}>LaTeX Compilation Failed</div>
-            <p style={{ fontSize: '0.75rem', color: '#cbd5e1', textAlign: 'center', maxWidth: '380px', marginBottom: '16px' }}>
-              We could not generate the PDF due to compilation errors in your resume structure or template syntax.
-            </p>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-danger btn-sm" onClick={() => setShowLogs(true)}>
-                View Compilation Logs
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => handleCompile(true)}>
-                Retry Compilation
-              </button>
-            </div>
+          <div className="pdf-preview-error" role="alert">
+            <p>{compileError}</p>
+            {lastDuration !== null && <p>Failed after {formatElapsed(lastDuration)}</p>}
+            <button className="btn btn-secondary btn-sm" disabled={!canCompile || isLoading} onClick={handleCompile}>Retry Compilation</button>
           </div>
         )}
 
@@ -352,35 +369,10 @@ export default function LivePdfPreview({
         )}
       </div>
 
-      {/* Logs View Dialog Modal */}
-      {showLogs && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', width: '96%', maxWidth: '640px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>LaTeX Compilation Output logs</span>
-              <button className="btn btn-ghost" onClick={() => setShowLogs(false)} style={{ padding: '4px' }}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <pre style={{
-              flex: 1,
-              padding: '16px',
-              background: '#090d16',
-              color: '#34d399',
-              fontFamily: 'var(--mono)',
-              fontSize: '0.75rem',
-              overflowY: 'auto',
-              maxHeight: '380px',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {compileError || 'No compiler errors reported.'}
-            </pre>
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowLogs(false)}>Close Log</button>
-            </div>
-          </div>
-        </div>
+      {!isLoading && !compileError && lastDuration !== null && (
+        <p className="editor-notice" role="status">PDF ready in {formatElapsed(lastDuration)}</p>
       )}
+      {exportNotice && <p className="editor-notice" role="status">{exportNotice}</p>}
     </div>
   );
 }

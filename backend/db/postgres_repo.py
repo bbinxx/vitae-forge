@@ -163,6 +163,22 @@ class PostgresRepository(AbstractRepository):
     def get_recipe(self, user_id, recipe_id):
         return self.get_recipes(user_id).get(recipe_id)
 
+    def get_template_override(self, user_id, filename):
+        record = self._get("users", user_id, "templates", filename)
+        return record["content"] if record else None
+
+    def save_template_override(self, user_id, filename, content):
+        self._save(("users", user_id, "templates", filename), {"content": content})
+
+    def list_bookmarks(self, user_id):
+        with repository_connection() as connection:
+            rows = connection.execute(
+                """SELECT data -> 'bookmark' FROM vitae_documents
+                WHERE cardinality(path) = 4 AND path[1:3] = %s
+                    AND left(path[4], 3) = 'bm_' AND jsonb_typeof(data -> 'bookmark') = 'object'""",
+                (["users", user_id, "checkpoints"],),
+            ).fetchall()
+        return [bookmark for (bookmark,) in rows]
     def get_all_applications(self, user_id):
         return [data for _, data in self._list("users", user_id, "applications")]
 

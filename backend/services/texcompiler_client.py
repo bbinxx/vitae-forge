@@ -74,6 +74,7 @@ class TexCompilerClient:
                             413: (413, 'Document project exceeds the compilation service limits.'),
                             429: (503, 'TexCompiler workers are busy. Try again shortly.'),
                             503: (503, 'TexCompiler is unavailable. Try again shortly.'),
+                            530: (503, 'The TexCompiler endpoint is unavailable. Try again shortly.'),
                             408: (504, 'TexCompiler timed out. Try again or simplify the document.'),
                             504: (504, 'TexCompiler timed out. Try again or simplify the document.'),
                         }

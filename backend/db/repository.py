@@ -56,6 +56,18 @@ class AbstractRepository(ABC):
     def get_recipe(self, user_id: str, recipe_id: str) -> Optional[Dict[str, Any]]:
         pass
 
+    @abstractmethod
+    def get_template_override(self, user_id: str, filename: str) -> Optional[str]:
+        pass
+
+    @abstractmethod
+    def save_template_override(self, user_id: str, filename: str, content: str) -> None:
+        pass
+
+    @abstractmethod
+    def list_bookmarks(self, user_id: str) -> List[Dict[str, Any]]:
+        pass
+
     # ── Applications (per-user) ──
     @abstractmethod
     def get_all_applications(self, user_id: str) -> List[Dict[str, Any]]:

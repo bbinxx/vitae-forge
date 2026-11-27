@@ -1,5 +1,6 @@
 import React from 'react';
 import { NAV_ITEMS } from '../../constants/nav.js';
+import { handleWorkspaceLink, workspacePath } from '../../constants/workspaceRoutes';
 import { User } from '../../types';
 
 interface HeaderProps {
@@ -49,12 +50,14 @@ export default function Header({ activeTab, setActiveTab, user, onSignOut }: Hea
       </div>
 
       {/* Nav Links */}
-      <nav style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+      <nav aria-label="Workspace" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
         {NAV_ITEMS.map(item => (
-          <button
+          <a
             key={item.id}
+            href={workspacePath(item.id)}
             className={`nav-btn ${activeTab === item.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(item.id)}
+            aria-current={activeTab === item.id ? 'page' : undefined}
+            onClick={event => handleWorkspaceLink(event, () => setActiveTab(item.id))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -67,13 +70,14 @@ export default function Header({ activeTab, setActiveTab, user, onSignOut }: Hea
               fontWeight: 600,
               fontSize: '0.8rem',
               cursor: 'pointer',
+              textDecoration: 'none',
               transition: 'all 0.15s',
               whiteSpace: 'nowrap'
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{item.icon}</span>
             {item.label}
-          </button>
+          </a>
         ))}
       </nav>
 

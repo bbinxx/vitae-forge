@@ -3,13 +3,12 @@ backend/api/preview.py
 FastAPI router for live PDF preview generation.
 """
 import json
-import tempfile
-from pathlib import Path
 
 from fastapi import APIRouter, Request, HTTPException, Response
 
 from backend.core.config import TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER, PROFILE_PHOTO
 from backend.services.latex_project import render_project
+from backend.services.photo_service import resolve_photo_path
 from starlette.concurrency import run_in_threadpool
 from backend.services.resume_service import get_full_config, merge_personal
 
@@ -66,26 +65,11 @@ async def preview_pdf(request: Request):
         else:
             template = TEMPLATE_PLAIN
 
-        custom_photo_path = None
+        use_photo = include_photo and preview_type != "cover_letter"
+        custom_photo_path = await run_in_threadpool(resolve_photo_path, user_id, use_photo)
         try:
-            if include_photo and user_id:
-                from backend.db import db
-                settings = db.get_settings(user_id) or {}
-                photo_r2_key = settings.get("photo_r2_key")
-                if photo_r2_key:
-                    from backend.core.upload import get_r2_client, BUCKET
-                    client = get_r2_client()
-                    if client:
-                        try:
-                            suffix = Path(photo_r2_key).suffix
-                            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as tmp_photo:
-                                client.download_fileobj(BUCKET, photo_r2_key, tmp_photo)
-                                custom_photo_path = Path(tmp_photo.name)
-                        except Exception as e:
-                            print("Profile photo download failed")
-
-            photo_to_use = custom_photo_path or (PROFILE_PHOTO if include_photo else None)
-            project = await run_in_threadpool(render_project, full_config, template, photo=photo_to_use)
+            photo_to_use = custom_photo_path or (PROFILE_PHOTO if use_photo else None)
+            project = await run_in_threadpool(render_project, full_config, template, photo=photo_to_use, user_id=user_id)
             pdf = await run_in_threadpool(project.pdf)
             return Response(
                 content=pdf,

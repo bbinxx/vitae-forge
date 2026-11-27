@@ -21,6 +21,15 @@ sessions can continue. Protected deployments require this setting at startup.
 The browser uses an HttpOnly session cookie. API clients can use the bearer
 token returned by the login endpoint.
 
+The signed-in screens live at `/workspace/applications`,
+`/workspace/saved-resumes`, `/workspace/templates`, and `/workspace/settings`.
+Opening a workspace URL while signed out sends the browser to sign-in and
+returns it to the requested screen afterward.
+
+**Save PDF** downloads to the browser. If you configure a server export
+folder, **Save to server folder** writes a separate copy on the application
+host.
+
 PostgreSQL enforces unique account usernames. Startup creates the required
 index and reports an error if the database contains duplicate usernames.
 Resolve conflicting accounts before retrying; the upgrade preserves
@@ -77,8 +86,10 @@ docker run -d --name vitae-forge --init --env-file .env \
 - The health check requests `/login`, which must serve the built SPA successfully.
   It remains public with authentication enabled and uses the configured port.
   This is an HTTP/frontend availability check, not a PostgreSQL or R2 readiness check.
-- Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
-  manage durable template changes in source control or provision explicit storage.
+- Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in
+  `/tmp` are ephemeral. Templates saved from the workspace are stored per
+  account in PostgreSQL. The bundled templates are the defaults for accounts
+  without an override.
 - The bundled templates use standard fonts. Custom templates requiring additional
   fonts can bundle them as project assets. Additional TeX packages must be
   available in the compiler service.

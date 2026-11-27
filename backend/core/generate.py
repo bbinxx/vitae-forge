@@ -100,6 +100,7 @@ def generate_resume(
     user_id: str | None = None,
     *,
     self_contained: bool = False,
+    template_source: str | None = None,
 ) -> None:
     """
     Generate a .tex file by filling `template_path` with data from
@@ -183,8 +184,10 @@ def generate_resume(
     for section in MODULAR_SECTIONS:
         config[section] = resolve_modular(config.get(section), section, library)
 
-    with open(template_path) as f:
-        tmpl = f.read()
+    if template_source is None:
+        with open(template_path) as f:
+            template_source = f.read()
+    tmpl = template_source
 
     # ── Styling & Preamble Tokens ─────────────────────────────────────────────
     styling = config.get("styling", {}) if isinstance(config.get("styling"), dict) else {}

@@ -5,6 +5,7 @@ All routers are registered here. Run via:
     uvicorn backend.app:app --host 127.0.0.1 --port 5050 --reload
 """
 import os
+from urllib.parse import urlencode
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -96,14 +97,13 @@ async def postgres_exception_handler(request: Request, exc: PostgresError):
 # Route prefixes that are always public (no auth required)
 _PUBLIC_PREFIXES = (
     "/api/auth/",
-    "/api/preview-pdf",
     "/assets/",
-    "/user-assets/",
     "/share/",
-    "/pdf/",
     "/.well-known/",
 )
-_PUBLIC_EXACT = {"/", "/login", "/favicon.ico"}
+_PUBLIC_EXACT = {"/login", "/favicon.ico"}
+_DEFAULT_WORKSPACE = "/workspace/applications"
+_WORKSPACE_SECTIONS = {"applications", "saved-resumes", "templates", "settings"}
 
 # Route prefixes/paths that should return JSON 401 (not redirect to /login)
 _API_PREFIXES = (
@@ -136,12 +136,17 @@ async def cookie_auth_middleware(request: Request, call_next):
         except JWTError:
             pass  # Invalid token — treat as unauthenticated
 
-    # 2. If auth is not enforced globally, pass through
+    path = request.url.path
+    workspace = path in {"/", "/workspace"} or path.startswith("/workspace/")
+    private_download = path.startswith(("/pdf/", "/user-assets/"))
+    if (workspace or private_download) and not getattr(request.state, "user_id", None):
+        next_path = path if path.removeprefix("/workspace/") in _WORKSPACE_SECTIONS else _DEFAULT_WORKSPACE
+        return RedirectResponse("/login?" + urlencode({"next": next_path}))
+
+    # API authentication remains configurable for standalone development clients.
     auth_required = os.environ.get("AUTH_REQUIRED", "false").lower() == "true"
     if not auth_required:
         return await call_next(request)
-
-    path = request.url.path
 
     # 3. Check public routes
     is_public = path in _PUBLIC_EXACT or any(path.startswith(p) for p in _PUBLIC_PREFIXES)
@@ -203,6 +208,13 @@ def _serve_spa() -> HTMLResponse:
 def login_page():
     return _serve_spa()
 
-@app.get("/{full_path:path}", response_class=HTMLResponse)
-def serve_react_app(full_path: str):
+@app.get("/")
+@app.get("/workspace")
+def workspace_index():
+    return RedirectResponse(_DEFAULT_WORKSPACE)
+
+@app.get("/workspace/{section}", response_class=HTMLResponse)
+def serve_workspace(section: str):
+    if section not in _WORKSPACE_SECTIONS:
+        raise HTTPException(404, "Workspace page not found")
     return _serve_spa()

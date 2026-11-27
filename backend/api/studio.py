@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from backend.core.config import (
     ROOT, DIST_DIR, ASSETS_DIR, PROFILE_PHOTO, load_resume_config, TEMPLATES_DIR,
+    TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
 )
 from backend.core.upload import list_r2_objects, upload_pdf, get_r2_client, BUCKET
 from backend.core.deps import get_user_id, get_optional_user_id
@@ -34,14 +35,8 @@ router = APIRouter()
 def _load_bookmarks(user_id: str | None = None) -> list:
     if not user_id:
         return []
-    cps = db.list_checkpoints(user_id)
-    bms = []
-    for cp_id in cps:
-        if cp_id.startswith("bm_"):
-            doc = db.get_checkpoint(user_id, cp_id)
-            if doc and "bookmark" in doc:
-                bms.append(doc["bookmark"])
-    return sorted(bms, key=lambda x: x.get("created_at", ""), reverse=True)
+    bookmarks = db.list_bookmarks(user_id)
+    return sorted(bookmarks, key=lambda bookmark: bookmark.get("created_at", ""), reverse=True)
 
 def _save_bookmark_doc(user_id: str, bm: dict):
     bm_id = bm.get("id")
@@ -308,12 +303,11 @@ def pick_folder_route():
 @router.post("/api/export-pdf-local")
 async def export_pdf_local_route(request: Request):
     import re as _re
-    import shutil
-    import tempfile
     from backend.core.config import (
         TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER,
     )
     from backend.services.latex_project import render_project
+    from backend.services.photo_service import resolve_photo_path
     from starlette.concurrency import run_in_threadpool
 
     user_id = get_user_id(request)
@@ -323,7 +317,7 @@ async def export_pdf_local_route(request: Request):
     preview_type = data.get("type", "resume")
     include_photo = data.get("include_photo", False)
 
-    settings = db.get_settings(user_id) or {}
+    settings = await run_in_threadpool(db.get_settings, user_id) or {}
     export_folder = settings.get("export_folder")
 
     if not export_folder:
@@ -347,10 +341,9 @@ async def export_pdf_local_route(request: Request):
     pdf_name = f"{stem or 'RESUME'}.pdf"
 
     target_dir = Path(export_folder)
-    target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / pdf_name
 
-    main_config = get_full_config(user_id)
+    main_config = await run_in_threadpool(get_full_config, user_id)
     full_config = {
         "personal": main_config.get("personal", {}),
         "library": main_config.get("library", {}),
@@ -372,32 +365,62 @@ async def export_pdf_local_route(request: Request):
     else:
         template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
     full_config.setdefault("sections", {})["photo"] = include_photo
-    project = await run_in_threadpool(render_project, full_config, template,
-                                      photo=PROFILE_PHOTO if include_photo else None)
-    pdf = await run_in_threadpool(project.pdf)
-    target_path.write_bytes(pdf)
-    (DIST_DIR / pdf_name).write_bytes(pdf)
+    use_photo = include_photo and preview_type != "cover_letter"
+    custom_photo = await run_in_threadpool(resolve_photo_path, user_id, use_photo, settings=settings)
+    try:
+        project = await run_in_threadpool(
+            render_project, full_config, template,
+            photo=custom_photo or (PROFILE_PHOTO if use_photo else None), user_id=user_id,
+        )
+        pdf = await run_in_threadpool(project.pdf)
+    finally:
+        if custom_photo:
+            custom_photo.unlink(missing_ok=True)
+
+    def write_export():
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path.write_bytes(pdf)
+        if target_path.resolve() != (DIST_DIR / pdf_name).resolve():
+            (DIST_DIR / pdf_name).write_bytes(pdf)
+
+    try:
+        await run_in_threadpool(write_export)
+    except OSError:
+        raise HTTPException(422, "Cannot write to the configured server export folder.") from None
     return {"ok": True, "path": str(target_path)}
 
 
-@router.get("/api/template/{filename}")
-def get_template(filename: str):
-    tpl_path = TEMPLATES_DIR / "tex" / filename
-    if not tpl_path.exists() or not tpl_path.suffix == ".tex":
+_EDITABLE_TEMPLATES = {
+    path.name: path for path in (TEMPLATE_PLAIN, TEMPLATE_PHOTO, TEMPLATE_COVER_LETTER)
+}
+
+
+def _template_path(filename: str) -> Path:
+    path = _EDITABLE_TEMPLATES.get(filename)
+    if path is None:
         raise HTTPException(404, "Template not found")
-    return {"content": tpl_path.read_text(), "filename": filename}
+    return path
+
+
+@router.get("/api/template/{filename}")
+def get_template(filename: str, request: Request):
+    path = _template_path(filename)
+    content = db.get_template_override(get_user_id(request), filename)
+    return {"content": content if content is not None else path.read_text(encoding="utf-8"), "filename": filename}
+
 
 class SaveTemplateRequest(BaseModel):
     content: str
 
+
 @router.put("/api/template/{filename}")
-def save_template(filename: str, req: SaveTemplateRequest):
-    tpl_path = TEMPLATES_DIR / "tex" / filename
-    if not filename.endswith(".tex"):
-        raise HTTPException(400, "Invalid file extension")
-    tpl_path.parent.mkdir(parents=True, exist_ok=True)
-    tpl_path.write_text(req.content)
+def save_template(filename: str, req: SaveTemplateRequest, request: Request):
+    _template_path(filename)
+    if not req.content.strip() or len(req.content.encode("utf-8")) > 1024 * 1024 or "\x00" in req.content:
+        raise HTTPException(422, "Template must contain text and fit within 1 MiB")
+    db.save_template_override(get_user_id(request), filename, req.content)
     return {"ok": True, "filename": filename}
+
 
 @router.post("/api/r2-backup")
 def trigger_r2_backup():

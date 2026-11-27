@@ -57,7 +57,7 @@ def build_variant(source_role: str, display_name: str, template: Path, suffix: s
         if source_role not in recipes:
             raise TexCompilerError(404, 'Resume role not found.')
         data = {**main, 'library': main.get('library', {}), 'recipes': {source_role: recipes[source_role]}}
-    project = render_project(data, template, photo=photo)
+    project = render_project(data, template, photo=photo, user_id=user_id)
     pdf = project.pdf()
     _publish(name, project.code, pdf)
     return True
@@ -70,12 +70,12 @@ def build_custom_version(version_data: dict, display_name: str, include_photo: b
     config.setdefault('sections', {})['photo'] = include_photo
     template = TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN
     photo = (custom_photo_path or PROFILE_PHOTO) if include_photo else None
-    project = render_project(config, template, photo=photo)
+    project = render_project(config, template, photo=photo, user_id=user_id)
     pdf = project.pdf()
     _publish(display_name + ('_X' if include_photo else ''), project.code, pdf)
     if config.get('cover_letter') and str(config['cover_letter']).strip():
         try:
-            letter = render_project(config, TEMPLATE_COVER_LETTER)
+            letter = render_project(config, TEMPLATE_COVER_LETTER, user_id=user_id)
             _publish(display_name + '_Cover_Letter', letter.code, letter.pdf())
         except TexCompilerError as error:
             if error.status_code != 422:
@@ -88,7 +88,7 @@ def source_project(version_data: dict, include_photo: bool, user_id: str | None 
     config = prepare_config(version_data, user_id)
     config.setdefault('sections', {})['photo'] = include_photo
     template = TEMPLATE_COVER_LETTER if document_type == 'cover_letter' else (TEMPLATE_PHOTO if include_photo else TEMPLATE_PLAIN)
-    return render_project(config, template, photo=PROFILE_PHOTO if include_photo and document_type != 'cover_letter' else None)
+    return render_project(config, template, photo=PROFILE_PHOTO if include_photo and document_type != 'cover_letter' else None, user_id=user_id)
 
 
 def generate_latex_source(version_data: dict, display_name: str, include_photo: bool,

@@ -17,6 +17,9 @@ PDF = b'%PDF-1.4\nsynthetic\n%%EOF'
 class DocumentTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(documents, 'Remote document service is missing')
+        patcher = patch('backend.db.db.get_template_override', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

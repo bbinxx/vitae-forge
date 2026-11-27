@@ -1,18 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApplications, applicationStore } from '../../stores/applicationStore';
 import { settingsStore } from '../../stores/settingsStore';
-import { api, apiFetch } from '../../services/api';
+import { api } from '../../services/api';
 import { Application } from '../../types';
+import LoadingState from '../../components/common/LoadingState';
 import JsonEditor from '../../components/common/JsonEditor';
 import LivePdfPreview from '../../components/common/LivePdfPreview';
 import SectionToggleBar from '../../components/SectionToggleBar';
 
 export default function ApplicationsPage() {
-  const { apps, loading, loadApps } = useApplications();
+  const { apps, loading, error, loadApps } = useApplications();
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortField, setSortField] = useState('date');
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Bulk actions selection
@@ -29,6 +31,25 @@ export default function ApplicationsPage() {
   const [studioPriority, setStudioPriority] = useState('MEDIUM');
 
   const [jsonData, setJsonData] = useState<any>({});
+  const [jsonValid, setJsonValid] = useState(true);
+  const draftRevision = useRef(0);
+
+  const markDraftEdited = () => { draftRevision.current += 1; };
+
+  const loadStudioConfig = () => {
+    const revision = draftRevision.current;
+    api.getConfig().then(config => {
+      if (revision !== draftRevision.current) return;
+      const data = config.master || config;
+      if (data && Object.keys(data).length) setJsonData(data);
+    }).catch(() => {});
+  };
+
+  const closeStudio = () => {
+    markDraftEdited();
+    setShowStudioModal(false);
+    setSelectedApp(null);
+  };
   const [previewType, setPreviewType] = useState<'resume' | 'cover_letter'>('resume');
   const [includePhoto, setIncludePhoto] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
@@ -43,6 +64,13 @@ export default function ApplicationsPage() {
 
   useEffect(() => {
     loadApps();
+  }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 768px)');
+    const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
   }, []);
 
   const handleSyncToSheets = async () => {
@@ -74,8 +102,7 @@ export default function ApplicationsPage() {
 
   const handlePickFolder = async () => {
     try {
-      const res = await apiFetch('/api/settings/pick-folder');
-      const data = await res.json();
+      const data = await api.pickFolder();
       if (data.folder) {
         setSettingFolder(data.folder);
       }
@@ -101,6 +128,9 @@ export default function ApplicationsPage() {
   };
 
   const handleOpenNewAppStudio = () => {
+    markDraftEdited();
+    setJsonValid(true);
+    setActiveMobileTab("editor");
     setIsCreatingNewApp(true);
     setSelectedApp(null);
     setStudioCompany('');
@@ -118,16 +148,13 @@ export default function ApplicationsPage() {
     setJsonData(initialTemplate);
     setShowStudioModal(true);
 
-    // Sync master config in background without delaying modal pop-up
-    api.getConfig().then(configData => {
-      const mainData = configData.master || configData || {};
-      if (mainData && Object.keys(mainData).length > 0) {
-        setJsonData(mainData);
-      }
-    }).catch(() => {});
+    loadStudioConfig();
   };
 
   const handleOpenAppEditor = (app: Application) => {
+    markDraftEdited();
+    setJsonValid(true);
+    setActiveMobileTab("editor");
     setIsCreatingNewApp(false);
     setSelectedApp(app);
     setStudioCompany(app.company || '');
@@ -141,12 +168,7 @@ export default function ApplicationsPage() {
     setJsonData(initialTemplate);
     setShowStudioModal(true);
 
-    if (!app.resume_template) {
-      api.getConfig().then(configData => {
-        const mainData = configData.master || configData || {};
-        setJsonData(mainData);
-      }).catch(() => {});
-    }
+    if (!app.resume_template) loadStudioConfig();
   };
 
   const handleCopyPdfName = () => {
@@ -170,6 +192,8 @@ export default function ApplicationsPage() {
     const finalCompany = studioCompany.trim() || jsonData?.company || jsonData?.name || jsonData?.company_name || 'Untitled Company';
     const finalRole = studioRole.trim() || jsonData?.role || jsonData?.title || jsonData?.job_title || jsonData?.position || 'Untitled Role';
 
+    if (!jsonValid || savingConfig) return;
+    markDraftEdited();
     setSavingConfig(true);
     try {
       if (isCreatingNewApp) {
@@ -210,8 +234,7 @@ export default function ApplicationsPage() {
         });
       }
 
-      setShowStudioModal(false);
-      setSelectedApp(null);
+      closeStudio();
     } catch (e: any) {
       alert('Failed to save application configuration: ' + e.message);
     } finally {
@@ -235,7 +258,7 @@ export default function ApplicationsPage() {
     const body = appJson.email?.body || appJson.cover_letter?.text || appJson.cover_letter?.body || appJson.body || app.email?.body || defaultBody;
 
     const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&cc=${encodeURIComponent(ccEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleOpenGmailInStudio = () => {
@@ -255,7 +278,7 @@ export default function ApplicationsPage() {
     const body = coverText || selectedApp?.email?.body || defaultBody;
 
     const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&cc=${encodeURIComponent(ccEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleDeleteApp = async (id: string, e: React.MouseEvent) => {
@@ -270,7 +293,8 @@ export default function ApplicationsPage() {
   };
 
   const handleToggleSection = (sectionName: string) => {
-    if (!jsonData) return;
+    if (!jsonData || !jsonValid) return;
+    markDraftEdited();
     const sections = { ...(jsonData.sections || {}) };
     sections[sectionName] = !sections[sectionName];
     setJsonData({ ...jsonData, sections });
@@ -290,11 +314,11 @@ export default function ApplicationsPage() {
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(sortedApps.map(a => a.id));
-    } else {
-      setSelectedIds([]);
-    }
+    const ids = sortedApps.map(app => app.id);
+    const visible = new Set(ids);
+    setSelectedIds(previous => e.target.checked
+      ? [...new Set([...previous, ...ids])]
+      : previous.filter(id => !visible.has(id)));
   };
 
   const handleToggleSelect = (id: string) => {
@@ -361,7 +385,7 @@ export default function ApplicationsPage() {
 
   const formatAppDate = (app: Application) => {
     const rawDate = app.date_applied || app.created_at || (app as any).date || (app as any).applied_date;
-    if (!rawDate) return new Date().toISOString().split('T')[0];
+    if (!rawDate) return "—";
     return rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
   };
 
@@ -392,7 +416,8 @@ export default function ApplicationsPage() {
         <input
           type="text"
           className="search-input"
-          placeholder="Search by company or role..."
+          aria-label="Search applications"
+          placeholder="Search by company or role…"
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           style={{ flex: 1, minWidth: '160px', maxWidth: '240px' }}
@@ -471,8 +496,15 @@ export default function ApplicationsPage() {
         )}
       </div>
 
+      {loading && <LoadingState label={apps.length ? 'Refreshing applications…' : 'Loading applications…'} skeleton={!apps.length} />}
+      {error && <div className="loading-error" role="alert">{error} <button className="btn btn-secondary" onClick={loadApps}>Retry</button></div>}
+
+      {!loading && !error && sortedApps.length === 0 && (
+        <p className="loading-state-panel">{apps.length ? 'No applications match these filters.' : 'No applications yet. Use Add Application to get started.'}</p>
+      )}
+
       {/* ── DESKTOP: Table View ── */}
-      <div className="app-table-wrapper" style={{
+      {!isMobile && sortedApps.length > 0 && <div className="app-table-wrapper" style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius)',
@@ -481,19 +513,20 @@ export default function ApplicationsPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-              <th style={{ padding: '12px 16px', width: '4%' }}>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '4%' }}>
                 <input 
                   type="checkbox" 
                   onChange={handleSelectAll}
-                  checked={sortedApps.length > 0 && selectedIds.length === sortedApps.length}
+                  aria-label="Select all filtered applications"
+                  checked={sortedApps.length > 0 && sortedApps.every(app => selectedIds.includes(app.id))}
                 />
               </th>
-              <th style={{ padding: '12px 16px', width: '22%' }}>Company</th>
-              <th style={{ padding: '12px 16px', width: '26%' }}>Role</th>
-              <th style={{ padding: '12px 16px', width: '14%' }}>Status</th>
-              <th style={{ padding: '12px 16px', width: '12%' }}>Priority</th>
-              <th style={{ padding: '12px 16px', width: '12%' }}>Applied Date</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right', width: '10%' }}>Actions</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '22%' }}>Company</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '26%' }}>Role</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '14%' }}>Status</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '12%' }}>Priority</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', width: '12%' }}>Applied Date</th>
+              <th style={{ padding: 'var(--application-row-padding) 16px', textAlign: 'right', width: '10%' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -502,17 +535,19 @@ export default function ApplicationsPage() {
               const isSelected = selectedIds.includes(app.id);
               return (
                 <tr key={app.id} style={{ borderBottom: '1px solid var(--border-soft)', background: isSelected ? 'var(--bg-hover)' : 'transparent' }}>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: 'var(--application-row-padding) 16px' }}>
                     <input 
                       type="checkbox" 
+                      aria-label={`Select ${app.company} application`}
                       checked={isSelected}
                       onChange={() => handleToggleSelect(app.id)}
                     />
                   </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{app.company}</td>
-                  <td style={{ padding: '12px 16px' }}>{app.role}</td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: 'var(--application-row-padding) 16px', fontWeight: 600 }}>{app.company}</td>
+                  <td style={{ padding: 'var(--application-row-padding) 16px' }}>{app.role}</td>
+                  <td style={{ padding: 'var(--application-row-padding) 16px' }}>
                     <select
+                      aria-label={`Status for ${app.company}`}
                       value={app.status || 'APPLIED'}
                       onChange={(e) => handleQuickStatusChange(app.id, e.target.value)}
                       style={{
@@ -534,11 +569,11 @@ export default function ApplicationsPage() {
                       <option value="REJECTED" style={{ background: 'var(--bg-card)', color: 'var(--danger)' }}>REJECTED</option>
                     </select>
                   </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: getPriorityColor(app.priority) }}>
+                  <td style={{ padding: 'var(--application-row-padding) 16px', fontWeight: 600, color: getPriorityColor(app.priority) }}>
                     {app.priority || 'MEDIUM'}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{formatAppDate(app)}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                  <td style={{ padding: 'var(--application-row-padding) 16px', color: 'var(--text-muted)' }}>{formatAppDate(app)}</td>
+                  <td style={{ padding: 'var(--application-row-padding) 16px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => handleOpenGmail(app)} title="Open Gmail with pre-filled application details">
                         <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>mail</span> Email
@@ -546,7 +581,7 @@ export default function ApplicationsPage() {
                       <button className="btn btn-secondary btn-sm" onClick={() => handleOpenAppEditor(app)}>
                         Open Studio
                       </button>
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={(e) => handleDeleteApp(app.id, e)}>
+                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} aria-label={`Delete ${app.company} application`} onClick={(e) => handleDeleteApp(app.id, e)}>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
                       </button>
                     </div>
@@ -556,10 +591,10 @@ export default function ApplicationsPage() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
 
       {/* ── MOBILE: Card Grid View ── */}
-      <div className="app-cards-wrapper">
+      {isMobile && sortedApps.length > 0 && <div className="app-cards-wrapper">
         {sortedApps.map((app) => {
           const badge = getStatusBadgeColor(app.status);
           return (
@@ -570,7 +605,8 @@ export default function ApplicationsPage() {
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{app.role}</div>
                 </div>
                 <select
-                  value={app.status || 'APPLIED'}
+                  aria-label={`Status for ${app.company}`}
+                      value={app.status || 'APPLIED'}
                   onChange={(e) => handleQuickStatusChange(app.id, e.target.value)}
                   style={{
                     padding: '3px 8px',
@@ -602,14 +638,14 @@ export default function ApplicationsPage() {
                 <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenAppEditor(app)}>
                   Open Studio
                 </button>
-                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={(e) => handleDeleteApp(app.id, e)}>
+                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} aria-label={`Delete ${app.company} application`} onClick={(e) => handleDeleteApp(app.id, e)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
                 </button>
               </div>
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* Full-screen Studio Modal */}
       {showStudioModal && jsonData && (
@@ -620,7 +656,8 @@ export default function ApplicationsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <input
                     type="text"
-                    placeholder="Company Name"
+                    aria-label="Company name"
+                    placeholder="Company name"
                     value={studioCompany}
                     onChange={e => setStudioCompany(e.target.value)}
                     style={{
@@ -630,13 +667,14 @@ export default function ApplicationsPage() {
                       border: '1px solid var(--border)',
                       borderRadius: '4px',
                       padding: '3px 8px',
-                      color: 'var(--text-main)',
+                      color: 'var(--text-primary)',
                       minWidth: '180px'
                     }}
                   />
                   <input
                     type="text"
-                    placeholder="Role Title"
+                    aria-label="Role title"
+                    placeholder="Role title"
                     value={studioRole}
                     onChange={e => setStudioRole(e.target.value)}
                     style={{
@@ -717,7 +755,7 @@ export default function ApplicationsPage() {
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>settings</span> PDF Settings
                 </button>
 
-                <button className="btn btn-ghost" onClick={() => { setShowStudioModal(false); setSelectedApp(null); }}>
+                <button className="btn btn-ghost" onClick={closeStudio}>
                   <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
@@ -727,8 +765,8 @@ export default function ApplicationsPage() {
               {/* Json Editor Pane */}
               <div className={`editor-pane ${activeMobileTab === 'preview' ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '300px', flex: 1, height: '100%' }}>
                 <SectionToggleBar sections={jsonData.sections} onToggleSection={handleToggleSection} />
-                <div style={{ flex: 1, position: 'relative', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '260px' }}>
-                  <JsonEditor value={jsonData} onChange={setJsonData} />
+                <div className="studio-editor-frame">
+                  <JsonEditor value={jsonData} onEdit={markDraftEdited} onChange={setJsonData} onValidityChange={setJsonValid} />
                 </div>
               </div>
 
@@ -736,6 +774,8 @@ export default function ApplicationsPage() {
               <div className={`preview-pane ${activeMobileTab === 'editor' ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
                 <LivePdfPreview
                   jsonPayload={jsonData}
+                  canCompile={jsonValid}
+                  fileLabel={[studioRole.trim(), studioCompany.trim()].filter(Boolean).join('_')}
                   previewType={previewType}
                   includePhoto={includePhoto}
                   onToggleType={setPreviewType}
@@ -746,8 +786,8 @@ export default function ApplicationsPage() {
 
             {/* Modal footer */}
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '8px', background: 'var(--bg-card)', flexShrink: 0 }}>
-              <button className="btn btn-secondary" onClick={() => { setShowStudioModal(false); setSelectedApp(null); }}>Close Studio</button>
-              <button className="btn btn-primary" onClick={handleSaveConfig} disabled={savingConfig}>
+              <button className="btn btn-secondary" onClick={closeStudio}>Close Studio</button>
+              <button className="btn btn-primary" onClick={handleSaveConfig} disabled={savingConfig || !jsonValid}>
                 {savingConfig ? (isCreatingNewApp ? 'Creating...' : 'Saving...') : (isCreatingNewApp ? 'Create Application' : 'Save Configuration')}
               </button>
             </div>

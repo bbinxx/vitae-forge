@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings, settingsStore } from '../../stores/settingsStore';
 import { api } from '../../services/api';
+import LoadingState from '../../components/common/LoadingState';
 import { Setting } from '../../types';
 
 export default function SettingsPage() {
-  const { settings, status, loading, saveSettings } = useSettings();
+  const { settings, loading, saveSettings } = useSettings();
   const [prefix, setPrefix] = useState('');
   const [folder, setFolder] = useState('');
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('system');
   const [density, setDensity] = useState<'compact' | 'comfortable'>('comfortable');
   const [sheetsUrl, setSheetsUrl] = useState('');
   const [syncingSheets, setSyncingSheets] = useState(false);
@@ -40,11 +41,8 @@ export default function SettingsPage() {
       setPrefix(settings.file_name_prefix || '');
       setFolder(settings.export_folder || '');
       setSheetsUrl(settings.google_sheets_webhook_url || '');
-      setTheme(settings.theme || 'dark');
+      setTheme(settings.theme || 'system');
       setDensity(settings.density || 'comfortable');
-      if (settings.photo_r2_key) {
-        loadPhotoUrl();
-      }
     }
   }, [settings]);
 
@@ -119,7 +117,7 @@ export default function SettingsPage() {
 
   const handlePickFolder = async () => {
     try {
-      const res = await fetch('/api/settings/pick-folder').then(r => r.json());
+      const res = await api.pickFolder();
       if (res && res.folder) {
         setFolder(res.folder);
       }
@@ -130,7 +128,8 @@ export default function SettingsPage() {
 
   const handleClearLocalData = () => {
     if (confirm('Danger! This will clear cached jobs and resume configurations. Continue?')) {
-      localStorage.clear();
+      localStorage.removeItem('cached_applications');
+      localStorage.removeItem('cached_bookmarks');
       window.location.reload();
     }
   };
@@ -141,6 +140,8 @@ export default function SettingsPage() {
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>System Settings</h2>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Configure PDF exports, local environments, and editor defaults.</p>
       </div>
+
+      {loading && <LoadingState label="Loading settings…" />}
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Profile photo card */}
@@ -332,6 +333,7 @@ export default function SettingsPage() {
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setTheme(t)}
+                  aria-pressed={theme === t}
                   style={{
                     flex: 1,
                     background: theme === t ? 'var(--accent)' : 'transparent',
@@ -354,6 +356,7 @@ export default function SettingsPage() {
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setDensity(d)}
+                  aria-pressed={density === d}
                   style={{
                     flex: 1,
                     background: density === d ? 'var(--accent)' : 'transparent',
@@ -389,7 +392,7 @@ export default function SettingsPage() {
 
         {/* Action Button */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving || loading}>
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>

@@ -4,7 +4,8 @@ import { api } from '../services/api';
 
 class ResumeStore {
   private bookmarks: Bookmark[] = [];
-  private loading = false;
+  private loading = true;
+  private error = "";
   private listeners = new Set<() => void>();
 
   constructor() {
@@ -27,15 +28,25 @@ class ResumeStore {
 
   getBookmarks() { return this.bookmarks; }
   isLoading() { return this.loading; }
+  getError() { return this.error; }
+
+  reset() {
+    this.bookmarks = [];
+    this.error = '';
+    this.loading = true;
+    this.notify();
+  }
 
   async load() {
     this.loading = true;
+    this.error = '';
     this.notify();
     try {
       const res = await api.getBookmarks();
       this.bookmarks = Array.isArray(res) ? res : res.bookmarks || [];
       localStorage.setItem('cached_bookmarks', JSON.stringify(this.bookmarks));
     } catch (e) {
+      this.error = "Could not load saved resumes.";
       console.error('Failed to load bookmarks:', e);
     } finally {
       this.loading = false;
@@ -43,30 +54,19 @@ class ResumeStore {
     }
   }
 
-  async create(name: string, data: any, sourceAppId?: string): Promise<Bookmark | undefined> {
-    try {
-      const res = await api.createBookmark({ name, data, source_app_id: sourceAppId });
-      await this.load();
-      return res.bookmark;
-    } catch (e: any) {
-      alert('Failed to save resume: ' + e.message);
-      return undefined;
-    }
+  async create(name: string, data: any, sourceAppId?: string): Promise<Bookmark> {
+    const res = await api.createBookmark({ name, data, source_app_id: sourceAppId });
+    await this.load();
+    return res.bookmark;
   }
 
   async update(id: string, data: Partial<Bookmark>) {
-    try {
-      // Always send both required fields: name + data
-      const existing = this.bookmarks.find(b => b.id === id);
-      const payload = {
-        name: data.name ?? existing?.name ?? '',
-        data: data.data ?? existing?.data ?? {},
-      };
-      await api.updateBookmark(id, payload);
-      await this.load();
-    } catch (e: any) {
-      alert('Failed to update resume: ' + e.message);
-    }
+    const existing = this.bookmarks.find(bookmark => bookmark.id === id);
+    await api.updateBookmark(id, {
+      name: data.name ?? existing?.name ?? '',
+      data: data.data ?? existing?.data ?? {},
+    });
+    await this.load();
   }
 
   async delete(id: string) {
@@ -98,16 +98,18 @@ export const resumeStore = new ResumeStore();
 export function useResumes() {
   const [bookmarks, setBookmarks] = useState(resumeStore.getBookmarks());
   const [loading, setLoading] = useState(resumeStore.isLoading());
+  const [error, setError] = useState(resumeStore.getError());
 
   useEffect(() => {
     const unsubscribe = resumeStore.subscribe(() => {
       setBookmarks(resumeStore.getBookmarks());
       setLoading(resumeStore.isLoading());
+      setError(resumeStore.getError());
     });
     return () => {
       unsubscribe();
     };
   }, []);
 
-  return { bookmarks, loading, loadBookmarks: () => resumeStore.load() };
+  return { bookmarks, loading, error, loadBookmarks: () => resumeStore.load() };
 }

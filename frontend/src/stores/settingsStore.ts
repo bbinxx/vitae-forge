@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Setting, SystemStatus } from '../types';
-import { api, apiFetch } from '../services/api';
+import { api } from '../services/api';
 
 class SettingsStore {
   private settings: Setting = {
     export_folder: '',
     file_name_prefix: 'RESUME-',
-    theme: 'dark',
+    theme: 'system',
     density: 'comfortable',
     editor_font_size: 13,
     editor_tab_size: 2,
@@ -14,11 +14,12 @@ class SettingsStore {
     editor_minimap: false
   };
   private status: SystemStatus = {
-    server_ok: true,
-    latex_ok: true,
-    pdf_engine_ok: true
+    server_ok: false,
+    latex_ok: false,
+    pdf_engine_ok: false
   };
   private loading = false;
+  private loadRequest?: Promise<void>;
   private listeners = new Set<() => void>();
 
   subscribe(listener: () => void) {
@@ -34,7 +35,14 @@ class SettingsStore {
   getStatus() { return this.status; }
   isLoading() { return this.loading; }
 
-  async load() {
+  load() {
+    if (!this.loadRequest) {
+      this.loadRequest = this.fetchSettings().finally(() => { this.loadRequest = undefined; });
+    }
+    return this.loadRequest;
+  }
+
+  private async fetchSettings() {
     this.loading = true;
     this.notify();
     try {
@@ -42,8 +50,9 @@ class SettingsStore {
       if (data && typeof data === 'object') {
         this.settings = { ...this.settings, ...data };
       }
-      await this.checkStatus();
+      this.status = { ...this.status, server_ok: true };
     } catch (e) {
+      this.status = { ...this.status, server_ok: false };
       console.error('Failed to load settings:', e);
     } finally {
       this.loading = false;
@@ -52,35 +61,11 @@ class SettingsStore {
   }
 
   async save(data: Setting) {
-    try {
-      await api.saveSettings(data);
-      this.settings = data;
-      this.notify();
-    } catch (e: any) {
-      alert('Failed to save settings: ' + e.message);
-    }
+    await api.saveSettings(data);
+    this.settings = data;
+    this.notify();
   }
 
-  async checkStatus() {
-    try {
-      const config = await api.getConfig().catch(() => null);
-      const isLatexOk = config ? config.latex_available !== false : true;
-      this.status = {
-        server_ok: true,
-        latex_ok: isLatexOk,
-        pdf_engine_ok: true,
-        version: 'v1.1.0'
-      };
-      this.notify();
-    } catch {
-      this.status = {
-        server_ok: false,
-        latex_ok: false,
-        pdf_engine_ok: false
-      };
-      this.notify();
-    }
-  }
 }
 
 export const settingsStore = new SettingsStore();
