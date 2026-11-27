@@ -1,74 +1,105 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+let editorAssets: Promise<any> | undefined;
+
+function loadEditor() {
+  if (!editorAssets) {
+    const base = 'https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.5/jsoneditor.min';
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = base + '.css';
+    document.head.append(stylesheet);
+    editorAssets = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = base + '.js';
+      script.onload = () => resolve((window as any).JSONEditor);
+      script.onerror = reject;
+      document.head.append(script);
+    });
+  }
+  return editorAssets;
+}
 
 interface JsonEditorProps {
   value: any;
   onChange: (value: any) => void;
+  onEdit?: () => void;
+  onValidityChange?: (valid: boolean) => void;
 }
 
-export default function JsonEditor({ value, onChange }: JsonEditorProps) {
+export default function JsonEditor({ value, onChange, onEdit, onValidityChange }: JsonEditorProps) {
+  const [Editor, setEditor] = useState(() => (window as any).JSONEditor);
+  const [valid, setValid] = useState(true);
+  const editedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<any>(null);
-  const isLocalUpdateRef = useRef<boolean>(false);
+  const localValueRef = useRef<any>();
+  const callbacksRef = useRef({ onChange, onEdit, onValidityChange });
+  callbacksRef.current = { onChange, onEdit, onValidityChange };
+
+  const handleText = (text: string) => {
+    editedRef.current = true;
+    const callbacks = callbacksRef.current;
+    callbacks.onEdit?.();
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Resume data must be a JSON object');
+      }
+      localValueRef.current = parsed;
+      setValid(true);
+      callbacks.onValidityChange?.(true);
+      callbacks.onChange(parsed);
+    } catch {
+      setValid(false);
+      callbacks.onValidityChange?.(false);
+    }
+  };
 
   useEffect(() => {
-    if (!containerRef.current || !(window as any).JSONEditor) return;
+    let mounted = true;
+    if (!Editor) {
+      loadEditor().then(editor => {
+        if (mounted && editor && !editedRef.current) setEditor(() => editor);
+      }).catch(() => {});
+    }
+    return () => { mounted = false; };
+  }, [Editor]);
 
-    const options = {
+  useEffect(() => {
+    if (!containerRef.current || !Editor) return;
+    const editor = new Editor(containerRef.current, {
       mode: 'code',
       modes: ['code', 'tree', 'form'],
-      onChangeText: (text: string) => {
-        try {
-          const parsed = JSON.parse(text);
-          isLocalUpdateRef.current = true;
-          if (onChange) {
-            onChange(parsed);
-          }
-        } catch (e) {
-          // Ignore invalid JSON typing states
-        }
-      }
-    };
-
-    editorRef.current = new (window as any).JSONEditor(containerRef.current, options);
-    
-    if (value) {
-      editorRef.current.set(value);
-    }
-
+      onChangeText: handleText,
+    });
+    editorRef.current = editor;
     return () => {
-      if (editorRef.current) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-      }
+      editor.destroy();
+      editorRef.current = null;
     };
-  }, []);
+  }, [Editor]);
 
-  // Update editor value if changed from outside props
   useEffect(() => {
-    if (editorRef.current && value) {
-      if (isLocalUpdateRef.current) {
-        isLocalUpdateRef.current = false;
-        return;
-      }
-      try {
-        const currentVal = editorRef.current.get();
-        if (JSON.stringify(currentVal) !== JSON.stringify(value)) {
-          editorRef.current.set(value);
-        }
-      } catch (e) {
-        // Fallback update if editor is currently in invalid text state
-        try {
-          editorRef.current.set(value);
-        } catch (err) {}
-      }
+    if (localValueRef.current === value) return;
+    editorRef.current?.set(value ?? {});
+    if (textareaRef.current) {
+      textareaRef.current.value = JSON.stringify(value ?? {}, null, 2);
     }
-  }, [value]);
+    setValid(true);
+    callbacksRef.current.onValidityChange?.(true);
+  }, [value, Editor]);
 
   return (
-    <div 
-      ref={containerRef} 
-      style={{ flex: 1, width: '100%', height: '100%', minHeight: 0 }}
-      className="react-json-editor-container"
-    />
+    <div className="resume-json-editor">
+      {Editor ? (
+        <div ref={containerRef} className="react-json-editor-container" />
+      ) : (
+        <textarea ref={textareaRef} className="input-field" aria-label="Resume JSON"
+          aria-invalid={!valid} spellCheck={false} onChange={(event) => handleText(event.target.value)} />
+      )}
+      {!valid && <p className="editor-error" role="status">Fix the JSON before saving. Resume data must be a JSON object.</p>}
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { NAV_ITEMS } from '../../constants/nav.js';
+import { handleWorkspaceLink, workspacePath } from '../../constants/workspaceRoutes';
 
 interface BottomNavProps {
   activeTab: string;
@@ -8,7 +9,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <nav className="mobile-bottom-nav" style={{
+    <nav aria-label="Workspace" className="mobile-bottom-nav" style={{
       position: 'fixed',
       bottom: 0,
       left: 0,
@@ -26,9 +27,11 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
       {NAV_ITEMS.map(item => {
         const isActive = activeTab === item.id;
         return (
-          <button
+          <a
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            href={workspacePath(item.id)}
+            aria-current={isActive ? 'page' : undefined}
+            onClick={event => handleWorkspaceLink(event, () => setActiveTab(item.id))}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -41,6 +44,7 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
               border: 'none',
               color: isActive ? 'var(--accent)' : 'var(--text-muted)',
               cursor: 'pointer',
+              textDecoration: 'none',
               transition: 'color 0.15s ease'
             }}
           >
@@ -59,7 +63,7 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
             }}>
               {item.label}
             </span>
-          </button>
+          </a>
         );
       })}
     </nav>

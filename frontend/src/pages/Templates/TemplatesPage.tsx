@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
 import { api } from '../../services/api';
 import LivePdfPreview from '../../components/common/LivePdfPreview';
 import { Recipe } from '../../types';
@@ -19,7 +19,11 @@ export default function TemplatesPage() {
   const [activeSubTab, setActiveSubTab] = useState<'ide' | 'recipes'>('ide');
   const [selectedTex, setSelectedTex] = useState<TexTemplate>(TEMPLATES[0]);
   const [texContent, setTexContent] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadedFilename, setLoadedFilename] = useState('');
+  const [editorMode, setEditorMode] = useState<'pending' | 'monaco' | 'plain'>('pending');
+  const [loadError, setLoadError] = useState('');
+  const [templateNotice, setTemplateNotice] = useState('');
+  const [previewRevision, setPreviewRevision] = useState(0);
   const [saving, setSaving] = useState(false);
   const [isModified, setIsModified] = useState(false);
   const [masterConfig, setMasterConfig] = useState<any>(null);
@@ -37,9 +41,35 @@ export default function TemplatesPage() {
   const [recipeKeywords, setRecipeKeywords] = useState('');
 
   useEffect(() => {
-    loadTex(selectedTex.filename);
-    loadMasterConfig();
+    void loadMasterConfig();
     loadRecipes();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    import('../../components/common/templateMonaco').then(({ default: monaco }) => {
+      loader.config({ monaco });
+      if (active) setEditorMode(mode => mode === 'plain' ? mode : 'monaco');
+    }).catch(
+      () => { if (active) setEditorMode('plain'); },
+    );
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { filename } = selectedTex;
+    setLoadError('');
+    setTemplateNotice('');
+    api.getTemplate(filename, controller.signal).then(result => {
+      if (controller.signal.aborted) return;
+      setTexContent(result.content);
+      setIsModified(false);
+      setLoadedFilename(filename);
+    }).catch(error => {
+      if (!controller.signal.aborted) setLoadError(error.message);
+    });
+    return () => controller.abort();
   }, [selectedTex]);
 
   const loadRecipes = () => {
@@ -70,27 +100,29 @@ export default function TemplatesPage() {
     } catch {}
   };
 
-  const loadTex = async (filename: string) => {
-    setLoading(true);
-    setIsModified(false);
-    try {
-      const res = await api.getTemplate(filename);
-      setTexContent(res.content || '');
-    } catch (e: any) {
-      console.error(e.message);
-    } finally {
-      setLoading(false);
+  const selectTemplate = (template: TexTemplate) => {
+    if (saving) return;
+    if (template.filename !== selectedTex.filename) {
+      if (isModified && !confirm('Discard your unsaved template changes?')) return;
+      setLoadedFilename('');
+      setLoadError('');
+      setIsModified(false);
+      setSelectedTex(template);
     }
+    setActiveMobileTab('editor');
   };
 
   const handleSaveTex = async () => {
+    if (saving || !isModified || loadedFilename !== selectedTex.filename) return;
     setSaving(true);
+    setTemplateNotice('');
     try {
-      await api.saveTemplate(selectedTex.filename, texContent);
+      await api.saveTemplate(loadedFilename, texContent);
       setIsModified(false);
-      alert('Template saved successfully!');
+      setPreviewRevision(revision => revision + 1);
+      setTemplateNotice('Template saved.');
     } catch (e: any) {
-      alert('Failed to save template: ' + e.message);
+      setTemplateNotice('Could not save template. ' + e.message);
     } finally {
       setSaving(false);
     }
@@ -108,7 +140,7 @@ export default function TemplatesPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModified, saving, texContent]);
+  }, [isModified, saving, texContent, loadedFilename, selectedTex.filename]);
 
   const handleAddRecipe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,13 +228,15 @@ export default function TemplatesPage() {
             <button
               className="btn btn-primary btn-sm"
               onClick={handleSaveTex}
-              disabled={saving || !isModified}
+              disabled={saving || !isModified || loadedFilename !== selectedTex.filename}
               style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>save</span>
               <span>{saving ? 'Saving...' : 'Save (Ctrl+S)'}</span>
             </button>
           </div>
+
+          {templateNotice && <p role="status">{templateNotice}</p>}
 
           {/* IDE Main Split Layout */}
           <div className="templates-ide-grid" style={{ overflowY: 'auto' }}>
@@ -214,19 +248,18 @@ export default function TemplatesPage() {
               {TEMPLATES.map((tpl) => {
                 const isActive = selectedTex.filename === tpl.filename;
                 return (
-                  <div
+                  <button type="button"
                     key={tpl.filename}
-                    onClick={() => {
-                      setSelectedTex(tpl);
-                      setActiveMobileTab('editor');
-                    }}
+                    disabled={saving}
+                    aria-pressed={isActive}
+                    onClick={() => selectTemplate(tpl)}
                     style={{
                       background: isActive ? 'var(--accent-dim)' : 'var(--bg-card)',
                       border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
                       borderRadius: 'var(--radius)',
                       padding: '12px',
                       cursor: 'pointer',
-                      transition: 'all 0.15s',
+                      textAlign: 'left',
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: isActive ? 'var(--accent)' : 'var(--text-primary)' }}>
@@ -235,7 +268,7 @@ export default function TemplatesPage() {
                     <div style={{ fontSize: '0.7rem', fontFamily: 'var(--mono)', color: 'var(--text-muted)', marginTop: '2px' }}>
                       {tpl.filename}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -249,15 +282,14 @@ export default function TemplatesPage() {
               </div>
 
               <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                {loading ? (
+                {loadError ? <p className="editor-error" role="alert">{loadError}</p> : loadedFilename !== selectedTex.filename ? (
                   <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#858585' }}>
-                    Loading Monaco Code Editor...
+                    Loading template…
                   </div>
-                ) : (
+                ) : editorMode === 'monaco' ? (
                   <Editor
                     height="100%"
-                    defaultLanguage="stex"
-                    language="stex"
+                    language="latex"
                     theme="vs-dark"
                     value={texContent}
                     onChange={(val) => {
@@ -265,6 +297,8 @@ export default function TemplatesPage() {
                       setIsModified(true);
                     }}
                     options={{
+                      readOnly: saving,
+                      ariaLabel: 'LaTeX template source',
                       fontSize: 13,
                       fontFamily: "'Fira Code', 'Consolas', monospace",
                       minimap: { enabled: false },
@@ -274,17 +308,26 @@ export default function TemplatesPage() {
                       padding: { top: 8, bottom: 8 },
                     }}
                   />
+                ) : (
+                  <textarea className="template-source input-field" aria-label="LaTeX template source"
+                    spellCheck={false} readOnly={saving} value={texContent}
+                    onChange={event => {
+                      setEditorMode("plain");
+                      setTexContent(event.target.value);
+                      setIsModified(true);
+                    }} />
                 )}
               </div>
             </div>
 
             {/* Live PDF Preview Pane */}
             <div className={`preview-pane ${activeMobileTab !== 'preview' ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: '350px' }}>
-              <LivePdfPreview
+              {loadedFilename === selectedTex.filename && <LivePdfPreview
+                key={selectedTex.filename + ':' + previewRevision}
                 jsonPayload={masterConfig}
                 previewType={selectedTex.filename === 'cover_letter.tex' ? 'cover_letter' : 'resume'}
                 includePhoto={selectedTex.filename === 'template_photo.tex'}
-              />
+              />}
             </div>
           </div>
         </div>

@@ -70,6 +70,30 @@ docker run -d --name vitae-forge --init --env-file .env \
   --security-opt no-new-privileges:true --cap-drop ALL vitae-forge:local
 ```
 
+## Workspace and PDF exports
+
+| Screen | URL |
+| --- | --- |
+| Applications | `/workspace/applications` |
+| Saved Resumes | `/workspace/saved-resumes` |
+| Templates | `/workspace/templates` |
+| Settings | `/workspace/settings` |
+
+Opening a workspace URL while signed out redirects to `/login` and returns
+to the requested screen after sign-in. An expired session also returns to
+sign-in. With `AUTH_REQUIRED=true`, unauthenticated data API requests return
+HTTP 401. Changing `JWT_SECRET` requires users to sign in again.
+
+- **Save PDF** downloads to the browser. It reuses the current preview when
+  the draft, document type, and photo selection match. A changed draft
+  compiles before downloading. Fix invalid JSON before exporting.
+- **Save to server folder** appears after you configure an export folder in
+  Settings. In Docker, mount a dedicated host directory at a path such as
+  `/exports`, grant the app user write access, and enter the container path
+  in Settings.
+- Preview timing includes the request and download. A percentage appears
+  during the download when the response provides the PDF size.
+
 ## Runtime behavior and storage
 
 - The service runs as UID/GID 10001. Uploads and exported PDFs require writable
@@ -77,8 +101,10 @@ docker run -d --name vitae-forge --init --env-file .env \
 - The health check requests `/login`, which must serve the built SPA successfully.
   It remains public with authentication enabled and uses the configured port.
   This is an HTTP/frontend availability check, not a PostgreSQL or R2 readiness check.
-- Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in `/tmp` are ephemeral. Backend template edits are also ephemeral;
-  manage durable template changes in source control or provision explicit storage.
+- Uploads persist in `/app/assets` under Compose. Generated PDFs and logs in
+  `/tmp` are ephemeral. Templates saved from the workspace are stored per
+  account in PostgreSQL. The bundled templates are the defaults for accounts
+  without an override.
 - The bundled templates use standard fonts. Custom templates requiring additional
   fonts can bundle them as project assets. Additional TeX packages must be
   available in the compiler service.

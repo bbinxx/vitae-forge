@@ -94,10 +94,6 @@ def logout(response: Response):
 def read_users_me(request: Request):
     user_id = getattr(request.state, "user_id", None)
     if not user_id:
-        # Fallback to default user if auth not enforced
-        auth_required = os.environ.get("AUTH_REQUIRED", "false").lower() == "true"
-        if not auth_required:
-            return {"id": "default_user", "username": "Default User", "authenticated": False}
         raise HTTPException(status_code=401, detail="Not authenticated")
         
     user = get_user_by_id(user_id)

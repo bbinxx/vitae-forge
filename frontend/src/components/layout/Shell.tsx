@@ -13,7 +13,8 @@ interface ShellProps {
 
 export default function Shell({ activeTab, setActiveTab, user, onSignOut, children }: ShellProps) {
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)', overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)', overflow: 'hidden' }}>
+      <a className="skip-link" href="#workspace-content">Skip to content</a>
       {/* Desktop Navigation */}
       <Header activeTab={activeTab} setActiveTab={setActiveTab} user={user} onSignOut={onSignOut} />
 
@@ -49,6 +50,7 @@ export default function Shell({ activeTab, setActiveTab, user, onSignOut, childr
         <button
           onClick={onSignOut}
           style={{ background: 'transparent', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', padding: '6px', cursor: 'pointer' }}
+          aria-label="Sign out"
           title="Sign Out"
         >
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
@@ -56,7 +58,7 @@ export default function Shell({ activeTab, setActiveTab, user, onSignOut, childr
       </header>
 
       {/* Main Content Area */}
-      <main className="main-content">
+      <main className="main-content" id="workspace-content" tabIndex={-1}>
         {children}
       </main>
 

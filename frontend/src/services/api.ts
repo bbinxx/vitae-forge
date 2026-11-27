@@ -1,8 +1,17 @@
+import { workspaceReturnPath } from '../constants/workspaceRoutes';
 import { Application, Bookmark, Setting, Recipe } from '../types';
 
 export function clearStoredSession(): void {
   for (const key of ['token', 'user', 'cached_applications', 'cached_bookmarks']) {
     localStorage.removeItem(key);
+  }
+}
+
+export function redirectToSignIn(): void {
+  clearStoredSession();
+  if (window.location.pathname !== '/login') {
+    const next = workspaceReturnPath(window.location.pathname);
+    window.location.replace('/login?next=' + encodeURIComponent(next));
   }
 }
 
@@ -15,9 +24,8 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   try {
     const res = await fetch(endpoint, { ...options, headers });
     
-    if (res.status === 401 && !window.location.pathname.includes('/login')) {
-      clearStoredSession();
-      window.location.href = '/login';
+    if (res.status === 401 && window.location.pathname !== '/login') {
+      redirectToSignIn();
       throw new Error('Session expired');
     }
 
@@ -33,7 +41,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     }
     return res as unknown as T;
   } catch (err: any) {
-    console.error('API Fetch Error:', err);
+    if (err.name !== 'AbortError') console.error('API Fetch Error:', err);
     throw err;
   }
 }
@@ -71,7 +79,8 @@ export const api = {
   getSettingsPhotoUrl: () => apiFetch<{ url: string | null }>('/api/settings/photo-url'),
 
   // LaTeX Templates
-  getTemplate: (filename: string) => apiFetch<{ content: string; filename: string }>(`/api/template/${filename}`),
+  getTemplate: (filename: string, signal?: AbortSignal) =>
+    apiFetch<{ content: string; filename: string }>(`/api/template/${filename}`, { signal }),
   saveTemplate: (filename: string, content: string) => apiFetch<{ ok: boolean; filename: string }>(`/api/template/${filename}`, {
     method: 'PUT',
     body: JSON.stringify({ content }),

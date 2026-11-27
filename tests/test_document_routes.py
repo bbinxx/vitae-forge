@@ -27,6 +27,7 @@ class RouteTests(unittest.TestCase):
         self.client.headers['Authorization']='Bearer '+create_access_token({'sub':'synthetic-user'})
         for target in ['backend.api.preview.get_full_config','backend.api.studio.get_full_config','backend.services.document_service.get_full_config']:
             p=patch(target,return_value=self.config);p.start();self.addCleanup(p.stop)
+        p=patch('backend.db.db.get_template_override',return_value=None);p.start();self.addCleanup(p.stop)
         p=patch('backend.services.texcompiler_client.TexCompilerClient.from_env')
         self.remote=p.start();self.addCleanup(p.stop)
         self.remote.return_value.compile.return_value=PDF
@@ -62,6 +63,21 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(response.json(),{'ok':True,'path':str(self.root/'export/TEST_EXPORT.pdf')})
         self.assertEqual((self.root/'TEST_EXPORT.pdf').read_bytes(),PDF)
 
+    def test_folder_export_preserves_the_accounts_profile_photo(self):
+        photo = self.root / "synthetic.jpg"
+        photo.write_bytes(b"synthetic image")
+        settings = {"export_folder": str(self.root / "export"), "photo_r2_key": "synthetic.jpg"}
+        with patch("backend.api.studio.db.get_settings", return_value=settings), \
+                patch("backend.api.studio.DIST_DIR", self.root), \
+                patch("backend.services.photo_service.resolve_photo_path", return_value=photo):
+            response = self.client.post("/api/export-pdf-local", json={
+                "config": self.config, "pdf_name": "photo", "include_photo": True,
+            })
+        self.assertEqual(response.status_code, 200, response.text)
+        files = self.remote.return_value.compile.call_args.kwargs["files"]
+        self.assertEqual(files["assets/profile-photo.jpg"], b"synthetic image")
+        self.assertFalse(photo.exists())
+
     def test_source_and_zip_downloads_do_not_call_compilation_service(self):
         self.remote.side_effect=AssertionError('Source downloads must not compile')
         response=self.client.post('/download-latex-direct',json={'config':self.config,'name':'source'})
@@ -91,3 +107,17 @@ class RouteTests(unittest.TestCase):
         with patch('backend.api.studio._load_bookmarks',side_effect=lambda user_id=None: [bookmark] if user_id=='synthetic-user' else []):
             response=self.client.get('/bookmarks/test/download-zip')
         self.assertEqual(response.status_code,200)
+
+    def test_template_override_is_private_and_used_in_preview(self):
+        templates = {}
+        original = self.client.get('/api/template/template.tex').json()['content']
+        custom = original + '\n% Synthetic private override\n'
+        with patch('backend.db.db.get_template_override', side_effect=lambda user, name: templates.get((user, name))), \
+                patch('backend.db.db.save_template_override', side_effect=lambda user, name, content: templates.update({(user, name): content})):
+            self.assertEqual(self.client.put('/api/template/template.tex', json={'content': custom}).status_code, 200)
+            self.assertEqual(self.client.get('/api/template/template.tex').json()['content'], custom)
+            other = {'Authorization': 'Bearer ' + create_access_token({'sub': 'another-synthetic-user'})}
+            self.assertEqual(self.client.get('/api/template/template.tex', headers=other).json()['content'], original)
+            response = self.client.post('/api/preview-pdf', json={'config': self.config})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('Synthetic private override', self.remote.return_value.compile.call_args.args[0])

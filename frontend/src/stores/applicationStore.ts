@@ -4,7 +4,8 @@ import { api } from '../services/api';
 
 class ApplicationStore {
   private applications: Application[] = [];
-  private loading = false;
+  private loading = true;
+  private error = "";
   private listeners = new Set<() => void>();
 
   constructor() {
@@ -27,9 +28,18 @@ class ApplicationStore {
 
   getApplications() { return this.applications; }
   isLoading() { return this.loading; }
+  getError() { return this.error; }
+
+  reset() {
+    this.applications = [];
+    this.error = '';
+    this.loading = true;
+    this.notify();
+  }
 
   async load() {
     this.loading = true;
+    this.error = '';
     this.notify();
     try {
       const res = await api.getApplications();
@@ -37,6 +47,7 @@ class ApplicationStore {
       this.applications = Array.isArray(res) ? res : res.applications || [];
       localStorage.setItem('cached_applications', JSON.stringify(this.applications));
     } catch (e) {
+      this.error = "Could not load applications.";
       console.error('Failed to load applications:', e);
     } finally {
       this.loading = false;
@@ -44,37 +55,31 @@ class ApplicationStore {
     }
   }
 
-  async create(company: string, role: string, status: string, priority: string): Promise<Application | undefined> {
+  async create(company: string, role: string, status: string, priority: string): Promise<Application> {
     return this.createFromJson({ company, role, status, priority });
   }
 
-  async createFromJson(jsonObj: Record<string, any>): Promise<Application | undefined> {
-    try {
-      let baseConfig = {};
-      if (!jsonObj.resume_template) {
-        const configRes = await api.getConfig().catch(() => ({}));
-        baseConfig = configRes.master || configRes || {};
-      }
-
-      const payload = {
-        company: jsonObj.company || jsonObj.name || jsonObj.company_name || jsonObj.companyName || 'Untitled Company',
-        role: jsonObj.role || jsonObj.title || jsonObj.job_title || jsonObj.jobTitle || jsonObj.position || 'Untitled Role',
-        status: jsonObj.status || 'APPLIED',
-        priority: jsonObj.priority || 'MEDIUM',
-        date_applied: jsonObj.date_applied || new Date().toISOString().split('T')[0],
-        resume_template: jsonObj.resume_template || baseConfig,
-        ...jsonObj
-      };
-
-      const res = await api.createApplication(payload);
-      await this.load();
-      return res.application || res;
-    } catch (e: any) {
-      alert('Failed to create application: ' + e.message);
-      return undefined;
+  async createFromJson(jsonObj: Record<string, any>): Promise<Application> {
+    let baseConfig = {};
+    if (!jsonObj.resume_template) {
+      const configRes = await api.getConfig().catch(() => ({}));
+      baseConfig = configRes.master || configRes || {};
     }
-  }
 
+    const payload = {
+      company: jsonObj.company || jsonObj.name || jsonObj.company_name || jsonObj.companyName || 'Untitled Company',
+      role: jsonObj.role || jsonObj.title || jsonObj.job_title || jsonObj.jobTitle || jsonObj.position || 'Untitled Role',
+      status: jsonObj.status || 'APPLIED',
+      priority: jsonObj.priority || 'MEDIUM',
+      date_applied: jsonObj.date_applied || new Date().toISOString().split('T')[0],
+      resume_template: jsonObj.resume_template || baseConfig,
+      ...jsonObj
+    };
+
+    const res = await api.createApplication(payload);
+    await this.load();
+    return res.application || res;
+  }
 
   async update(id: string, data: Partial<Application>) {
     try {
@@ -118,16 +123,18 @@ export const applicationStore = new ApplicationStore();
 export function useApplications() {
   const [apps, setApps] = useState(applicationStore.getApplications());
   const [loading, setLoading] = useState(applicationStore.isLoading());
+  const [error, setError] = useState(applicationStore.getError());
 
   useEffect(() => {
     const unsubscribe = applicationStore.subscribe(() => {
       setApps(applicationStore.getApplications());
       setLoading(applicationStore.isLoading());
+      setError(applicationStore.getError());
     });
     return () => {
       unsubscribe();
     };
   }, []);
 
-  return { apps, loading, loadApps: () => applicationStore.load() };
+  return { apps, loading, error, loadApps: () => applicationStore.load() };
 }

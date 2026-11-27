@@ -6,6 +6,7 @@ import re
 import tempfile
 
 from backend.core.generate import generate_resume
+from backend.db import db
 from backend.services.texcompiler_client import TexCompilerClient, TexCompilerError
 
 TEXT_EXTENSIONS = {'.tex', '.sty', '.cls', '.bib', '.bst', '.bbx', '.cbx', '.def', '.cfg', '.txt', '.csv'}
@@ -22,7 +23,8 @@ class LatexProject:
         return TexCompilerClient.from_env().compile(self.code, compiler=self.compiler, files=self.files)
 
 
-def render_project(config: dict, template: Path, *, photo: Path | None = None) -> LatexProject:
+def render_project(config: dict, template: Path, *, photo: Path | None = None,
+                   user_id: str | None = None) -> LatexProject:
     files = {}
     root = template.parent.resolve()
     total = 0
@@ -55,7 +57,9 @@ def render_project(config: dict, template: Path, *, photo: Path | None = None) -
         source = Path(directory) / 'config.json'
         output = Path(directory) / 'resume.tex'
         source.write_text(json.dumps(config), encoding='utf-8')
-        generate_resume(str(source), str(template), str(output), photo_path=photo_name, self_contained=True)
+        template_source = db.get_template_override(user_id, template.name) if user_id else None
+        generate_resume(str(source), str(template), str(output), photo_path=photo_name,
+                        self_contained=True, template_source=template_source)
         code = output.read_text(encoding='utf-8')
     directive = re.search(r'^\s*%\s*!TEX\s+(?:program|TS-program)\s*=\s*(\w+)', code, re.I | re.M)
     engine_source = code + '\n' + '\n'.join(v for k, v in files.items() if k.endswith(('.tex', '.sty', '.cls')) and isinstance(v, str))

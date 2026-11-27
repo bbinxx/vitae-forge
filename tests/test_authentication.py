@@ -10,6 +10,27 @@ from backend.services.user_service import authenticate_user
 
 
 class AuthenticationTests(unittest.TestCase):
+    def test_workspace_routes_redirect_to_login_with_return_path(self):
+        client = TestClient(app)
+        for page in ("applications", "saved-resumes", "templates", "settings"):
+            with self.subTest(page=page):
+                response = client.get(f"/workspace/{page}", follow_redirects=False)
+                self.assertEqual(response.status_code, 307)
+                self.assertEqual(response.headers["location"], f"/login?next=%2Fworkspace%2F{page}")
+        response = client.get("/", follow_redirects=False)
+        self.assertEqual(response.status_code, 307)
+        self.assertEqual(response.headers["location"], "/login?next=%2Fworkspace%2Fapplications")
+        for path in ("/pdf/synthetic.pdf", "/user-assets/synthetic.jpg"):
+            self.assertEqual(client.get(path, follow_redirects=False).status_code, 307)
+
+    def test_workspace_redirects_with_invalid_cookie_but_allows_valid_session(self):
+        client = TestClient(app)
+        client.cookies.set("auth_token", "invalid")
+        self.assertEqual(client.get("/workspace/settings", follow_redirects=False).status_code, 307)
+        client.cookies.set("auth_token", create_access_token({"sub": "synthetic-user"}))
+        response = client.get("/workspace/settings", follow_redirects=False)
+        self.assertIn(response.status_code, (200, 503))  # HTML can be unbuilt in source-only CI.
+
     def test_registration_trims_username_and_sets_http_only_cookie(self):
         user = {"id": "synthetic-user", "username": "candidate"}
         with patch("backend.api.auth.create_user", return_value=user) as create_user:

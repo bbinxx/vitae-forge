@@ -14,6 +14,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLoading(true);
 
@@ -157,9 +158,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
         )}
 
+        {loading && <span className="visually-hidden" role="status">{mode === 'login' ? 'Signing in…' : 'Creating account…'}</span>}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', marginBottom: '6px' }}>
+            <label htmlFor="login-username" style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', marginBottom: '6px' }}>
               Username
             </label>
             <div style={{ position: 'relative' }}>
@@ -174,6 +176,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 person
               </span>
               <input
+                id="login-username"
+                name="username"
+                autoComplete="username"
+                spellCheck={false}
                 type="text"
                 required
                 value={username}
@@ -187,7 +193,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   borderRadius: '6px',
                   color: 'var(--text-primary)',
                   fontSize: '0.82rem',
-                  outline: 'none',
                   boxSizing: 'border-box'
                 }}
               />
@@ -195,7 +200,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', marginBottom: '6px' }}>
+            <label htmlFor="login-password" style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', marginBottom: '6px' }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
@@ -210,6 +215,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 lock
               </span>
               <input
+                id="login-password"
+                name="password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
@@ -223,12 +231,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   borderRadius: '6px',
                   color: 'var(--text-primary)',
                   fontSize: '0.82rem',
-                  outline: 'none',
                   boxSizing: 'border-box'
                 }}
               />
               <button
                 type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword(!showPassword)}
                 style={{
                   position: 'absolute',
@@ -261,7 +269,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               justifyContent: 'center',
             }}
           >
-            {loading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading && <span className="loading-spinner" aria-hidden="true" />}
+            {loading ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
       </div>

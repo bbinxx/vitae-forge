@@ -100,6 +100,19 @@ npm run dev
 
 Open [the Vite development server](http://localhost:5173).
 
+## Using the workspace
+
+Sign in to open Applications, Saved Resumes, Templates, or Settings. Each
+screen has a bookmarkable URL under `/workspace/`. A signed-out visit returns
+you to the requested screen after sign-in.
+
+In Studio, choose **Resume** or **Cover Letter**, then click **Save PDF**
+to download the document. Save PDF uses the matching preview when available
+and compiles the current draft when needed. If you configure an export
+folder in Settings, **Save to server folder** writes a copy on the application
+host. See [Docker deployment](docs/DOCKER_DEPLOYMENT.md#workspace-and-pdf-exports)
+for URLs, authentication, and folder setup.
+
 ## Runtime configuration
 
 Vitae Forge v4.0.0 uses PostgreSQL for application data and TexCompiler for PDFs.
@@ -110,6 +123,8 @@ Set these values in the backend runtime environment before starting the app.
 | `DATABASE_URL` | PostgreSQL or Neon connection string with TLS settings |
 | `TEXCOMPILER_URL` | TexCompiler base URL reachable from the backend |
 | `TEXCOMPILER_API_TOKEN` | TexCompiler server bearer token |
+| `AUTH_REQUIRED` | Set to `true` to require authentication for the data APIs |
+| `JWT_SECRET` | Stable private signing key required when API authentication is enabled |
 
 Before upgrading an existing Firestore installation, follow the
 [migration guide](docs/MIGRATION_V4.md). See the [changelog](CHANGELOG.md)

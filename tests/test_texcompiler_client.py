@@ -60,7 +60,7 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(body, {'main_file':'resume.tex','compiler':'xelatex','files':{'resume.tex':'main','fonts/test.ttf':'AP8=','parts/body.tex':'Hello','images/photo.png':'iVBORw=='}})
 
     def test_service_errors_are_safe_and_keep_meaning(self):
-        for upstream, downstream in [(400,422),(422,422),(401,502),(403,502),(429,503),(503,503),(500,502),(408,504),(504,504),(413,413)]:
+        for upstream, downstream in [(400,422),(422,422),(401,502),(403,502),(429,503),(503,503),(530,503),(500,502),(408,504),(504,504),(413,413)]:
             with self.subTest(upstream=upstream):
                 type(self).status, type(self).content_type = upstream, 'application/json'
                 type(self).body = b'{"error":"private source server-side-test-token"}'

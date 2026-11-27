@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useResumes, resumeStore } from '../../stores/resumeStore';
 import { Bookmark } from '../../types';
+import LoadingState from '../../components/common/LoadingState';
 import JsonEditor from '../../components/common/JsonEditor';
 import LivePdfPreview from '../../components/common/LivePdfPreview';
 import SectionToggleBar from '../../components/SectionToggleBar';
 import { api } from '../../services/api';
 
 export default function SavedResumesPage() {
-  const { bookmarks, loading, loadBookmarks } = useResumes();
+  const { bookmarks, loading, error, loadBookmarks } = useResumes();
   const [filterText, setFilterText] = useState('');
-  const [sortField, setSortField] = useState('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Modals & Creation
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newResumeName, setNewResumeName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   // Selected for studio modal
   const [selectedItem, setSelectedItem] = useState<Bookmark | null>(null);
   const [jsonData, setJsonData] = useState<any>(null);
+  const [jsonValid, setJsonValid] = useState(true);
   const [previewType, setPreviewType] = useState<'resume' | 'cover_letter'>('resume');
   const [includePhoto, setIncludePhoto] = useState(true);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
@@ -34,10 +36,11 @@ export default function SavedResumesPage() {
 
   const handleCreateResume = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newResumeName.trim()) return;
+    if (!newResumeName.trim() || creating) return;
+    setCreating(true);
 
     try {
-      const configRes = await api.getConfig().catch(() => ({}));
+      const configRes = await api.getConfig();
       const baseConfig = configRes.master || configRes || {};
 
       await resumeStore.create(newResumeName.trim(), baseConfig);
@@ -45,11 +48,13 @@ export default function SavedResumesPage() {
       setShowCreateModal(false);
     } catch (e: any) {
       alert('Failed to create resume: ' + e.message);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleSaveConfig = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !jsonValid || savingConfig) return;
     setSavingConfig(true);
     try {
       await api.updateBookmark(selectedItem.id, { name: selectedItem.name, data: jsonData });
@@ -63,13 +68,15 @@ export default function SavedResumesPage() {
   };
 
   const handleToggleSection = (sectionName: string) => {
-    if (!jsonData) return;
+    if (!jsonData || !jsonValid) return;
     const sections = { ...(jsonData.sections || {}) };
     sections[sectionName] = !sections[sectionName];
     setJsonData({ ...jsonData, sections });
   };
 
   const handleOpenStudio = (bm: Bookmark) => {
+    setJsonValid(true);
+    setActiveMobileTab("editor");
     setSelectedItem(bm);
     setJsonData(bm.data || {});
   };
@@ -97,8 +104,12 @@ export default function SavedResumesPage() {
   const handleSaveRename = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!renamingItem || !renameValue.trim()) return;
-    await resumeStore.update(renamingItem.id, { name: renameValue.trim() });
-    setRenamingItem(null);
+    try {
+      await resumeStore.update(renamingItem.id, { name: renameValue.trim() });
+      setRenamingItem(null);
+    } catch (error) {
+      alert('Failed to rename resume: ' + (error as Error).message);
+    }
   };
 
   // Filter & Sort
@@ -138,7 +149,8 @@ export default function SavedResumesPage() {
         <input
           type="text"
           className="search-input"
-          placeholder="Search resumes..."
+          aria-label="Search saved resumes"
+          placeholder="Search resumes…"
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           style={{ flex: 1, minWidth: '160px', maxWidth: '240px' }}
@@ -197,13 +209,13 @@ export default function SavedResumesPage() {
               <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenStudio(bm)}>
                 Open Studio
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={(e) => handleStartRename(bm, e)} title="Rename">
+              <button className="btn btn-secondary btn-sm" onClick={(e) => handleStartRename(bm, e)} aria-label={`Rename ${bm.name}`} title="Rename">
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={(e) => handleDuplicate(bm, e)} title="Duplicate">
+              <button className="btn btn-secondary btn-sm" onClick={(e) => handleDuplicate(bm, e)} aria-label={`Duplicate ${bm.name}`} title="Duplicate">
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
               </button>
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={(e) => handleDelete(bm.id, e)} title="Delete">
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={(e) => handleDelete(bm.id, e)} aria-label={`Delete ${bm.name}`} title="Delete">
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
               </button>
             </div>
@@ -211,7 +223,10 @@ export default function SavedResumesPage() {
         ))}
       </div>
 
-      {sortedBookmarks.length === 0 && (
+      {loading && <LoadingState label={bookmarks.length ? 'Refreshing saved resumes…' : 'Loading saved resumes…'} skeleton={!bookmarks.length} />}
+      {error && <div className="loading-error" role="alert">{error} <button className="btn btn-secondary" onClick={loadBookmarks}>Retry</button></div>}
+
+      {!loading && !error && sortedBookmarks.length === 0 && (
         <div style={{
           padding: '60px',
           textAlign: 'center',
@@ -221,7 +236,7 @@ export default function SavedResumesPage() {
           color: 'var(--text-muted)'
         }}>
           <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent)', marginBottom: '8px' }}>bookmark_border</span>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>No saved resumes yet</div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{bookmarks.length ? 'No saved resumes match your search.' : 'No saved resumes yet'}</div>
           <p style={{ fontSize: '0.8rem', marginBottom: '16px' }}>Create templates tailored to individual job requirements here.</p>
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
             Create your first resume
@@ -246,7 +261,7 @@ export default function SavedResumesPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Profile</button>
+                <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? "Creating…" : "Create Profile"}</button>
               </div>
             </form>
           </div>
@@ -302,14 +317,16 @@ export default function SavedResumesPage() {
             <div className="studio-grid" style={{ overflowY: 'auto' }}>
               <div className={`editor-pane ${activeMobileTab === 'preview' ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '300px', flex: 1, height: '100%' }}>
                 <SectionToggleBar sections={jsonData.sections} onToggleSection={handleToggleSection} />
-                <div style={{ flex: 1, position: 'relative', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '260px' }}>
-                  <JsonEditor value={jsonData} onChange={setJsonData} />
+                <div className="studio-editor-frame">
+                  <JsonEditor value={jsonData} onChange={setJsonData} onValidityChange={setJsonValid} />
                 </div>
               </div>
 
               <div className={`preview-pane ${activeMobileTab === 'editor' ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
                 <LivePdfPreview
                   jsonPayload={jsonData}
+                  canCompile={jsonValid}
+                  fileLabel={selectedItem.name}
                   previewType={previewType}
                   includePhoto={includePhoto}
                   onToggleType={setPreviewType}
@@ -320,7 +337,7 @@ export default function SavedResumesPage() {
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '8px', background: 'var(--bg-card)', flexShrink: 0 }}>
               <button className="btn btn-secondary" onClick={() => setSelectedItem(null)}>Close Studio</button>
-              <button className="btn btn-primary" onClick={handleSaveConfig} disabled={savingConfig}>
+              <button className="btn btn-primary" onClick={handleSaveConfig} disabled={savingConfig || !jsonValid}>
                 {savingConfig ? 'Saving...' : 'Save Resume'}
               </button>
             </div>
